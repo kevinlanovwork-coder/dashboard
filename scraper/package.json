@@ -1,0 +1,13 @@
+{
+  "name": "rate-scraper",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "scrape": "node index.js",
+    "scrape:dry": "node index.js --dry-run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "playwright": "^1.40.0"
+  }
+}

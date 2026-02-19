@@ -1,0 +1,56 @@
+/**
+ * 텍스트에서 숫자만 추출 (콤마·원·KRW·IDR 제거)
+ * "1,134,453원" → 1134453
+ */
+export function extractNumber(text) {
+  if (!text) return null;
+  const cleaned = text.replace(/[^0-9.]/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) || num === 0 ? null : num;
+}
+
+/**
+ * 현재 시각을 "YYYY-MM-DD HH:00" 형식으로 반환
+ */
+export function getRunHour() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${hh}:00`;
+}
+
+/**
+ * Playwright 페이지에서 여러 셀렉터 중 하나를 시도
+ */
+export async function trySelectors(page, selectors, timeout = 5000) {
+  for (const selector of selectors) {
+    try {
+      await page.waitForSelector(selector, { timeout });
+      return selector;
+    } catch {
+      // 다음 셀렉터 시도
+    }
+  }
+  return null;
+}
+
+/**
+ * Playwright 페이지에서 여러 셀렉터 중 텍스트를 추출
+ */
+export async function getTextFromSelectors(page, selectors) {
+  for (const selector of selectors) {
+    try {
+      const el = await page.$(selector);
+      if (el) {
+        const text = await el.textContent();
+        const num = extractNumber(text);
+        if (num && num > 100000) return num; // 최소 100,000 KRW 이상이어야 유효
+      }
+    } catch {
+      // 다음 셀렉터 시도
+    }
+  }
+  return null;
+}
