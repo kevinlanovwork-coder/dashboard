@@ -1,0 +1,491 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, ResponsiveContainer, ReferenceLine, Cell,
+} from 'recharts';
+import type { RateRecord } from '@/app/lib/parseRates';
+
+// ─── 헬퍼 함수 ────────────────────────────────────────────────────────────────
+
+function formatKRW(value: number) {
+  return value.toLocaleString('ko-KR') + '원';
+}
+
+function formatRunHour(runHour: string) {
+  const m = runHour.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
+  if (!m) return runHour;
+  return `${parseInt(m[2])}/${parseInt(m[3])} ${m[4]}:00`;
+}
+
+function statusLabel(status: string) {
+  if (status === 'GME') return 'GME';
+  if (status === 'Cheaper than GME') return '더 저렴';
+  if (status === 'Expensive than GME') return '더 비쌈';
+  return status;
+}
+
+function statusColor(status: string) {
+  if (status === 'GME') return { bg: 'bg-blue-500/20', text: 'text-blue-400', hex: '#3b82f6' };
+  if (status === 'Cheaper than GME') return { bg: 'bg-orange-500/20', text: 'text-orange-400', hex: '#f97316' };
+  return { bg: 'bg-green-500/20', text: 'text-green-400', hex: '#22c55e' };
+}
+
+// ─── KPI 카드 ────────────────────────────────────────────────────────────────
+
+function KPICard({
+  title, value, sub, color = 'text-slate-100',
+}: { title: string; value: string; sub?: string; color?: string }) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <p className="text-slate-400 text-xs mb-1">{title}</p>
+      <p className={`text-2xl font-bold ${color}`}>{value}</p>
+      {sub && <p className="text-slate-500 text-xs mt-1">{sub}</p>}
+    </div>
+  );
+}
+
+// ─── 커스텀 툴팁 ──────────────────────────────────────────────────────────────
+
+function SnapshotTooltip({ active, payload }: { active?: boolean; payload?: { payload: RateRecord }[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  const sc = statusColor(d.status);
+  return (
+    <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm shadow-xl">
+      <p className="font-semibold text-slate-100 mb-1">{d.operator}</p>
+      <p className="text-slate-300">총 송금액: <span className="font-mono">{formatKRW(d.totalSendingAmount)}</span></p>
+      {d.priceGap !== null && d.status !== 'GME' && (
+        <p className={d.priceGap < 0 ? 'text-orange-400' : 'text-green-400'}>
+          GME 대비: <span className="font-mono">{d.priceGap > 0 ? '+' : ''}{d.priceGap.toLocaleString('ko-KR')}원</span>
+        </p>
+      )}
+      <span className={`inline-block px-2 py-0.5 rounded-full text-xs mt-1.5 ${sc.bg} ${sc.text}`}>
+        {statusLabel(d.status)}
+      </span>
+    </div>
+  );
+}
+
+function GapTooltip({ active, payload }: { active?: boolean; payload?: { payload: { operator: string; avgGap: number; count: number } }[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm shadow-xl">
+      <p className="font-semibold text-slate-100 mb-1">{d.operator}</p>
+      <p className={d.avgGap < 0 ? 'text-orange-400' : 'text-green-400'}>
+        평균 차이: <span className="font-mono">{d.avgGap > 0 ? '+' : ''}{d.avgGap.toLocaleString('ko-KR')}원</span>
+      </p>
+      <p className="text-slate-400 text-xs mt-1">데이터 수: {d.count}건</p>
+    </div>
+  );
+}
+
+function TrendTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm shadow-xl">
+      <p className="text-slate-400 text-xs mb-1">{label}</p>
+      <p className="font-semibold text-blue-400 font-mono">{formatKRW(payload[0].value)}</p>
+    </div>
+  );
+}
+
+// ─── 메인 대시보드 ────────────────────────────────────────────────────────────
+
+export default function Dashboard({ records }: { records: RateRecord[] }) {
+  const [selectedCountry, setSelectedCountry] = useState('Indonesia');
+  const [selectedRunHour, setSelectedRunHour] = useState('all');
+  const [tableSearch, setTableSearch] = useState('');
+  const [tableStatus, setTableStatus] = useState('all');
+  const [tablePage, setTablePage] = useState(0);
+  const PAGE_SIZE = 20;
+
+  // 국가 목록
+  const countries = useMemo(
+    () => [...new Set(records.map(r => r.receivingCountry))].sort(),
+    [records]
+  );
+
+  // 국가 필터 적용
+  const byCountry = useMemo(
+    () => selectedCountry === 'all' ? records : records.filter(r => r.receivingCountry === selectedCountry),
+    [records, selectedCountry]
+  );
+
+  // 시간대 목록 (정렬)
+  const runHours = useMemo(
+    () => [...new Set(byCountry.map(r => r.runHour))].sort(),
+    [byCountry]
+  );
+
+  // GME 데이터가 있는 최신 시간대
+  const latestRunHour = useMemo(() => {
+    const withGME = runHours.filter(rh =>
+      byCountry.some(r => r.runHour === rh && r.status === 'GME')
+    );
+    return withGME[withGME.length - 1] ?? runHours[runHours.length - 1] ?? '';
+  }, [byCountry, runHours]);
+
+  const targetRunHour = selectedRunHour === 'all' ? latestRunHour : selectedRunHour;
+
+  // 선택된 스냅샷 데이터 (총 송금액 오름차순)
+  const snapshot = useMemo(
+    () => byCountry
+      .filter(r => r.runHour === targetRunHour)
+      .sort((a, b) => a.totalSendingAmount - b.totalSendingAmount),
+    [byCountry, targetRunHour]
+  );
+
+  // GME 기준가 (스냅샷)
+  const snapshotGMEBaseline = useMemo(
+    () => snapshot.find(r => r.status === 'GME')?.totalSendingAmount ?? null,
+    [snapshot]
+  );
+
+  // 운영사별 평균 가격 차이 (비정상 데이터 제외: 총 송금액 < 700,000)
+  const operatorStats = useMemo(() => {
+    const map: Record<string, { gaps: number[]; count: number }> = {};
+    byCountry
+      .filter(r => r.status !== 'GME' && r.priceGap !== null && r.totalSendingAmount >= 700_000)
+      .forEach(r => {
+        if (!map[r.operator]) map[r.operator] = { gaps: [], count: 0 };
+        map[r.operator].gaps.push(r.priceGap!);
+        map[r.operator].count++;
+      });
+    return Object.entries(map)
+      .map(([operator, { gaps, count }]) => ({
+        operator,
+        avgGap: Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length),
+        count,
+      }))
+      .sort((a, b) => a.avgGap - b.avgGap);
+  }, [byCountry]);
+
+  // GME 기준가 추이
+  const trendData = useMemo(() => {
+    const map: Record<string, number> = {};
+    byCountry
+      .filter(r => r.gmeBaseline !== null && r.gmeBaseline >= 700_000)
+      .forEach(r => {
+        if (!map[r.runHour]) map[r.runHour] = r.gmeBaseline!;
+      });
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([runHour, gmeBaseline]) => ({ runHour, label: formatRunHour(runHour), gmeBaseline }));
+  }, [byCountry]);
+
+  // KPI 계산
+  const latestGMEBaseline = trendData[trendData.length - 1]?.gmeBaseline ?? null;
+  const cheaperCount = snapshot.filter(r => r.status === 'Cheaper than GME').length;
+  const expensiveCount = snapshot.filter(r => r.status === 'Expensive than GME').length;
+  const totalCompetitors = snapshot.filter(r => r.status !== 'GME').length;
+  const operators = useMemo(() => [...new Set(byCountry.map(r => r.operator))], [byCountry]);
+
+  // 테이블 데이터
+  const tableData = useMemo(() => {
+    let data = byCountry;
+    if (tableSearch) {
+      const q = tableSearch.toLowerCase();
+      data = data.filter(r => r.operator.toLowerCase().includes(q));
+    }
+    if (tableStatus !== 'all') {
+      data = data.filter(r => r.status === tableStatus);
+    }
+    return [...data].sort((a, b) => b.runHour.localeCompare(a.runHour));
+  }, [byCountry, tableSearch, tableStatus]);
+
+  const totalPages = Math.ceil(tableData.length / PAGE_SIZE);
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      {/* 헤더 */}
+      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold text-slate-100 tracking-tight">환율 비교 대시보드</h1>
+            <p className="text-slate-500 text-xs mt-0.5">해외 송금 서비스 요율 경쟁력 분석</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={selectedCountry}
+              onChange={e => { setSelectedCountry(e.target.value); setSelectedRunHour('all'); setTablePage(0); }}
+              className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">전체 국가</option>
+              {countries.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select
+              value={selectedRunHour}
+              onChange={e => setSelectedRunHour(e.target.value)}
+              className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">최신 스냅샷</option>
+              {[...runHours].reverse().map(rh => (
+                <option key={rh} value={rh}>{formatRunHour(rh)}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* KPI 카드 */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <KPICard
+            title="총 데이터 포인트"
+            value={byCountry.length.toLocaleString()}
+            sub={`${runHours.length}개 시간대`}
+          />
+          <KPICard
+            title="추적 운영사"
+            value={`${operators.length}개`}
+            sub="서비스"
+          />
+          <KPICard
+            title="최신 GME 기준가"
+            value={latestGMEBaseline ? `${latestGMEBaseline.toLocaleString('ko-KR')}원` : '-'}
+            sub={latestRunHour ? formatRunHour(latestRunHour) : ''}
+            color="text-blue-400"
+          />
+          <KPICard
+            title="더 저렴한 경쟁사"
+            value={`${cheaperCount} / ${totalCompetitors}`}
+            sub="스냅샷 기준"
+            color={cheaperCount > totalCompetitors / 2 ? 'text-orange-400' : 'text-green-400'}
+          />
+          <KPICard
+            title="GME 우위 경쟁사"
+            value={`${expensiveCount} / ${totalCompetitors}`}
+            sub="GME보다 비싼 서비스"
+            color={expensiveCount > totalCompetitors / 2 ? 'text-green-400' : 'text-orange-400'}
+          />
+        </div>
+
+        {/* 스냅샷 + 평균 가격 차이 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 스냅샷 비교 */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+            <h2 className="text-sm font-semibold text-slate-100">스냅샷 비교 — 총 송금액</h2>
+            <p className="text-slate-500 text-xs mt-0.5 mb-4">{formatRunHour(targetRunHour)} 기준 (KRW, 낮을수록 유리)</p>
+            {snapshot.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={snapshot} layout="vertical" margin={{ top: 0, right: 55, left: 88, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                  <XAxis
+                    type="number"
+                    domain={['auto', 'auto']}
+                    tickFormatter={v => `${(v / 1000).toFixed(0)}K`}
+                    tick={{ fill: '#64748b', fontSize: 11 }}
+                    axisLine={{ stroke: '#1e293b' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="operator"
+                    tick={{ fill: '#cbd5e1', fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={85}
+                  />
+                  <Tooltip content={<SnapshotTooltip />} cursor={{ fill: 'rgba(148,163,184,0.04)' }} />
+                  {snapshotGMEBaseline && (
+                    <ReferenceLine
+                      x={snapshotGMEBaseline}
+                      stroke="#3b82f6"
+                      strokeDasharray="5 3"
+                      label={{ value: 'GME', fill: '#60a5fa', fontSize: 11, position: 'right' }}
+                    />
+                  )}
+                  <Bar dataKey="totalSendingAmount" radius={[0, 4, 4, 0]}>
+                    {snapshot.map((entry, i) => (
+                      <Cell key={i} fill={statusColor(entry.status).hex} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-72 flex items-center justify-center text-slate-500 text-sm">데이터 없음</div>
+            )}
+            <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block" />GME (기준)</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />GME보다 비쌈</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />GME보다 저렴</span>
+            </div>
+          </div>
+
+          {/* 운영사별 평균 가격 차이 */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+            <h2 className="text-sm font-semibold text-slate-100">운영사별 평균 가격 차이</h2>
+            <p className="text-slate-500 text-xs mt-0.5 mb-4">전체 기간 평균 (GME 기준, KRW)</p>
+            {operatorStats.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={operatorStats} layout="vertical" margin={{ top: 0, right: 55, left: 88, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                  <XAxis
+                    type="number"
+                    tickFormatter={v => `${v > 0 ? '+' : ''}${(v / 1000).toFixed(1)}K`}
+                    tick={{ fill: '#64748b', fontSize: 11 }}
+                    axisLine={{ stroke: '#1e293b' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="operator"
+                    tick={{ fill: '#cbd5e1', fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={85}
+                  />
+                  <Tooltip content={<GapTooltip />} cursor={{ fill: 'rgba(148,163,184,0.04)' }} />
+                  <ReferenceLine x={0} stroke="#334155" strokeWidth={1.5} />
+                  <Bar dataKey="avgGap" radius={[0, 4, 4, 0]}>
+                    {operatorStats.map((entry, i) => (
+                      <Cell key={i} fill={entry.avgGap < 0 ? '#f97316' : '#22c55e'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-72 flex items-center justify-center text-slate-500 text-sm">데이터 없음</div>
+            )}
+            <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />GME보다 비쌈 (GME 유리)</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />GME보다 저렴 (GME 불리)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* GME 기준가 추이 */}
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-slate-100">GME 기준가 추이</h2>
+          <p className="text-slate-500 text-xs mt-0.5 mb-4">시간에 따른 GME 총 송금액 변화 (KRW)</p>
+          {trendData.length > 1 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={trendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: '#64748b', fontSize: 11 }}
+                  axisLine={{ stroke: '#1e293b' }}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tickFormatter={v => `${(v / 1000).toFixed(0)}K`}
+                  tick={{ fill: '#64748b', fontSize: 11 }}
+                  axisLine={{ stroke: '#1e293b' }}
+                  tickLine={false}
+                  domain={['auto', 'auto']}
+                  width={42}
+                />
+                <Tooltip content={<TrendTooltip />} />
+                <Line
+                  type="monotone"
+                  dataKey="gmeBaseline"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  dot={{ fill: '#3b82f6', r: 3, strokeWidth: 0 }}
+                  activeDot={{ r: 5, fill: '#60a5fa', strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-48 flex items-center justify-center text-slate-500 text-sm">데이터 부족</div>
+          )}
+        </div>
+
+        {/* 데이터 테이블 */}
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-100">상세 데이터</h2>
+              <p className="text-slate-500 text-xs mt-0.5">{tableData.length.toLocaleString()}건</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="text"
+                placeholder="운영사 검색..."
+                value={tableSearch}
+                onChange={e => { setTableSearch(e.target.value); setTablePage(0); }}
+                className="bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-36"
+              />
+              <select
+                value={tableStatus}
+                onChange={e => { setTableStatus(e.target.value); setTablePage(0); }}
+                className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">전체 상태</option>
+                <option value="GME">GME</option>
+                <option value="Cheaper than GME">더 저렴</option>
+                <option value="Expensive than GME">더 비쌈</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-800">
+                  {['시간대', '운영사', '국가', '총 송금액', 'GME 기준가', '차이', '상태'].map(h => (
+                    <th key={h} className={`py-2.5 px-3 text-slate-500 font-medium text-xs ${h === '총 송금액' || h === 'GME 기준가' || h === '차이' ? 'text-right' : h === '상태' ? 'text-center' : 'text-left'}`}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {tableData.slice(tablePage * PAGE_SIZE, (tablePage + 1) * PAGE_SIZE).map((r, i) => {
+                  const sc = statusColor(r.status);
+                  return (
+                    <tr key={i} className="border-b border-slate-800/40 hover:bg-slate-800/20 transition-colors">
+                      <td className="py-2.5 px-3 text-slate-400 font-mono text-xs whitespace-nowrap">{formatRunHour(r.runHour)}</td>
+                      <td className="py-2.5 px-3 text-slate-200 whitespace-nowrap">{r.operator}</td>
+                      <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">{r.receivingCountry}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-200 font-mono whitespace-nowrap">{r.totalSendingAmount.toLocaleString('ko-KR')}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-400 font-mono whitespace-nowrap">
+                        {r.gmeBaseline ? r.gmeBaseline.toLocaleString('ko-KR') : '—'}
+                      </td>
+                      <td className={`py-2.5 px-3 text-right font-mono whitespace-nowrap ${r.priceGap === null || r.priceGap === 0 ? 'text-slate-500' : r.priceGap < 0 ? 'text-orange-400' : 'text-green-400'}`}>
+                        {r.priceGap !== null && r.priceGap !== 0
+                          ? `${r.priceGap > 0 ? '+' : ''}${r.priceGap.toLocaleString('ko-KR')}`
+                          : '—'}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
+                          {statusLabel(r.status)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 text-xs text-slate-500">
+              <span>
+                {(tablePage * PAGE_SIZE + 1).toLocaleString()}–{Math.min((tablePage + 1) * PAGE_SIZE, tableData.length).toLocaleString()} / {tableData.length.toLocaleString()}건
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setTablePage(p => Math.max(0, p - 1))}
+                  disabled={tablePage === 0}
+                  className="px-3 py-1 bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-700 transition-colors"
+                >이전</button>
+                <span className="px-2">{tablePage + 1} / {totalPages}</span>
+                <button
+                  onClick={() => setTablePage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={tablePage >= totalPages - 1}
+                  className="px-3 py-1 bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-700 transition-colors"
+                >다음</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
