@@ -2,8 +2,12 @@
 
 # dependencies
 /node_modules
+**/node_modules
 /.pnp
 .pnp.js
+
+# Claude Code internals
+.claude/
 
 # testing
 /coverage
