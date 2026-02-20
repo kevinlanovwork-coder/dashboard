@@ -10,14 +10,15 @@ export function extractNumber(text) {
 }
 
 /**
- * 현재 시각을 "YYYY-MM-DD HH:00" 형식으로 반환
+ * 현재 시각을 KST (UTC+9) 기준 "YYYY-MM-DD HH:00" 형식으로 반환
+ * GitHub Actions(UTC)와 로컬(KST) 모두 동일한 값을 반환
  */
 export function getRunHour() {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const hh = String(now.getHours()).padStart(2, '0');
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const yyyy = kst.getUTCFullYear();
+  const mm = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(kst.getUTCDate()).padStart(2, '0');
+  const hh = String(kst.getUTCHours()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd} ${hh}:00`;
 }
 
