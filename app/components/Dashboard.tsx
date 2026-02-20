@@ -7,10 +7,116 @@ import {
 } from 'recharts';
 import type { RateRecord } from '@/app/lib/parseRates';
 
-// ─── 헬퍼 함수 ────────────────────────────────────────────────────────────────
+// ─── Translations ─────────────────────────────────────────────────────────────
 
-function formatKRW(value: number) {
-  return value.toLocaleString('ko-KR') + '원';
+const EN = {
+  title: 'Exchange Rate Comparison Dashboard',
+  subtitle: 'Remittance Service Rate Competitiveness Analysis',
+  allCountries: 'All Countries',
+  latestSnapshot: 'Latest Snapshot',
+  totalDataPoints: 'Total Data Points',
+  timeSlots: (n: number) => `${n} time slots`,
+  trackedOperators: 'Tracked Operators',
+  services: 'services',
+  latestGMEBaseline: 'Latest GME Baseline',
+  cheaperCompetitors: 'Cheaper Competitors',
+  basedOnSnapshot: 'Based on snapshot',
+  expensiveCompetitors: 'More Expensive Competitors',
+  pricierThanGME: 'Services pricier than GME',
+  snapshotTitle: 'Snapshot Comparison — Total Send Amount',
+  snapshotSub: (time: string) => `as of ${time} (KRW, lower is better)`,
+  noData: 'No data',
+  gmeBaselineLegend: 'GME (baseline)',
+  moreExpensiveLegend: 'More expensive than GME',
+  cheaperLegend: 'Cheaper than GME',
+  avgDiffTitle: 'Avg. Price Difference by Operator',
+  avgDiffSub: 'All-time average (vs GME, KRW)',
+  gmeWins: 'More expensive than GME (GME wins)',
+  gmeLoses: 'Cheaper than GME (GME loses)',
+  trendTitle: 'GME Baseline Trend',
+  trendSub: 'GME total send amount over time (KRW)',
+  insufficientData: 'Insufficient data',
+  detailedData: 'Detailed Data',
+  records: (n: number) => `${n.toLocaleString()} records`,
+  searchOperator: 'Search operator...',
+  allStatus: 'All Status',
+  tableHeaders: ['Time', 'Operator', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Status'],
+  rightAlignHeaders: ['Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff'],
+  pagination: (start: number, end: number, total: number) =>
+    `${start.toLocaleString()}–${end.toLocaleString()} of ${total.toLocaleString()}`,
+  prev: 'Prev',
+  next: 'Next',
+  totalSendLabel: 'Total send:',
+  vsGME: 'vs GME:',
+  avgDiffLabel: 'Avg. diff:',
+  dataPoints: (n: number) => `Data points: ${n}`,
+  lightModeTitle: 'Switch to Light Mode',
+  darkModeTitle: 'Switch to Dark Mode',
+  light: 'Light',
+  dark: 'Dark',
+  statusGME: 'GME',
+  statusCheaper: 'Cheaper',
+  statusExpensive: 'More Expensive',
+  won: ' KRW',
+};
+
+const KO = {
+  title: '환율 비교 대시보드',
+  subtitle: '해외 송금 서비스 요율 경쟁력 분석',
+  allCountries: '전체 국가',
+  latestSnapshot: '최신 스냅샷',
+  totalDataPoints: '총 데이터 포인트',
+  timeSlots: (n: number) => `${n}개 시간대`,
+  trackedOperators: '추적 운영사',
+  services: '서비스',
+  latestGMEBaseline: '최신 GME 기준가',
+  cheaperCompetitors: '더 저렴한 경쟁사',
+  basedOnSnapshot: '스냅샷 기준',
+  expensiveCompetitors: 'GME 우위 경쟁사',
+  pricierThanGME: 'GME보다 비싼 서비스',
+  snapshotTitle: '스냅샷 비교 — 총 송금액',
+  snapshotSub: (time: string) => `${time} 기준 (KRW, 낮을수록 유리)`,
+  noData: '데이터 없음',
+  gmeBaselineLegend: 'GME (기준)',
+  moreExpensiveLegend: 'GME보다 비쌈',
+  cheaperLegend: 'GME보다 저렴',
+  avgDiffTitle: '운영사별 평균 가격 차이',
+  avgDiffSub: '전체 기간 평균 (GME 기준, KRW)',
+  gmeWins: 'GME보다 비쌈 (GME 유리)',
+  gmeLoses: 'GME보다 저렴 (GME 불리)',
+  trendTitle: 'GME 기준가 추이',
+  trendSub: '시간에 따른 GME 총 송금액 변화 (KRW)',
+  insufficientData: '데이터 부족',
+  detailedData: '상세 데이터',
+  records: (n: number) => `${n.toLocaleString()}건`,
+  searchOperator: '운영사 검색...',
+  allStatus: '전체 상태',
+  tableHeaders: ['시간대', '운영사', '국가', '수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '상태'],
+  rightAlignHeaders: ['수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이'],
+  pagination: (start: number, end: number, total: number) =>
+    `${start.toLocaleString()}–${end.toLocaleString()} / ${total.toLocaleString()}건`,
+  prev: '이전',
+  next: '다음',
+  totalSendLabel: '총 송금액:',
+  vsGME: 'GME 대비:',
+  avgDiffLabel: '평균 차이:',
+  dataPoints: (n: number) => `데이터 수: ${n}건`,
+  lightModeTitle: '라이트 모드로 전환',
+  darkModeTitle: '다크 모드로 전환',
+  light: 'Light',
+  dark: 'Dark',
+  statusGME: 'GME',
+  statusCheaper: '더 저렴',
+  statusExpensive: '더 비쌈',
+  won: '원',
+};
+
+type T = typeof EN;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatKRW(value: number, t: T) {
+  return value.toLocaleString('ko-KR') + t.won;
 }
 
 function formatRunHour(runHour: string) {
@@ -19,10 +125,10 @@ function formatRunHour(runHour: string) {
   return `${parseInt(m[2])}/${parseInt(m[3])} ${m[4]}:00`;
 }
 
-function statusLabel(status: string) {
-  if (status === 'GME') return 'GME';
-  if (status === 'Cheaper than GME') return '더 저렴';
-  if (status === 'Expensive than GME') return '더 비쌈';
+function statusLabel(status: string, t: T) {
+  if (status === 'GME') return t.statusGME;
+  if (status === 'Cheaper than GME') return t.statusCheaper;
+  if (status === 'Expensive than GME') return t.statusExpensive;
   return status;
 }
 
@@ -33,20 +139,12 @@ function statusColor(status: string) {
 }
 
 const CURRENCY_MAP: Record<string, string> = {
-  'Indonesia': 'IDR',
-  'Thailand': 'THB',
-  'Vietnam': 'VND',
-  'Philippines': 'PHP',
-  'Nepal': 'NPR',
-  'Malaysia': 'MYR',
-  'Singapore': 'SGD',
-  'Cambodia': 'USD',
-  'Japan': 'JPY',
-  'China': 'CNY',
-  'Mongolia': 'MNT',
+  Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Philippines: 'PHP',
+  Nepal: 'NPR', Malaysia: 'MYR', Singapore: 'SGD', Cambodia: 'USD',
+  Japan: 'JPY', China: 'CNY', Mongolia: 'MNT',
 };
 
-// ─── 아이콘 ───────────────────────────────────────────────────────────────────
+// ─── Icons ────────────────────────────────────────────────────────────────────
 
 function SunIcon() {
   return (
@@ -64,7 +162,7 @@ function MoonIcon() {
   );
 }
 
-// ─── KPI 카드 ────────────────────────────────────────────────────────────────
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KPICard({
   title, value, sub, color = 'text-slate-900 dark:text-slate-100',
@@ -78,56 +176,57 @@ function KPICard({
   );
 }
 
-// ─── 커스텀 툴팁 ──────────────────────────────────────────────────────────────
+// ─── Tooltips ─────────────────────────────────────────────────────────────────
 
-function SnapshotTooltip({ active, payload }: { active?: boolean; payload?: { payload: RateRecord }[] }) {
+function SnapshotTooltip({ active, payload, t }: { active?: boolean; payload?: readonly { payload: RateRecord }[]; t: T }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   const sc = statusColor(d.status);
   return (
     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm shadow-xl">
       <p className="font-semibold text-slate-900 dark:text-slate-100 mb-1">{d.operator}</p>
-      <p className="text-slate-600 dark:text-slate-300">총 송금액: <span className="font-mono">{formatKRW(d.totalSendingAmount)}</span></p>
+      <p className="text-slate-600 dark:text-slate-300">{t.totalSendLabel} <span className="font-mono">{formatKRW(d.totalSendingAmount, t)}</span></p>
       {d.priceGap !== null && d.status !== 'GME' && (
         <p className={d.priceGap < 0 ? 'text-orange-500 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}>
-          GME 대비: <span className="font-mono">{d.priceGap > 0 ? '+' : ''}{d.priceGap.toLocaleString('ko-KR')}원</span>
+          {t.vsGME} <span className="font-mono">{d.priceGap > 0 ? '+' : ''}{d.priceGap.toLocaleString('ko-KR')}{t.won}</span>
         </p>
       )}
       <span className={`inline-block px-2 py-0.5 rounded-full text-xs mt-1.5 ${sc.bg} ${sc.text}`}>
-        {statusLabel(d.status)}
+        {statusLabel(d.status, t)}
       </span>
     </div>
   );
 }
 
-function GapTooltip({ active, payload }: { active?: boolean; payload?: { payload: { operator: string; avgGap: number; count: number } }[] }) {
+function GapTooltip({ active, payload, t }: { active?: boolean; payload?: readonly { payload: { operator: string; avgGap: number; count: number } }[]; t: T }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm shadow-xl">
       <p className="font-semibold text-slate-900 dark:text-slate-100 mb-1">{d.operator}</p>
       <p className={d.avgGap < 0 ? 'text-orange-500 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}>
-        평균 차이: <span className="font-mono">{d.avgGap > 0 ? '+' : ''}{d.avgGap.toLocaleString('ko-KR')}원</span>
+        {t.avgDiffLabel} <span className="font-mono">{d.avgGap > 0 ? '+' : ''}{d.avgGap.toLocaleString('ko-KR')}{t.won}</span>
       </p>
-      <p className="text-slate-400 dark:text-slate-400 text-xs mt-1">데이터 수: {d.count}건</p>
+      <p className="text-slate-400 dark:text-slate-400 text-xs mt-1">{t.dataPoints(d.count)}</p>
     </div>
   );
 }
 
-function TrendTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
+function TrendTooltip({ active, payload, label, t }: { active?: boolean; payload?: readonly { value: number }[]; label?: string | number; t: T }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm shadow-xl">
       <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{label}</p>
-      <p className="font-semibold text-blue-600 dark:text-blue-400 font-mono">{formatKRW(payload[0].value)}</p>
+      <p className="font-semibold text-blue-600 dark:text-blue-400 font-mono">{formatKRW(payload[0].value, t)}</p>
     </div>
   );
 }
 
-// ─── 메인 대시보드 ────────────────────────────────────────────────────────────
+// ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function Dashboard({ records }: { records: RateRecord[] }) {
   const [isDark, setIsDark] = useState(false);
+  const [isEn, setIsEn] = useState(true);
   const [selectedCountry, setSelectedCountry] = useState('Indonesia');
   const [selectedRunHour, setSelectedRunHour] = useState('all');
   const [tableSearch, setTableSearch] = useState('');
@@ -135,7 +234,9 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
   const [tablePage, setTablePage] = useState(0);
   const PAGE_SIZE = 20;
 
-  // 다크모드 localStorage 유지
+  const t = isEn ? EN : KO;
+
+  // Persist theme preference
   useEffect(() => {
     const saved = localStorage.getItem('dashboard-theme');
     if (saved === 'dark') setIsDark(true);
@@ -144,34 +245,38 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
     localStorage.setItem('dashboard-theme', isDark ? 'dark' : 'light');
   }, [isDark]);
 
-  // 차트 테마 (hex 색상값)
+  // Persist language preference
+  useEffect(() => {
+    const saved = localStorage.getItem('dashboard-lang');
+    if (saved === 'ko') setIsEn(false);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem('dashboard-lang', isEn ? 'en' : 'ko');
+  }, [isEn]);
+
   const ct = {
-    grid:      isDark ? '#1e293b' : '#e2e8f0',
-    tick:      isDark ? '#64748b' : '#94a3b8',
-    axisLine:  isDark ? '#1e293b' : '#e2e8f0',
-    yLabel:    isDark ? '#cbd5e1' : '#475569',
-    refLine:   isDark ? '#334155' : '#cbd5e1',
+    grid:     isDark ? '#1e293b' : '#e2e8f0',
+    tick:     isDark ? '#64748b' : '#94a3b8',
+    axisLine: isDark ? '#1e293b' : '#e2e8f0',
+    yLabel:   isDark ? '#cbd5e1' : '#475569',
+    refLine:  isDark ? '#334155' : '#cbd5e1',
   };
 
-  // 국가 목록
   const countries = useMemo(
     () => [...new Set(records.map(r => r.receivingCountry))].sort(),
     [records]
   );
 
-  // 국가 필터 적용
   const byCountry = useMemo(
     () => selectedCountry === 'all' ? records : records.filter(r => r.receivingCountry === selectedCountry),
     [records, selectedCountry]
   );
 
-  // 시간대 목록
   const runHours = useMemo(
     () => [...new Set(byCountry.map(r => r.runHour))].sort(),
     [byCountry]
   );
 
-  // GME 데이터가 있는 최신 시간대
   const latestRunHour = useMemo(() => {
     const withGME = runHours.filter(rh =>
       byCountry.some(r => r.runHour === rh && r.status === 'GME')
@@ -181,7 +286,6 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
 
   const targetRunHour = selectedRunHour === 'all' ? latestRunHour : selectedRunHour;
 
-  // 선택된 스냅샷
   const snapshot = useMemo(
     () => byCountry
       .filter(r => r.runHour === targetRunHour)
@@ -194,7 +298,6 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
     [snapshot]
   );
 
-  // 운영사별 평균 가격 차이
   const operatorStats = useMemo(() => {
     const map: Record<string, { gaps: number[]; count: number }> = {};
     byCountry
@@ -213,7 +316,6 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
       .sort((a, b) => a.avgGap - b.avgGap);
   }, [byCountry]);
 
-  // GME 기준가 추이
   const trendData = useMemo(() => {
     const map: Record<string, number> = {};
     byCountry
@@ -250,12 +352,12 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
     <div className={isDark ? 'dark' : ''}>
       <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
 
-        {/* 헤더 */}
+        {/* Header */}
         <header className="sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur">
           <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h1 className="text-lg font-bold tracking-tight">환율 비교 대시보드</h1>
-              <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">해외 송금 서비스 요율 경쟁력 분석</p>
+              <h1 className="text-lg font-bold tracking-tight">{t.title}</h1>
+              <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.subtitle}</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <select
@@ -263,7 +365,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                 onChange={e => { setSelectedCountry(e.target.value); setSelectedRunHour('all'); setTablePage(0); }}
                 className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="all">전체 국가</option>
+                <option value="all">{t.allCountries}</option>
                 {countries.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <select
@@ -271,63 +373,80 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                 onChange={e => setSelectedRunHour(e.target.value)}
                 className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="all">최신 스냅샷</option>
+                <option value="all">{t.latestSnapshot}</option>
                 {[...runHours].reverse().map(rh => (
                   <option key={rh} value={rh}>{formatRunHour(rh)}</option>
                 ))}
               </select>
-              {/* 다크/라이트 모드 토글 */}
+
+              {/* Language toggle */}
+              <div className="flex rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden text-sm">
+                <button
+                  onClick={() => setIsEn(true)}
+                  className={`px-3 py-1.5 transition-colors ${isEn ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                >
+                  EN
+                </button>
+                <button
+                  onClick={() => setIsEn(false)}
+                  className={`px-3 py-1.5 transition-colors ${!isEn ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                >
+                  한국어
+                </button>
+              </div>
+
+              {/* Dark / Light toggle */}
               <button
                 onClick={() => setIsDark(d => !d)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                title={isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}
+                title={isDark ? t.lightModeTitle : t.darkModeTitle}
               >
                 {isDark ? <SunIcon /> : <MoonIcon />}
-                {isDark ? 'Light' : 'Dark'}
+                {isDark ? t.light : t.dark}
               </button>
             </div>
           </div>
         </header>
 
         <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-          {/* KPI 카드 */}
+          {/* KPI Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <KPICard
-              title="총 데이터 포인트"
+              title={t.totalDataPoints}
               value={byCountry.length.toLocaleString()}
-              sub={`${runHours.length}개 시간대`}
+              sub={t.timeSlots(runHours.length)}
             />
             <KPICard
-              title="추적 운영사"
-              value={`${operators.length}개`}
-              sub="서비스"
+              title={t.trackedOperators}
+              value={`${operators.length}`}
+              sub={t.services}
             />
             <KPICard
-              title="최신 GME 기준가"
-              value={latestGMEBaseline ? `${latestGMEBaseline.toLocaleString('ko-KR')}원` : '-'}
+              title={t.latestGMEBaseline}
+              value={latestGMEBaseline ? `${latestGMEBaseline.toLocaleString('ko-KR')}${t.won}` : '-'}
               sub={latestRunHour ? formatRunHour(latestRunHour) : ''}
               color="text-blue-600 dark:text-blue-400"
             />
             <KPICard
-              title="더 저렴한 경쟁사"
+              title={t.cheaperCompetitors}
               value={`${cheaperCount} / ${totalCompetitors}`}
-              sub="스냅샷 기준"
+              sub={t.basedOnSnapshot}
               color={cheaperCount > totalCompetitors / 2 ? 'text-orange-500 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}
             />
             <KPICard
-              title="GME 우위 경쟁사"
+              title={t.expensiveCompetitors}
               value={`${expensiveCount} / ${totalCompetitors}`}
-              sub="GME보다 비싼 서비스"
+              sub={t.pricierThanGME}
               color={expensiveCount > totalCompetitors / 2 ? 'text-green-600 dark:text-green-400' : 'text-orange-500 dark:text-orange-400'}
             />
           </div>
 
-          {/* 스냅샷 + 평균 가격 차이 */}
+          {/* Snapshot + Avg Gap */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 스냅샷 비교 */}
+            {/* Snapshot */}
             <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-              <h2 className="text-sm font-semibold">스냅샷 비교 — 총 송금액</h2>
-              <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5 mb-4">{formatRunHour(targetRunHour)} 기준 (KRW, 낮을수록 유리)</p>
+              <h2 className="text-sm font-semibold">{t.snapshotTitle}</h2>
+              <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5 mb-4">{t.snapshotSub(formatRunHour(targetRunHour))}</p>
               {snapshot.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={snapshot} layout="vertical" margin={{ top: 0, right: 55, left: 88, bottom: 0 }}>
@@ -348,7 +467,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                       tickLine={false}
                       width={85}
                     />
-                    <Tooltip content={<SnapshotTooltip />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
+                    <Tooltip content={(props) => <SnapshotTooltip {...props} t={t} />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
                     {snapshotGMEBaseline && (
                       <ReferenceLine
                         x={snapshotGMEBaseline}
@@ -365,19 +484,19 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">데이터 없음</div>
+                <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.noData}</div>
               )}
               <div className="flex items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block" />GME (기준)</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />GME보다 비쌈</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />GME보다 저렴</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block" />{t.gmeBaselineLegend}</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.moreExpensiveLegend}</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.cheaperLegend}</span>
               </div>
             </div>
 
-            {/* 운영사별 평균 가격 차이 */}
+            {/* Avg Gap */}
             <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-              <h2 className="text-sm font-semibold">운영사별 평균 가격 차이</h2>
-              <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5 mb-4">전체 기간 평균 (GME 기준, KRW)</p>
+              <h2 className="text-sm font-semibold">{t.avgDiffTitle}</h2>
+              <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5 mb-4">{t.avgDiffSub}</p>
               {operatorStats.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={operatorStats} layout="vertical" margin={{ top: 0, right: 55, left: 88, bottom: 0 }}>
@@ -397,7 +516,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                       tickLine={false}
                       width={85}
                     />
-                    <Tooltip content={<GapTooltip />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
+                    <Tooltip content={(props) => <GapTooltip {...props} t={t} />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
                     <ReferenceLine x={0} stroke={ct.refLine} strokeWidth={1.5} />
                     <Bar dataKey="avgGap" radius={[0, 4, 4, 0]}>
                       {operatorStats.map((entry, i) => (
@@ -407,19 +526,19 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">데이터 없음</div>
+                <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.noData}</div>
               )}
               <div className="flex items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />GME보다 비쌈 (GME 유리)</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />GME보다 저렴 (GME 불리)</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.gmeWins}</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.gmeLoses}</span>
               </div>
             </div>
           </div>
 
-          {/* GME 기준가 추이 */}
+          {/* GME Trend */}
           <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-            <h2 className="text-sm font-semibold">GME 기준가 추이</h2>
-            <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5 mb-4">시간에 따른 GME 총 송금액 변화 (KRW)</p>
+            <h2 className="text-sm font-semibold">{t.trendTitle}</h2>
+            <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5 mb-4">{t.trendSub}</p>
             {trendData.length > 1 ? (
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={trendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
@@ -439,7 +558,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                     domain={['auto', 'auto']}
                     width={42}
                   />
-                  <Tooltip content={<TrendTooltip />} />
+                  <Tooltip content={(props) => <TrendTooltip {...props} t={t} />} />
                   <Line
                     type="monotone"
                     dataKey="gmeBaseline"
@@ -451,21 +570,21 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-48 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">데이터 부족</div>
+              <div className="h-48 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.insufficientData}</div>
             )}
           </div>
 
-          {/* 데이터 테이블 */}
+          {/* Data Table */}
           <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div>
-                <h2 className="text-sm font-semibold">상세 데이터</h2>
-                <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{tableData.length.toLocaleString()}건</p>
+                <h2 className="text-sm font-semibold">{t.detailedData}</h2>
+                <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.records(tableData.length)}</p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   type="text"
-                  placeholder="운영사 검색..."
+                  placeholder={t.searchOperator}
                   value={tableSearch}
                   onChange={e => { setTableSearch(e.target.value); setTablePage(0); }}
                   className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-36"
@@ -475,10 +594,10 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                   onChange={e => { setTableStatus(e.target.value); setTablePage(0); }}
                   className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="all">전체 상태</option>
+                  <option value="all">{t.allStatus}</option>
                   <option value="GME">GME</option>
-                  <option value="Cheaper than GME">더 저렴</option>
-                  <option value="Expensive than GME">더 비쌈</option>
+                  <option value="Cheaper than GME">{t.statusCheaper}</option>
+                  <option value="Expensive than GME">{t.statusExpensive}</option>
                 </select>
               </div>
             </div>
@@ -487,8 +606,8 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800">
-                    {['시간대', '운영사', '국가', '수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '상태'].map(h => (
-                      <th key={h} className={`py-2.5 px-3 text-slate-500 dark:text-slate-500 font-medium text-xs ${['수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이'].includes(h) ? 'text-right' : h === '상태' ? 'text-center' : 'text-left'}`}>
+                    {t.tableHeaders.map(h => (
+                      <th key={h} className={`py-2.5 px-3 text-slate-500 dark:text-slate-500 font-medium text-xs ${t.rightAlignHeaders.includes(h) ? 'text-right' : h === t.tableHeaders[9] ? 'text-center' : 'text-left'}`}>
                         {h}
                       </th>
                     ))}
@@ -518,7 +637,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                         </td>
                         <td className="py-2.5 px-3 text-center">
                           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
-                            {statusLabel(r.status)}
+                            {statusLabel(r.status, t)}
                           </span>
                         </td>
                       </tr>
@@ -531,20 +650,24 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4 text-xs text-slate-500 dark:text-slate-500">
                 <span>
-                  {(tablePage * PAGE_SIZE + 1).toLocaleString()}–{Math.min((tablePage + 1) * PAGE_SIZE, tableData.length).toLocaleString()} / {tableData.length.toLocaleString()}건
+                  {t.pagination(
+                    tablePage * PAGE_SIZE + 1,
+                    Math.min((tablePage + 1) * PAGE_SIZE, tableData.length),
+                    tableData.length
+                  )}
                 </span>
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => setTablePage(p => Math.max(0, p - 1))}
                     disabled={tablePage === 0}
                     className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
-                  >이전</button>
+                  >{t.prev}</button>
                   <span className="px-2">{tablePage + 1} / {totalPages}</span>
                   <button
                     onClick={() => setTablePage(p => Math.min(totalPages - 1, p + 1))}
                     disabled={tablePage >= totalPages - 1}
                     className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
-                  >다음</button>
+                  >{t.next}</button>
                 </div>
               </div>
             )}
