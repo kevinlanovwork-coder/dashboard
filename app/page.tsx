@@ -2,12 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import Dashboard from './components/Dashboard';
 import type { RateRecord } from './lib/parseRates';
 
-export const revalidate = 300; // 5분마다 갱신
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!,
-);
+// 빌드 시 정적 생성 방지 — 항상 서버에서 실시간 렌더링
+export const dynamic = 'force-dynamic';
 
 function mapStatus(dbStatus: string | null, operator: string): string {
   if (operator === 'GME') return 'GME';
@@ -17,6 +13,11 @@ function mapStatus(dbStatus: string | null, operator: string): string {
 }
 
 export default async function Home() {
+  const supabase = createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_ANON_KEY!,
+  );
+
   const { data, error } = await supabase
     .from('rate_records')
     .select('*')
