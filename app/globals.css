@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode: add `dark` class to a wrapper div */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #020617;
-  --foreground: #f1f5f9;
+  --background: #ffffff;
+  --foreground: #0f172a;
 }
 
 @theme inline {
