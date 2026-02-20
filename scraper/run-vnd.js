@@ -75,7 +75,7 @@ async function scrapeSbi(browser) {
     const raw = await page.inputValue('#krwAmount');
     const sendAmt = extractNumber(raw);
     if (!sendAmt) throw new Error('총 송금액 추출 실패');
-    const fee = 5000;
+    const fee = 7000;
     return { operator: 'SBI', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
   } finally { await page.close(); await context.close(); }
@@ -194,8 +194,7 @@ async function scrapeJrf(browser) {
     const raw = await page.inputValue('#send_money');
     const sendAmt = extractNumber(raw);
     if (!sendAmt) throw new Error('총 송금액 추출 실패');
-    const feeRaw = await page.textContent('#servicefee').catch(() => null);
-    const fee = extractNumber(feeRaw) ?? 5000;
+    const fee = 4500;
     return { operator: 'JRF', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
   } finally { await page.close(); }
