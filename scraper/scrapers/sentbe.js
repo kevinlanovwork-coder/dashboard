@@ -7,7 +7,11 @@ import { extractNumber } from '../lib/browser.js';
 export const OPERATOR = 'Sentbe';
 
 export async function scrape(browser) {
-  const page = await browser.newPage();
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    locale: 'ko-KR',
+  });
+  const page = await context.newPage();
   try {
     await page.goto('https://www.sentbe.com/ko', {
       waitUntil: 'networkidle',
@@ -49,5 +53,6 @@ export async function scrape(browser) {
     };
   } finally {
     await page.close();
+    await context.close();
   }
 }

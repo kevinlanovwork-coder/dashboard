@@ -63,7 +63,11 @@ function parseField(text, field) {
 
 // ─── WireBarley ───────────────────────────────────────────────────────────────
 async function scrapeWirebarley(browser) {
-  const page = await browser.newPage();
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    locale: 'ko-KR',
+  });
+  const page = await context.newPage();
   try {
     await page.goto('https://www.wirebarley.com/ko', { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(3000);
@@ -95,12 +99,16 @@ async function scrapeWirebarley(browser) {
     const fee = extractNumber(feeRaw) ?? 0;
     return { operator: 'WireBarley', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
-  } finally { await page.close(); }
+  } finally { await page.close(); await context.close(); }
 }
 
 // ─── Sentbe ───────────────────────────────────────────────────────────────────
 async function scrapeSentbe(browser) {
-  const page = await browser.newPage();
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    locale: 'ko-KR',
+  });
+  const page = await context.newPage();
   try {
     await page.goto('https://www.sentbe.com/ko', { waitUntil: 'networkidle', timeout: 30000 });
     await page.click('button.close').catch(() => null);
@@ -121,7 +129,7 @@ async function scrapeSentbe(browser) {
     const fee = 5000;
     return { operator: 'Sentbe', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
-  } finally { await page.close(); }
+  } finally { await page.close(); await context.close(); }
 }
 
 // ─── Hanpass ──────────────────────────────────────────────────────────────────
