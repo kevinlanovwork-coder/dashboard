@@ -1,11 +1,8 @@
 /**
  * Sentbe 스크래퍼 — Playwright 브라우저 자동화
  * URL: https://www.sentbe.com/ko
- * 기술: Nuxt.js SPA
- *
- * ⚠️  셀렉터 검증 필요
  */
-import { getTextFromSelectors } from '../lib/browser.js';
+import { extractNumber } from '../lib/browser.js';
 
 export const OPERATOR = 'Sentbe';
 
@@ -17,59 +14,38 @@ export async function scrape(browser) {
       timeout: 30000,
     });
 
-    // ── 수신 국가: Indonesia 선택 ──────────────────────────────────────
-    // TODO: 실제 셀렉터 확인
-    await page.waitForSelector('.country-select, [data-country], select[name="country"]', { timeout: 10000 })
-      .catch(() => null);
-
-    const countryEl = await page.$('select[name="country"], .country-dropdown');
-    if (countryEl) {
-      await countryEl.selectOption({ label: 'Indonesia' });
-    } else {
-      const countryBtn = await page.$('button:has-text("인도네시아"), button:has-text("Indonesia"), .selected-country');
-      if (countryBtn) await countryBtn.click();
-      await page.waitForTimeout(500);
-      await page.click('li:has-text("인도네시아"), li:has-text("Indonesia")').catch(() => null);
-    }
-
+    // ── 팝업 닫기 ──────────────────────────────────────────────────────
+    await page.click('button.close').catch(() => null);
     await page.waitForTimeout(500);
 
-    // ── 수령액 입력 ────────────────────────────────────────────────────
-    // TODO: 실제 입력 필드 셀렉터 확인
-    const receiveInput = await page.$([
-      'input[placeholder*="받을 금액"]',
-      'input[placeholder*="receive"]',
-      'input[name="receiverAmount"]',
-      '#receive-amount',
-    ].join(', '));
+    // ── 수신 국가: 인도네시아 / 루피아 - IDR 선택 ──────────────────────
+    await page.waitForSelector('.receiveAmountInput .el-input-group__append', { timeout: 10000 });
+    await page.click('.receiveAmountInput .el-input-group__append');
+    await page.waitForTimeout(500);
+    await page.click('.receiveAmountInput .el-select-dropdown__item:has-text("인도네시아")');
+    await page.waitForTimeout(1000);
 
-    if (!receiveInput) throw new Error('수령액 입력 필드를 찾을 수 없습니다.');
+    // ── 수령액 입력: 13,000,000 IDR ────────────────────────────────────
+    await page.click('#receiveAmount', { clickCount: 3 });
+    await page.fill('#receiveAmount', '13000000');
+    await page.press('#receiveAmount', 'Tab');
+    await page.waitForTimeout(3000);
 
-    await receiveInput.click({ clickCount: 3 });
-    await receiveInput.fill('13000000');
-    await page.waitForTimeout(2000);
-
-    // ── 총 송금액 추출 ─────────────────────────────────────────────────
-    const total = await getTextFromSelectors(page, [
-      '.send-amount strong',
-      '[data-testid="send-amount"]',
-      '.remittance-result .krw',
-      '.calculator-result strong',
-      '.amount-krw',
-    ]);
-
+    // ── 총 송금액(KRW) 추출 ─────────────────────────────────────────────
+    // Sentbe는 수수료 없음 — 환율 스프레드로 수익 창출
+    const totalRaw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
+    const total = extractNumber(totalRaw);
     if (!total) throw new Error('총 송금액을 추출할 수 없습니다.');
 
-    // Sentbe 수수료는 별도 표시될 수 있음
-    const fee = await getTextFromSelectors(page, ['.fee-amount', '.service-fee', '[data-testid="fee"]']) ?? 5000;
+    const fee = 5000;
 
     return {
       operator: OPERATOR,
       receiving_country: 'Indonesia',
       receive_amount: 13_000_000,
-      send_amount_krw: total - (typeof fee === 'number' ? fee : 5000),
-      service_fee: typeof fee === 'number' ? fee : 5000,
-      total_sending_amount: total,
+      send_amount_krw: total,
+      service_fee: fee,
+      total_sending_amount: total + fee,
     };
   } finally {
     await page.close();

@@ -1,69 +1,53 @@
 /**
  * Coinshot 스크래퍼 — Playwright 브라우저 자동화
- *
- * ⚠️  URL 및 셀렉터 검증 필요
+ * URL: https://coinshot.org/main
  */
-import { getTextFromSelectors } from '../lib/browser.js';
+import { extractNumber } from '../lib/browser.js';
 
 export const OPERATOR = 'Coinshot';
 
 export async function scrape(browser) {
   const page = await browser.newPage();
   try {
-    // TODO: 실제 URL 확인 필요
-    await page.goto('https://www.coinshot.co.kr/', {
-      waitUntil: 'networkidle',
+    await page.goto('https://coinshot.org/main', {
+      waitUntil: 'load',
       timeout: 30000,
     });
-
-    // ── 수신 국가: Indonesia 선택 ──────────────────────────────────────
-    const countryEl = await page.$('select[name="country"], .country-select');
-    if (countryEl) {
-      await countryEl.selectOption({ label: 'Indonesia' }).catch(() =>
-        countryEl.selectOption({ label: '인도네시아' })
-      );
-    } else {
-      await page.click('button:has-text("Indonesia"), button:has-text("인도네시아")').catch(() => null);
-      await page.waitForTimeout(500);
-      await page.click('li:has-text("Indonesia"), li:has-text("인도네시아")').catch(() => null);
-    }
-
-    await page.waitForTimeout(500);
-
-    // ── 수령액 입력 ────────────────────────────────────────────────────
-    const receiveInput = await page.$([
-      'input[name="receiveAmount"]',
-      'input[placeholder*="receive"]',
-      'input[placeholder*="받을"]',
-      '#receiveAmount',
-    ].join(', '));
-
-    if (!receiveInput) throw new Error('수령액 입력 필드를 찾을 수 없습니다.');
-
-    await receiveInput.click({ clickCount: 3 });
-    await receiveInput.fill('13000000');
     await page.waitForTimeout(2000);
 
-    // ── 총 송금액 추출 ─────────────────────────────────────────────────
-    const total = await getTextFromSelectors(page, [
-      '.total-amount',
-      '.send-amount',
-      '[data-testid="total"]',
-      '.result-amount',
-      '#totalAmount',
-    ]);
+    // ── 언어 선택 모달 닫기 ────────────────────────────────────────────
+    await page.waitForSelector('button.lang-btn[value="ko"]', { timeout: 10000 });
+    await page.click('button.lang-btn[value="ko"]');
+    await page.waitForTimeout(1000);
 
-    if (!total) throw new Error('총 송금액을 추출할 수 없습니다.');
+    // ── 수신 국가: Indonesia (IDR) 선택 ────────────────────────────────
+    await page.click('#current-receiving-currency');
+    await page.waitForTimeout(500);
+    await page.click('#select-receiving-currency a[data-currency="IDR"]');
+    await page.waitForTimeout(1000);
 
-    const fee = await getTextFromSelectors(page, ['.fee-amount', '.service-fee']) ?? 0;
+    // ── 수령액 입력: 13,000,000 IDR ────────────────────────────────────
+    await page.click('#receiving-input', { clickCount: 3 });
+    await page.fill('#receiving-input', '13000000');
+    await page.press('#receiving-input', 'Enter');
+    await page.waitForTimeout(3000);
+
+    // ── 총 송금액(KRW) 추출 — 수수료 미포함 금액 ──────────────────────
+    const sendAmtRaw = await page.inputValue('#sending-input');
+    const sendAmt = extractNumber(sendAmtRaw);
+    if (!sendAmt) throw new Error('총 송금액을 추출할 수 없습니다.');
+
+    // ── 수수료 추출 — h5.text-left 에 "코인샷 수수료 X원이 포함되지 않은 금액입니다" ──
+    const feeRaw = await page.locator('h5.text-left').textContent().catch(() => null);
+    const fee = extractNumber(feeRaw) ?? 2500;
 
     return {
       operator: OPERATOR,
       receiving_country: 'Indonesia',
       receive_amount: 13_000_000,
-      send_amount_krw: typeof total === 'number' ? total - (typeof fee === 'number' ? fee : 0) : total,
-      service_fee: typeof fee === 'number' ? fee : 0,
-      total_sending_amount: total,
+      send_amount_krw: sendAmt,
+      service_fee: fee,
+      total_sending_amount: sendAmt + fee,
     };
   } finally {
     await page.close();

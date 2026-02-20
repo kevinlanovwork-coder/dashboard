@@ -1,10 +1,8 @@
 /**
  * E9Pay 스크래퍼 — Playwright 브라우저 자동화
  * URL: https://www.e9pay.co.kr/
- *
- * ⚠️  셀렉터 검증 필요
  */
-import { getTextFromSelectors } from '../lib/browser.js';
+import { extractNumber } from '../lib/browser.js';
 
 export const OPERATOR = 'E9Pay';
 
@@ -16,54 +14,43 @@ export async function scrape(browser) {
       timeout: 30000,
     });
 
-    // ── 수신 국가: Indonesia 선택 ──────────────────────────────────────
-    // TODO: 실제 셀렉터 확인
-    const countryEl = await page.$('select[name="country"], .country-select, [data-testid="country"]');
-    if (countryEl) {
-      await countryEl.selectOption({ label: 'Indonesia' }).catch(() =>
-        countryEl.selectOption({ label: '인도네시아' })
-      );
-    } else {
-      await page.click('button:has-text("Indonesia"), button:has-text("인도네시아"), .country-btn').catch(() => null);
-      await page.waitForTimeout(500);
-      await page.click('li:has-text("Indonesia"), li:has-text("인도네시아")').catch(() => null);
-    }
+    // ── 수신 국가: Indonesia (IDR) 선택 (라디오가 CSS로 숨겨져 있어 JS로 트리거) ──
+    await page.waitForSelector('#ID_IDR', { state: 'attached', timeout: 10000 });
+    await page.evaluate(() => {
+      const radio = document.querySelector('#ID_IDR');
+      radio.checked = true;
+      radio.dispatchEvent(new Event('change', { bubbles: true }));
+      radio.dispatchEvent(new Event('click', { bubbles: true }));
+    });
+    await page.waitForTimeout(1000);
 
+    // ── reverse 버튼 클릭 → 수령액 입력 모드로 전환 ────────────────────
+    await page.waitForSelector('#reverse', { timeout: 5000 });
+    await page.click('#reverse');
     await page.waitForTimeout(500);
 
     // ── 수령액 입력: 13,000,000 IDR ────────────────────────────────────
-    const receiveInput = await page.$([
-      'input[name="receiveAmount"]',
-      'input[placeholder*="receive"]',
-      'input[placeholder*="받을"]',
-      '#receiveAmount',
-    ].join(', '));
+    await page.waitForSelector('#receive-money', { timeout: 5000 });
+    await page.click('#receive-money', { clickCount: 3 });
+    await page.fill('#receive-money', '13000000');
+    await page.dispatchEvent('#receive-money', 'blur');
+    await page.waitForTimeout(3000);
 
-    if (!receiveInput) throw new Error('수령액 입력 필드를 찾을 수 없습니다.');
-
-    await receiveInput.click({ clickCount: 3 });
-    await receiveInput.fill('13000000');
-    await page.waitForTimeout(2000);
-
-    // ── 총 송금액 추출 ─────────────────────────────────────────────────
-    const total = await getTextFromSelectors(page, [
-      '.total-amount',
-      '.send-amount',
-      '[data-testid="total"]',
-      '.remittance-result .amount',
-      '#totalAmount',
-    ]);
-
+    // ── 총 송금액(KRW) 추출 ────────────────────────────────────────────
+    const sendAmtRaw = await page.$eval('#send-money', el => el.value).catch(() => null);
+    const total = extractNumber(sendAmtRaw);
     if (!total) throw new Error('총 송금액을 추출할 수 없습니다.');
 
-    const fee = await getTextFromSelectors(page, ['.fee-amount', '.service-fee']) ?? 0;
+    // ── 수수료 추출 ────────────────────────────────────────────────────
+    const feeRaw = await page.$eval('#remit-fee', el => el.textContent || el.value).catch(() => null);
+    const fee = extractNumber(feeRaw) ?? 0;
 
     return {
       operator: OPERATOR,
       receiving_country: 'Indonesia',
       receive_amount: 13_000_000,
-      send_amount_krw: typeof total === 'number' ? total - (typeof fee === 'number' ? fee : 0) : total,
-      service_fee: typeof fee === 'number' ? fee : 0,
+      send_amount_krw: total - fee,
+      service_fee: fee,
       total_sending_amount: total,
     };
   } finally {

@@ -1,62 +1,45 @@
 /**
  * Hanpass 스크래퍼 — Playwright 브라우저 자동화
- * URL: https://www.hanpass.com/en  (또는 /ko)
- * 기술: Next.js SSR
- *
- * ⚠️  셀렉터 검증 필요
+ * URL: https://www.hanpass.com/en
  */
-import { getTextFromSelectors } from '../lib/browser.js';
+import { extractNumber } from '../lib/browser.js';
 
 export const OPERATOR = 'Hanpass';
 
 export async function scrape(browser) {
   const page = await browser.newPage();
   try {
-    // 영어 페이지가 안정적이라면 /en, 한국어이면 /ko 사용
     await page.goto('https://www.hanpass.com/en', {
       waitUntil: 'networkidle',
       timeout: 30000,
     });
 
-    // ── 수신 국가 선택 ─────────────────────────────────────────────────
-    // TODO: 실제 셀렉터 확인
-    const countryEl = await page.$('select[name="country"], .country-select, [data-testid="country-selector"]');
-    if (countryEl) {
-      await countryEl.selectOption({ label: 'Indonesia' });
-    } else {
-      await page.click('button:has-text("Indonesia"), .destination-country').catch(() => null);
-    }
-
+    // ── 수신 국가: Indonesia (IDR) 선택 ────────────────────────────────
+    await page.locator('.ExchangeCalculator_recipientAmountField__lbLSL button').click();
+    await page.waitForSelector('#countrySearch', { timeout: 10000 });
+    await page.fill('#countrySearch', 'Indonesia');
     await page.waitForTimeout(500);
+    await page.locator('button[aria-label="Indonesia IDR"]').first().click();
+    await page.waitForTimeout(1500);
 
     // ── 수령액 입력: 13,000,000 IDR ────────────────────────────────────
-    // TODO: 실제 입력 필드 셀렉터 확인
-    const receiveInput = await page.$([
-      'input[name="receiveAmount"]',
-      'input[placeholder*="receive"]',
-      'input[placeholder*="받을"]',
-      '.receive-input',
-      '#receive',
-    ].join(', '));
+    await page.click('#recipient', { clickCount: 3 });
+    await page.fill('#recipient', '13000000');
+    await page.press('#recipient', 'Tab');
+    await page.waitForTimeout(3000);
 
-    if (!receiveInput) throw new Error('수령액 입력 필드를 찾을 수 없습니다.');
-
-    await receiveInput.click({ clickCount: 3 });
-    await receiveInput.fill('13000000');
-    await page.waitForTimeout(2000);
-
-    // ── 총 송금액 추출 ─────────────────────────────────────────────────
-    const total = await getTextFromSelectors(page, [
-      '.total-amount',
-      '.send-krw',
-      '[data-testid="total-krw"]',
-      '.remittance-total strong',
-      '.amount-result',
-    ]);
-
+    // ── 총 송금액(KRW) 추출 — #deposit 값이 fee 포함 총액 ───────────────
+    const totalRaw = await page.$eval('#deposit', el => el.value).catch(() => null);
+    const total = extractNumber(totalRaw);
     if (!total) throw new Error('총 송금액을 추출할 수 없습니다.');
 
-    const fee = 5000; // Hanpass 고정 수수료 5,000원 (기존 데이터 기준)
+    // ── 수수료 추출 ────────────────────────────────────────────────────
+    const feeRaw = await page.locator('.ExchangeCalculator_row__EPWVT')
+      .filter({ hasText: 'Remittance fee' })
+      .locator('span:last-child')
+      .textContent()
+      .catch(() => null);
+    const fee = extractNumber(feeRaw) ?? 0;
 
     return {
       operator: OPERATOR,

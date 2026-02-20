@@ -1,68 +1,51 @@
 /**
  * Cross 스크래퍼 — Playwright 브라우저 자동화
- *
- * ⚠️  URL 및 셀렉터 검증 필요
+ * URL: https://crossenf.com/remittance
  */
-import { getTextFromSelectors } from '../lib/browser.js';
+import { extractNumber } from '../lib/browser.js';
 
 export const OPERATOR = 'Cross';
 
 export async function scrape(browser) {
   const page = await browser.newPage();
   try {
+    // networkidle 미달성 사이트 — load 사용
     await page.goto('https://crossenf.com/remittance', {
-      waitUntil: 'networkidle',
+      waitUntil: 'load',
       timeout: 30000,
     });
-
-    // ── 수신 국가: Indonesia 선택 ──────────────────────────────────────
-    const countryEl = await page.$('select[name="country"], .country-select');
-    if (countryEl) {
-      await countryEl.selectOption({ label: 'Indonesia' }).catch(() =>
-        countryEl.selectOption({ label: '인도네시아' })
-      );
-    } else {
-      await page.click('button:has-text("Indonesia"), button:has-text("인도네시아"), .country-btn').catch(() => null);
-      await page.waitForTimeout(500);
-      await page.click('li:has-text("Indonesia"), li:has-text("인도네시아")').catch(() => null);
-    }
-
-    await page.waitForTimeout(500);
-
-    // ── 수령액 입력 ────────────────────────────────────────────────────
-    const receiveInput = await page.$([
-      'input[name="receiveAmount"]',
-      'input[placeholder*="receive"]',
-      'input[placeholder*="받을"]',
-      '#receiveAmount',
-    ].join(', '));
-
-    if (!receiveInput) throw new Error('수령액 입력 필드를 찾을 수 없습니다.');
-
-    await receiveInput.click({ clickCount: 3 });
-    await receiveInput.fill('13000000');
     await page.waitForTimeout(2000);
 
-    // ── 총 송금액 추출 ─────────────────────────────────────────────────
-    const total = await getTextFromSelectors(page, [
-      '.total-amount',
-      '.send-amount',
-      '[data-testid="total"]',
-      '.result-amount',
-      '#totalAmount',
-    ]);
+    // ── 수신 국가: Indonesia (IDR) 선택 ────────────────────────────────
+    // 수신 통화 드롭다운 열기 (기본값 THB)
+    await page.locator('div.relative:has(span:text("THB"))').click();
+    await page.waitForSelector('#aside-root ul', { timeout: 10000 });
 
+    // Indonesia 국기(ID flag) 이미지로 li 선택
+    await page.locator('#aside-root li:has(img[alt="ID flag"])').click();
+    await page.waitForTimeout(1000);
+
+    // ── 수령액 입력: 13,000,000 IDR ────────────────────────────────────
+    const receiveInput = page.locator('input[inputmode="numeric"]').nth(1);
+    await receiveInput.click({ clickCount: 3 });
+    await receiveInput.fill('13000000');
+    await receiveInput.press('Tab');
+    await page.waitForTimeout(3000);
+
+    // ── 총 송금액(KRW) 추출 ────────────────────────────────────────────
+    const totalRaw = await page.locator('input[inputmode="numeric"]').nth(0).inputValue();
+    const total = extractNumber(totalRaw);
     if (!total) throw new Error('총 송금액을 추출할 수 없습니다.');
 
-    const fee = await getTextFromSelectors(page, ['.fee-amount', '.service-fee']) ?? 0;
+    const fee = 5000;
 
     return {
       operator: OPERATOR,
       receiving_country: 'Indonesia',
       receive_amount: 13_000_000,
-      send_amount_krw: typeof total === 'number' ? total - (typeof fee === 'number' ? fee : 0) : total,
-      service_fee: typeof fee === 'number' ? fee : 0,
-      total_sending_amount: total,
+      send_amount_krw: total,
+      service_fee: fee,
+      total_sending_amount: total + fee,
     };
   } finally {
     await page.close();
