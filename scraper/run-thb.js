@@ -243,8 +243,7 @@ async function scrapeCoinshot(browser) {
     const sendAmtRaw = await page.inputValue('#sending-input');
     const sendAmt = extractNumber(sendAmtRaw);
     if (!sendAmt) throw new Error('총 송금액 추출 실패');
-    const feeRaw = await page.locator('h5.text-left').textContent().catch(() => null);
-    const fee = extractNumber(feeRaw) ?? 2500;
+    const fee = 5000; // Thailand: 5,000원 고정
     return { operator: 'Coinshot', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
   } finally { await page.close(); }
