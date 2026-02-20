@@ -85,7 +85,7 @@ async function scrapeSbi(browser) {
 async function scrapeGmoneytrans() {
   const url = 'https://mapi.gmoneytrans.net/exratenew1/ajx_calcRate.asp'
     + `?receive_amount=${AMOUNT}`
-    + '&payout_country=Vietnam'
+    + '&payout_country=Viet+Nam'
     + '&total_collected=0'
     + '&payment_type=Bank+Account'
     + '&currencyType=VND';
