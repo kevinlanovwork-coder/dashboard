@@ -196,7 +196,7 @@ async function scrapeSbi(browser) {
     const sendAmtRaw = await page.inputValue('#krwAmount');
     const sendAmt = extractNumber(sendAmtRaw);
     if (!sendAmt) throw new Error('총 송금액 추출 실패');
-    const fee = 1000; // Thailand Bank Transfer: 1,000원
+    const fee = 5000; // Thailand Bank Transfer: 5,000원
     return { operator: 'SBI', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
   } finally { await page.close(); await context.close(); }
