@@ -43,6 +43,7 @@ const CURRENCY_MAP: Record<string, string> = {
   'Cambodia': 'USD',
   'Japan': 'JPY',
   'China': 'CNY',
+  'Mongolia': 'MNT',
 };
 
 // ─── 아이콘 ───────────────────────────────────────────────────────────────────
