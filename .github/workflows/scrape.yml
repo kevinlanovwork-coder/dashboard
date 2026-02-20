@@ -29,8 +29,14 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install chromium --with-deps
 
-      - name: Run scrapers
+      - name: Run scrapers (Indonesia IDR)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: node index.js
+
+      - name: Run scrapers (Thailand THB)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node run-thb.js

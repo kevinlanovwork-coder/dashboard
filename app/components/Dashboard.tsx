@@ -32,6 +32,19 @@ function statusColor(status: string) {
   return { bg: 'bg-green-500/20', text: 'text-green-400', hex: '#22c55e' };
 }
 
+const CURRENCY_MAP: Record<string, string> = {
+  'Indonesia': 'IDR',
+  'Thailand': 'THB',
+  'Vietnam': 'VND',
+  'Philippines': 'PHP',
+  'Nepal': 'NPR',
+  'Malaysia': 'MYR',
+  'Singapore': 'SGD',
+  'Cambodia': 'USD',
+  'Japan': 'JPY',
+  'China': 'CNY',
+};
+
 // ─── KPI 카드 ────────────────────────────────────────────────────────────────
 
 function KPICard({
@@ -428,8 +441,8 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-800">
-                  {['시간대', '운영사', '국가', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '상태'].map(h => (
-                    <th key={h} className={`py-2.5 px-3 text-slate-500 font-medium text-xs ${['송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이'].includes(h) ? 'text-right' : h === '상태' ? 'text-center' : 'text-left'}`}>
+                  {['시간대', '운영사', '국가', '수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '상태'].map(h => (
+                    <th key={h} className={`py-2.5 px-3 text-slate-500 font-medium text-xs ${['수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이'].includes(h) ? 'text-right' : h === '상태' ? 'text-center' : 'text-left'}`}>
                       {h}
                     </th>
                   ))}
@@ -443,6 +456,9 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                       <td className="py-2.5 px-3 text-slate-400 font-mono text-xs whitespace-nowrap">{formatRunHour(r.runHour)}</td>
                       <td className="py-2.5 px-3 text-slate-200 whitespace-nowrap">{r.operator}</td>
                       <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">{r.receivingCountry}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-200 font-mono whitespace-nowrap">
+                        {r.receiveAmount.toLocaleString()}&nbsp;<span className="text-slate-500 text-xs">{CURRENCY_MAP[r.receivingCountry] ?? ''}</span>
+                      </td>
                       <td className="py-2.5 px-3 text-right text-slate-200 font-mono whitespace-nowrap">{r.sendAmountKRW.toLocaleString('ko-KR')}</td>
                       <td className="py-2.5 px-3 text-right text-slate-400 font-mono whitespace-nowrap">{r.serviceFee > 0 ? r.serviceFee.toLocaleString('ko-KR') : '—'}</td>
                       <td className="py-2.5 px-3 text-right text-slate-200 font-mono whitespace-nowrap font-semibold">{r.totalSendingAmount.toLocaleString('ko-KR')}</td>
