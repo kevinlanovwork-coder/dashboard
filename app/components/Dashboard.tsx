@@ -134,8 +134,8 @@ function statusLabel(status: string, t: T) {
 
 function statusColor(status: string) {
   if (status === 'GME') return { bg: 'bg-blue-500/20', text: 'text-blue-500 dark:text-blue-400', hex: '#3b82f6' };
-  if (status === 'Cheaper than GME') return { bg: 'bg-orange-500/20', text: 'text-orange-500 dark:text-orange-400', hex: '#f97316' };
-  return { bg: 'bg-green-500/20', text: 'text-green-600 dark:text-green-400', hex: '#22c55e' };
+  if (status === 'Cheaper than GME') return { bg: 'bg-green-500/20', text: 'text-green-600 dark:text-green-400', hex: '#22c55e' };
+  return { bg: 'bg-red-500/20', text: 'text-red-500 dark:text-red-400', hex: '#ef4444' };
 }
 
 const CURRENCY_MAP: Record<string, string> = {
@@ -187,7 +187,7 @@ function SnapshotTooltip({ active, payload, t }: { active?: boolean; payload?: r
       <p className="font-semibold text-slate-900 dark:text-slate-100 mb-1">{d.operator}</p>
       <p className="text-slate-600 dark:text-slate-300">{t.totalSendLabel} <span className="font-mono">{formatKRW(d.totalSendingAmount, t)}</span></p>
       {d.priceGap !== null && d.status !== 'GME' && (
-        <p className={d.priceGap < 0 ? 'text-orange-500 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}>
+        <p className={d.priceGap < 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}>
           {t.vsGME} <span className="font-mono">{d.priceGap > 0 ? '+' : ''}{d.priceGap.toLocaleString('ko-KR')}{t.won}</span>
         </p>
       )}
@@ -204,7 +204,7 @@ function GapTooltip({ active, payload, t }: { active?: boolean; payload?: readon
   return (
     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm shadow-xl">
       <p className="font-semibold text-slate-900 dark:text-slate-100 mb-1">{d.operator}</p>
-      <p className={d.avgGap < 0 ? 'text-orange-500 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}>
+      <p className={d.avgGap < 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}>
         {t.avgDiffLabel} <span className="font-mono">{d.avgGap > 0 ? '+' : ''}{d.avgGap.toLocaleString('ko-KR')}{t.won}</span>
       </p>
       <p className="text-slate-400 dark:text-slate-400 text-xs mt-1">{t.dataPoints(d.count)}</p>
@@ -232,6 +232,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
   const [tableSearch, setTableSearch] = useState('');
   const [tableStatus, setTableStatus] = useState('all');
   const [tablePage, setTablePage] = useState(0);
+  const [snapshotSortDesc, setSnapshotSortDesc] = useState(true);
   const PAGE_SIZE = 20;
 
   const t = isEn ? EN : KO;
@@ -289,8 +290,10 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
   const snapshot = useMemo(
     () => byCountry
       .filter(r => r.runHour === targetRunHour)
-      .sort((a, b) => a.totalSendingAmount - b.totalSendingAmount),
-    [byCountry, targetRunHour]
+      .sort((a, b) => snapshotSortDesc
+        ? b.totalSendingAmount - a.totalSendingAmount
+        : a.totalSendingAmount - b.totalSendingAmount),
+    [byCountry, targetRunHour, snapshotSortDesc]
   );
 
   const snapshotGMEBaseline = useMemo(
@@ -444,8 +447,18 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Snapshot */}
             <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-              <h2 className="text-sm font-semibold">{t.snapshotTitle}</h2>
-              <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5 mb-4">{t.snapshotSub(formatRunHour(targetRunHour))}</p>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-sm font-semibold">{t.snapshotTitle}</h2>
+                  <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.snapshotSub(formatRunHour(targetRunHour))}</p>
+                </div>
+                <button
+                  onClick={() => setSnapshotSortDesc(d => !d)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
+                >
+                  {snapshotSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
+                </button>
+              </div>
               {snapshot.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={snapshot} layout="vertical" margin={{ top: 0, right: 55, left: 88, bottom: 0 }}>
@@ -487,8 +500,8 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
               )}
               <div className="flex items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block" />{t.gmeBaselineLegend}</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.moreExpensiveLegend}</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.cheaperLegend}</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />{t.moreExpensiveLegend}</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.cheaperLegend}</span>
               </div>
             </div>
 
@@ -519,7 +532,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                     <ReferenceLine x={0} stroke={ct.refLine} strokeWidth={1.5} />
                     <Bar dataKey="avgGap" radius={[0, 4, 4, 0]}>
                       {operatorStats.map((entry, i) => (
-                        <Cell key={i} fill={entry.avgGap < 0 ? '#f97316' : '#22c55e'} />
+                        <Cell key={i} fill={entry.avgGap < 0 ? '#22c55e' : '#ef4444'} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -528,8 +541,8 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                 <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.noData}</div>
               )}
               <div className="flex items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.gmeWins}</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.gmeLoses}</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />{t.gmeWins}</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.gmeLoses}</span>
               </div>
             </div>
           </div>
@@ -629,7 +642,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                         <td className="py-2.5 px-3 text-right text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
                           {r.gmeBaseline ? r.gmeBaseline.toLocaleString('ko-KR') : '—'}
                         </td>
-                        <td className={`py-2.5 px-3 text-right font-mono whitespace-nowrap ${r.priceGap === null || r.priceGap === 0 ? 'text-slate-400 dark:text-slate-500' : r.priceGap < 0 ? 'text-orange-500 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}`}>
+                        <td className={`py-2.5 px-3 text-right font-mono whitespace-nowrap ${r.priceGap === null || r.priceGap === 0 ? 'text-slate-400 dark:text-slate-500' : r.priceGap < 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
                           {r.priceGap !== null && r.priceGap !== 0
                             ? `${r.priceGap > 0 ? '+' : ''}${r.priceGap.toLocaleString('ko-KR')}`
                             : '—'}
