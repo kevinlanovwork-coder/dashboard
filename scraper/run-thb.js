@@ -112,6 +112,8 @@ async function scrapeSentbe(browser) {
   try {
     await page.goto('https://www.sentbe.com/ko', { waitUntil: 'networkidle', timeout: 30000 });
     await page.click('button.close').catch(() => null);
+    await page.waitForTimeout(300);
+    await page.click('article.app-download-popup .dim').catch(() => null);
     await page.waitForTimeout(500);
     await page.waitForSelector('.receiveAmountInput .el-input-group__append', { timeout: 10000 });
     await page.click('.receiveAmountInput .el-input-group__append');
@@ -260,7 +262,7 @@ async function scrapeCoinshot(browser) {
 async function scrapeJrf(browser) {
   const page = await browser.newPage();
   try {
-    await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
     await page.click('#div_curr');
     await page.waitForTimeout(500);
