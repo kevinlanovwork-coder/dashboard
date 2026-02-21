@@ -6,10 +6,27 @@ on:
     - cron: '0 * * * *'
   workflow_dispatch: # 수동 실행 허용
 
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Indonesia IDR
+            script: index.js
+          - name: Thailand THB
+            script: run-thb.js
+          - name: Mongolia MNT
+            script: run-mnt.js
+          - name: Vietnam VND
+            script: run-vnd.js
 
     defaults:
       run:
@@ -42,26 +59,8 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
-      - name: Run scrapers (Indonesia IDR)
+      - name: Run scraper (${{ matrix.name }})
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: node index.js
-
-      - name: Run scrapers (Thailand THB)
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: node run-thb.js
-
-      - name: Run scrapers (Mongolia MNT)
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: node run-mnt.js
-
-      - name: Run scrapers (Vietnam VND)
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: node run-vnd.js
+        run: node ${{ matrix.script }}
