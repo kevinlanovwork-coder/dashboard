@@ -107,7 +107,8 @@ async function scrapeCross(browser) {
 async function scrapeE9pay(browser) {
   const page = await browser.newPage();
   try {
-    await page.goto('https://www.e9pay.co.kr/', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto('https://www.e9pay.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(3000);
     await page.waitForSelector('#MN_MNT', { state: 'attached', timeout: 10000 });
     await page.evaluate(() => {
       const radio = document.querySelector('#MN_MNT');
@@ -128,7 +129,7 @@ async function scrapeE9pay(browser) {
     const feeRaw = await page.$eval('#remit-fee', el => el.textContent || el.value).catch(() => null);
     const fee = extractNumber(feeRaw) ?? 0;
     return { operator: 'E9Pay', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
+      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
   } finally { await page.close(); }
 }
 

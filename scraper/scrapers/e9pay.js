@@ -10,9 +10,10 @@ export async function scrape(browser) {
   const page = await browser.newPage();
   try {
     await page.goto('https://www.e9pay.co.kr/', {
-      waitUntil: 'networkidle',
+      waitUntil: 'domcontentloaded',
       timeout: 30000,
     });
+    await page.waitForTimeout(3000);
 
     // ── 수신 국가: Indonesia (IDR) 선택 (라디오가 CSS로 숨겨져 있어 JS로 트리거) ──
     await page.waitForSelector('#ID_IDR', { state: 'attached', timeout: 10000 });
@@ -49,9 +50,9 @@ export async function scrape(browser) {
       operator: OPERATOR,
       receiving_country: 'Indonesia',
       receive_amount: 13_000_000,
-      send_amount_krw: total - fee,
+      send_amount_krw: total,
       service_fee: fee,
-      total_sending_amount: total,
+      total_sending_amount: total + fee,
     };
   } finally {
     await page.close();
