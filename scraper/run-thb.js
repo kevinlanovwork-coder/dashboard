@@ -138,8 +138,9 @@ async function scrapeSentbe(browser) {
 async function scrapeHanpass(browser) {
   const page = await browser.newPage();
   try {
-    await page.goto('https://www.hanpass.com/en', { waitUntil: 'networkidle', timeout: 30000 });
-    await page.locator('.ExchangeCalculator_recipientAmountField__lbLSL button').click();
+    await page.goto('https://www.hanpass.com/en', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(3000);
+    await page.locator('[class*="recipientAmountField"] button').click();
     await page.waitForSelector('#countrySearch', { timeout: 10000 });
     await page.fill('#countrySearch', 'Thailand');
     await page.waitForTimeout(500);
@@ -152,7 +153,7 @@ async function scrapeHanpass(browser) {
     const totalRaw = await page.$eval('#deposit', el => el.value).catch(() => null);
     const total = extractNumber(totalRaw);
     if (!total) throw new Error('총 송금액 추출 실패');
-    const feeRaw = await page.locator('.ExchangeCalculator_row__EPWVT')
+    const feeRaw = await page.locator('[class*="ExchangeCalculator_row"]')
       .filter({ hasText: 'Remittance fee' }).locator('span:last-child')
       .textContent().catch(() => null);
     const fee = extractNumber(feeRaw) ?? 0;

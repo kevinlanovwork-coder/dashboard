@@ -10,12 +10,13 @@ export async function scrape(browser) {
   const page = await browser.newPage();
   try {
     await page.goto('https://www.hanpass.com/en', {
-      waitUntil: 'networkidle',
+      waitUntil: 'domcontentloaded',
       timeout: 30000,
     });
+    await page.waitForTimeout(3000);
 
     // ── 수신 국가: Indonesia (IDR) 선택 ────────────────────────────────
-    await page.locator('.ExchangeCalculator_recipientAmountField__lbLSL button').click();
+    await page.locator('[class*="recipientAmountField"] button').click();
     await page.waitForSelector('#countrySearch', { timeout: 10000 });
     await page.fill('#countrySearch', 'Indonesia');
     await page.waitForTimeout(500);
@@ -34,7 +35,7 @@ export async function scrape(browser) {
     if (!total) throw new Error('총 송금액을 추출할 수 없습니다.');
 
     // ── 수수료 추출 ────────────────────────────────────────────────────
-    const feeRaw = await page.locator('.ExchangeCalculator_row__EPWVT')
+    const feeRaw = await page.locator('[class*="ExchangeCalculator_row"]')
       .filter({ hasText: 'Remittance fee' })
       .locator('span:last-child')
       .textContent()
