@@ -11,7 +11,6 @@ import { saveRates } from './lib/supabase.js';
 // ── 스크래퍼 임포트 ──────────────────────────────────────────────────────
 import { scrape as scrapeGme }        from './scrapers/gme.js';
 import { scrape as scrapeGmoneytrans } from './scrapers/gmoneytrans.js';
-import { scrape as scrapeWirebarley } from './scrapers/wirebarley.js';
 import { scrape as scrapeSentbe }     from './scrapers/sentbe.js';
 import { scrape as scrapeHanpass }    from './scrapers/hanpass.js';
 import { scrape as scrapeUtransfer }  from './scrapers/utransfer.js';
@@ -27,7 +26,6 @@ import { scrape as scrapeE9pay }      from './scrapers/e9pay.js';
 const SCRAPERS = [
   { name: 'GME',          fn: scrapeGme,         needsBrowser: true  },
   { name: 'GMoneyTrans',  fn: scrapeGmoneytrans,  needsBrowser: false },
-  { name: 'WireBarley',   fn: scrapeWirebarley,   needsBrowser: true  },
   { name: 'Sentbe',       fn: scrapeSentbe,       needsBrowser: true  },
   { name: 'Hanpass',      fn: scrapeHanpass,      needsBrowser: true  },
   { name: 'Utransfer',    fn: scrapeUtransfer,    needsBrowser: true  },

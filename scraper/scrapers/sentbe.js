@@ -39,18 +39,19 @@ export async function scrape(browser) {
     await page.waitForTimeout(3000);
 
     // ── 총 송금액(KRW) 추출 ─────────────────────────────────────────────
-    // Sentbe는 수수료 없음 — 환율 스프레드로 수익 창출
     const totalRaw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
     const total = extractNumber(totalRaw);
     if (!total) throw new Error('총 송금액을 추출할 수 없습니다.');
+
+    const fee = 5000;
 
     return {
       operator: OPERATOR,
       receiving_country: 'Indonesia',
       receive_amount: 13_000_000,
       send_amount_krw: total,
-      service_fee: 0,
-      total_sending_amount: total,
+      service_fee: fee,
+      total_sending_amount: total + fee,
     };
   } finally {
     await page.close();
