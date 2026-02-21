@@ -34,6 +34,7 @@ const EN = {
   trendSub: 'GME total send amount over time (KRW)',
   operatorTrendTitle: 'Operator Total Send Trend',
   operatorTrendSub: 'Total send amount over time (KRW)',
+  allDates: 'All dates',
   insufficientData: 'Insufficient data',
   detailedData: 'Detailed Data',
   records: (n: number) => `${n.toLocaleString()} records`,
@@ -84,6 +85,7 @@ const KO = {
   trendSub: '시간에 따른 GME 총 송금액 변화 (KRW)',
   operatorTrendTitle: '운영사 총 송금액 추이',
   operatorTrendSub: '시간에 따른 총 송금액 변화 (KRW)',
+  allDates: '전체 기간',
   insufficientData: '데이터 부족',
   detailedData: '상세 데이터',
   records: (n: number) => `${n.toLocaleString()}건`,
@@ -233,6 +235,8 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
   const [snapshotSortDesc, setSnapshotSortDesc] = useState(true);
   const [avgDate, setAvgDate] = useState('');
   const [selectedTrendOperator, setSelectedTrendOperator] = useState('');
+  const [gmeTrendFromDate, setGmeTrendFromDate] = useState('');
+  const [operatorTrendFromDate, setOperatorTrendFromDate] = useState('');
   const PAGE_SIZE = 20;
 
   const t = isEn ? EN : KO;
@@ -364,6 +368,20 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
       .map(([runHour, gmeBaseline]) => ({ runHour, label: formatRunHour(runHour), gmeBaseline }));
   }, [byCountry]);
 
+  const gmeTrendDates = useMemo(
+    () => [...new Set(trendData.map(d => d.runHour.slice(0, 10)))].sort(),
+    [trendData]
+  );
+
+  const effectiveGmeTrendFromDate = gmeTrendDates.includes(gmeTrendFromDate) ? gmeTrendFromDate : '';
+
+  const filteredTrendData = useMemo(
+    () => effectiveGmeTrendFromDate
+      ? trendData.filter(d => d.runHour >= effectiveGmeTrendFromDate)
+      : trendData,
+    [trendData, effectiveGmeTrendFromDate]
+  );
+
   const trendOperators = useMemo(
     () => [...new Set(byCountry.filter(r => r.status !== 'GME').map(r => r.operator))].sort(),
     [byCountry]
@@ -383,6 +401,20 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([runHour, totalSendingAmount]) => ({ runHour, label: formatRunHour(runHour), totalSendingAmount }));
   }, [byCountry, effectiveTrendOperator]);
+
+  const operatorTrendDates = useMemo(
+    () => [...new Set(operatorTrendData.map(d => d.runHour.slice(0, 10)))].sort(),
+    [operatorTrendData]
+  );
+
+  const effectiveOperatorTrendFromDate = operatorTrendDates.includes(operatorTrendFromDate) ? operatorTrendFromDate : '';
+
+  const filteredOperatorTrendData = useMemo(
+    () => effectiveOperatorTrendFromDate
+      ? operatorTrendData.filter(d => d.runHour >= effectiveOperatorTrendFromDate)
+      : operatorTrendData,
+    [operatorTrendData, effectiveOperatorTrendFromDate]
+  );
 
   const latestGMEBaseline = trendData[trendData.length - 1]?.gmeBaseline ?? null;
   const cheaperCount = snapshot.filter(r => r.status === 'Cheaper than GME').length;
@@ -618,11 +650,23 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
 
           {/* GME Trend */}
           <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-            <h2 className="text-sm font-semibold">{t.trendTitle}</h2>
-            <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5 mb-4">{t.trendSub}</p>
-            {trendData.length > 1 ? (
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-sm font-semibold">{t.trendTitle}</h2>
+                <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.trendSub}</p>
+              </div>
+              <select
+                value={effectiveGmeTrendFromDate}
+                onChange={e => setGmeTrendFromDate(e.target.value)}
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+              >
+                <option value="">{t.allDates}</option>
+                {gmeTrendDates.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            {filteredTrendData.length > 1 ? (
               <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={trendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <LineChart data={filteredTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                   <XAxis
                     dataKey="label"
@@ -657,30 +701,32 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
 
           {/* Operator Trend */}
           <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+            <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="text-sm font-semibold">{t.operatorTrendTitle}</h2>
-                <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.operatorTrendSub} — <span className="text-blue-500 dark:text-blue-400 font-medium">{effectiveTrendOperator}</span></p>
+                <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.operatorTrendSub}</p>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {trendOperators.map(op => (
-                  <button
-                    key={op}
-                    onClick={() => setSelectedTrendOperator(op)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                      op === effectiveTrendOperator
-                        ? 'bg-violet-500 text-white'
-                        : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
-                    }`}
-                  >
-                    {op}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2 shrink-0">
+                <select
+                  value={effectiveTrendOperator}
+                  onChange={e => setSelectedTrendOperator(e.target.value)}
+                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 shrink-0"
+                >
+                  {trendOperators.map(op => <option key={op} value={op}>{op}</option>)}
+                </select>
+                <select
+                  value={effectiveOperatorTrendFromDate}
+                  onChange={e => setOperatorTrendFromDate(e.target.value)}
+                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 shrink-0"
+                >
+                  <option value="">{t.allDates}</option>
+                  {operatorTrendDates.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
               </div>
             </div>
-            {operatorTrendData.length > 1 ? (
+            {filteredOperatorTrendData.length > 1 ? (
               <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={operatorTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <LineChart data={filteredOperatorTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                   <XAxis
                     dataKey="label"
