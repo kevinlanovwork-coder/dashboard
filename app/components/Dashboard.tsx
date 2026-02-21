@@ -30,7 +30,7 @@ const EN = {
   moreExpensiveLegend: 'More expensive than GME',
   cheaperLegend: 'Cheaper than GME',
   avgDiffTitle: 'Avg. Price Difference by Operator',
-  avgDiffSub: 'All-time average (vs GME, KRW)',
+  avgDiffSub: (date: string) => `Daily avg. for ${date} (vs GME, KRW)`,
   gmeWins: 'More expensive than GME (GME wins)',
   gmeLoses: 'Cheaper than GME (GME loses)',
   trendTitle: 'GME Baseline Trend',
@@ -81,7 +81,7 @@ const KO = {
   moreExpensiveLegend: 'GME보다 비쌈',
   cheaperLegend: 'GME보다 저렴',
   avgDiffTitle: '운영사별 평균 가격 차이',
-  avgDiffSub: '전체 기간 평균 (GME 기준, KRW)',
+  avgDiffSub: (date: string) => `${date} 일별 평균 (GME 기준, KRW)`,
   gmeWins: 'GME보다 비쌈 (GME 유리)',
   gmeLoses: 'GME보다 저렴 (GME 불리)',
   trendTitle: 'GME 기준가 추이',
@@ -233,6 +233,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
   const [tableStatus, setTableStatus] = useState('all');
   const [tablePage, setTablePage] = useState(0);
   const [snapshotSortDesc, setSnapshotSortDesc] = useState(true);
+  const [avgDate, setAvgDate] = useState('');
   const PAGE_SIZE = 20;
 
   const t = isEn ? EN : KO;
@@ -311,10 +312,24 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
     [snapshot]
   );
 
+  const avgDates = useMemo(
+    () => [...new Set(byCountry.map(r => r.runHour.slice(0, 10)))].sort(),
+    [byCountry]
+  );
+
+  const effectiveAvgDate = avgDate && avgDates.includes(avgDate)
+    ? avgDate
+    : avgDates[avgDates.length - 1] ?? '';
+
   const operatorStats = useMemo(() => {
     const map: Record<string, { gaps: number[]; count: number }> = {};
     byCountry
-      .filter(r => r.status !== 'GME' && r.priceGap !== null && r.totalSendingAmount >= 700_000)
+      .filter(r =>
+        r.status !== 'GME' &&
+        r.priceGap !== null &&
+        r.totalSendingAmount >= 700_000 &&
+        r.runHour.slice(0, 10) === effectiveAvgDate
+      )
       .forEach(r => {
         if (!map[r.operator]) map[r.operator] = { gaps: [], count: 0 };
         map[r.operator].gaps.push(r.priceGap!);
@@ -327,7 +342,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
         count,
       }))
       .sort((a, b) => a.avgGap - b.avgGap);
-  }, [byCountry]);
+  }, [byCountry, effectiveAvgDate]);
 
   const trendData = useMemo(() => {
     const map: Record<string, number> = {};
@@ -523,8 +538,21 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
 
             {/* Avg Gap */}
             <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-              <h2 className="text-sm font-semibold">{t.avgDiffTitle}</h2>
-              <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5 mb-4">{t.avgDiffSub}</p>
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-sm font-semibold">{t.avgDiffTitle}</h2>
+                  <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(effectiveAvgDate)}</p>
+                </div>
+                <select
+                  value={effectiveAvgDate}
+                  onChange={e => setAvgDate(e.target.value)}
+                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+                >
+                  {[...avgDates].reverse().map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
               {operatorStats.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={operatorStats} layout="vertical" margin={{ top: 0, right: 55, left: 88, bottom: 0 }}>
