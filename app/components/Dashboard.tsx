@@ -318,7 +318,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
     () => snapshot.map(r => ({
       ...r,
       displayRate: r.sendAmountKRW > 0
-        ? parseFloat((r.receiveAmount / r.sendAmountKRW).toFixed(2))
+        ? (() => { const raw = r.receiveAmount / r.sendAmountKRW; return parseFloat((raw >= 1 ? raw : r.sendAmountKRW / r.receiveAmount).toFixed(2)); })()
         : null,
     })),
     [snapshot]
@@ -822,7 +822,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                         </td>
                         <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-200 font-mono whitespace-nowrap">
                           {r.sendAmountKRW > 0
-                            ? (() => { const rate = r.receiveAmount / r.sendAmountKRW; return rate >= 10 ? rate.toFixed(2) : rate >= 1 ? rate.toFixed(3) : rate.toFixed(4); })()
+                            ? (() => { const raw = r.receiveAmount / r.sendAmountKRW; const rate = raw >= 1 ? raw : r.sendAmountKRW / r.receiveAmount; return rate >= 10 ? rate.toFixed(2) : rate >= 1 ? rate.toFixed(3) : rate.toFixed(4); })()
                             : '—'}
                         </td>
                         <td className="py-2.5 px-3 text-center">
