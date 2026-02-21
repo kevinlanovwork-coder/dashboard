@@ -41,15 +41,13 @@ export async function scrape(browser) {
     const total = extractNumber(totalRaw);
     if (!total) throw new Error('총 송금액을 추출할 수 없습니다.');
 
-    const fee = 5000;
-
     return {
       operator: OPERATOR,
       receiving_country: 'Indonesia',
       receive_amount: 13_000_000,
       send_amount_krw: total,
-      service_fee: fee,
-      total_sending_amount: total + fee,
+      service_fee: 0,
+      total_sending_amount: total,
     };
   } finally {
     await page.close();

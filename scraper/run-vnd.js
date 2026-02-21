@@ -54,9 +54,8 @@ async function scrapeSentbe(browser) {
     const raw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
     const total = extractNumber(raw);
     if (!total) throw new Error('총 송금액 추출 실패');
-    const fee = 5000;
     return { operator: 'Sentbe', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
+      send_amount_krw: total, service_fee: 0, total_sending_amount: total };
   } finally { await page.close(); await context.close(); }
 }
 
@@ -229,15 +228,20 @@ async function main() {
   const results = [];
   const errors  = [];
 
-  for (const { name, fn, needsBrowser } of SCRAPERS) {
-    try {
-      console.log(`  ▶ ${name} 스크래핑 중...`);
-      const data = needsBrowser ? await fn(browser) : await fn();
-      results.push(data);
-      console.log(`  ✓ ${name}: 송금액 ${data.send_amount_krw?.toLocaleString()}원  수수료 ${data.service_fee?.toLocaleString()}원  합계 ${data.total_sending_amount?.toLocaleString()}원`);
-    } catch (err) {
-      console.error(`  ✗ ${name} 실패: ${err.message}`);
-      errors.push({ name, error: err.message });
+  console.log(`  모든 스크래퍼 병렬 실행 중... (${SCRAPERS.length}개)\n`);
+  const settled = await Promise.allSettled(
+    SCRAPERS.map(({ fn, needsBrowser }) => (needsBrowser ? fn(browser) : fn()))
+  );
+
+  for (let i = 0; i < settled.length; i++) {
+    const { name } = SCRAPERS[i];
+    const result = settled[i];
+    if (result.status === 'fulfilled') {
+      results.push(result.value);
+      console.log(`  ✓ ${name}: 송금액 ${result.value.send_amount_krw?.toLocaleString()}원  수수료 ${result.value.service_fee?.toLocaleString()}원  합계 ${result.value.total_sending_amount?.toLocaleString()}원`);
+    } else {
+      console.error(`  ✗ ${name} 실패: ${result.reason?.message}`);
+      errors.push({ name, error: result.reason?.message });
     }
   }
 

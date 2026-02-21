@@ -51,16 +51,21 @@ async function main() {
   const results = [];
   const errors  = [];
 
-  // ── 각 스크래퍼 순차 실행 ─────────────────────────────────────────────
-  for (const { name, fn, needsBrowser } of SCRAPERS) {
-    try {
-      console.log(`  ▶ ${name} 스크래핑 중...`);
-      const data = needsBrowser ? await fn(browser) : await fn();
-      results.push(data);
-      console.log(`  ✓ ${name}: 총 ${data.total_sending_amount?.toLocaleString()}원`);
-    } catch (err) {
-      console.error(`  ✗ ${name} 실패: ${err.message}`);
-      errors.push({ name, error: err.message });
+  // ── 각 스크래퍼 병렬 실행 ─────────────────────────────────────────────
+  console.log(`  모든 스크래퍼 병렬 실행 중... (${SCRAPERS.length}개)\n`);
+  const settled = await Promise.allSettled(
+    SCRAPERS.map(({ fn, needsBrowser }) => (needsBrowser ? fn(browser) : fn()))
+  );
+
+  for (let i = 0; i < settled.length; i++) {
+    const { name } = SCRAPERS[i];
+    const result = settled[i];
+    if (result.status === 'fulfilled') {
+      results.push(result.value);
+      console.log(`  ✓ ${name}: 총 ${result.value.total_sending_amount?.toLocaleString()}원`);
+    } else {
+      console.error(`  ✗ ${name} 실패: ${result.reason?.message}`);
+      errors.push({ name, error: result.reason?.message });
     }
   }
 

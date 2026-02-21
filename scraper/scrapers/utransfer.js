@@ -31,7 +31,7 @@ export async function scrape(browser) {
     if (!sendAmt) throw new Error('총 송금액을 추출할 수 없습니다.');
 
     // ── 수수료 추출 ────────────────────────────────────────────────────
-    const feeRaw = await page.locator('.utansfer_fees').textContent().catch(() => null);
+    const feeRaw = await page.locator('.utransfer_fees').textContent().catch(() => null);
     const fee = extractNumber(feeRaw) ?? 5000;
 
     return {
