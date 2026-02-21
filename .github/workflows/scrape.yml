@@ -1,10 +1,7 @@
 name: Hourly Rate Scraper
 
 on:
-  schedule:
-    # 매시간 정각 실행 (UTC 기준 — 한국 시간 = UTC+9)
-    - cron: '0 * * * *'
-  workflow_dispatch: # 수동 실행 허용
+  workflow_dispatch: # cron-job.org triggers this every hour at :00 UTC
 
 concurrency:
   group: scrape
