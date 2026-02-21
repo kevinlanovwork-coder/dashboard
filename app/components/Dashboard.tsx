@@ -32,6 +32,8 @@ const EN = {
   gmeLoses: 'Cheaper than GME (GME loses)',
   trendTitle: 'GME Baseline Trend',
   trendSub: 'GME total send amount over time (KRW)',
+  operatorTrendTitle: 'Operator Total Send Trend',
+  operatorTrendSub: 'Total send amount over time (KRW)',
   insufficientData: 'Insufficient data',
   detailedData: 'Detailed Data',
   records: (n: number) => `${n.toLocaleString()} records`,
@@ -80,6 +82,8 @@ const KO = {
   gmeLoses: 'GME보다 저렴 (GME 불리)',
   trendTitle: 'GME 기준가 추이',
   trendSub: '시간에 따른 GME 총 송금액 변화 (KRW)',
+  operatorTrendTitle: '운영사 총 송금액 추이',
+  operatorTrendSub: '시간에 따른 총 송금액 변화 (KRW)',
   insufficientData: '데이터 부족',
   detailedData: '상세 데이터',
   records: (n: number) => `${n.toLocaleString()}건`,
@@ -228,6 +232,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
   const [tablePage, setTablePage] = useState(0);
   const [snapshotSortDesc, setSnapshotSortDesc] = useState(true);
   const [avgDate, setAvgDate] = useState('');
+  const [selectedTrendOperator, setSelectedTrendOperator] = useState('');
   const PAGE_SIZE = 20;
 
   const t = isEn ? EN : KO;
@@ -358,6 +363,26 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([runHour, gmeBaseline]) => ({ runHour, label: formatRunHour(runHour), gmeBaseline }));
   }, [byCountry]);
+
+  const trendOperators = useMemo(
+    () => [...new Set(byCountry.filter(r => r.status !== 'GME').map(r => r.operator))].sort(),
+    [byCountry]
+  );
+
+  const effectiveTrendOperator = trendOperators.includes(selectedTrendOperator)
+    ? selectedTrendOperator
+    : trendOperators[0] ?? '';
+
+  const operatorTrendData = useMemo(() => {
+    if (!effectiveTrendOperator) return [];
+    const map: Record<string, number> = {};
+    byCountry
+      .filter(r => r.operator === effectiveTrendOperator && r.totalSendingAmount > 0)
+      .forEach(r => { if (!map[r.runHour]) map[r.runHour] = r.totalSendingAmount; });
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([runHour, totalSendingAmount]) => ({ runHour, label: formatRunHour(runHour), totalSendingAmount }));
+  }, [byCountry, effectiveTrendOperator]);
 
   const latestGMEBaseline = trendData[trendData.length - 1]?.gmeBaseline ?? null;
   const cheaperCount = snapshot.filter(r => r.status === 'Cheaper than GME').length;
@@ -622,6 +647,64 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                     strokeWidth={2}
                     dot={{ fill: '#3b82f6', r: 3, strokeWidth: 0 }}
                     activeDot={{ r: 5, fill: '#60a5fa', strokeWidth: 0 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-48 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.insufficientData}</div>
+            )}
+          </div>
+
+          {/* Operator Trend */}
+          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-sm font-semibold">{t.operatorTrendTitle}</h2>
+                <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.operatorTrendSub} — <span className="text-blue-500 dark:text-blue-400 font-medium">{effectiveTrendOperator}</span></p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {trendOperators.map(op => (
+                  <button
+                    key={op}
+                    onClick={() => setSelectedTrendOperator(op)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                      op === effectiveTrendOperator
+                        ? 'bg-violet-500 text-white'
+                        : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    {op}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {operatorTrendData.length > 1 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={operatorTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: ct.tick, fontSize: 11 }}
+                    axisLine={{ stroke: ct.axisLine }}
+                    tickLine={false}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    tickFormatter={v => `${(v / 1000).toFixed(0)}K`}
+                    tick={{ fill: ct.tick, fontSize: 11 }}
+                    axisLine={{ stroke: ct.axisLine }}
+                    tickLine={false}
+                    domain={['auto', 'auto']}
+                    width={42}
+                  />
+                  <Tooltip content={(props) => <TrendTooltip {...props} t={t} />} />
+                  <Line
+                    type="monotone"
+                    dataKey="totalSendingAmount"
+                    stroke="#8b5cf6"
+                    strokeWidth={2}
+                    dot={{ fill: '#8b5cf6', r: 3, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#a78bfa', strokeWidth: 0 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
