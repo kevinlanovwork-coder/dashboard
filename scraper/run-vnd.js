@@ -42,7 +42,10 @@ async function scrapeSentbe(browser) {
   const page = await context.newPage();
   try {
     await page.goto('https://www.sentbe.com/ko', { waitUntil: 'networkidle', timeout: 30000 });
-    await page.click('button.close').catch(() => null); await page.waitForTimeout(500);
+    await page.click('button.close').catch(() => null);
+    await page.waitForTimeout(300);
+    await page.click('article.app-download-popup .dim').catch(() => null);
+    await page.waitForTimeout(500);
     await page.waitForSelector('.receiveAmountInput .el-input-group__append', { timeout: 10000 });
     await page.click('.receiveAmountInput .el-input-group__append'); await page.waitForTimeout(500);
     // "베트남 / 동 - VND" 선택 (USD 제외)
@@ -187,7 +190,7 @@ async function scrapeCross(browser) {
 async function scrapeJrf(browser) {
   const page = await browser.newPage();
   try {
-    await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
     await page.click('#div_curr'); await page.waitForTimeout(500);
     await page.click('li#VND'); await page.waitForTimeout(1500);
