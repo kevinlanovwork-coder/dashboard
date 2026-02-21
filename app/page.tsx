@@ -5,13 +5,6 @@ import type { RateRecord } from './lib/parseRates';
 // 빌드 시 정적 생성 방지 — 항상 서버에서 실시간 렌더링
 export const dynamic = 'force-dynamic';
 
-function mapStatus(dbStatus: string | null, operator: string): string {
-  if (operator === 'GME') return 'GME';
-  if (dbStatus === 'GME 유리') return 'Expensive than GME';
-  if (dbStatus === '경쟁사 유리') return 'Cheaper than GME';
-  return 'Expensive than GME';
-}
-
 export default async function Home() {
   const supabase = createClient(
     process.env.SUPABASE_URL!,
@@ -31,21 +24,43 @@ export default async function Home() {
     );
   }
 
-  const records: RateRecord[] = data.map(r => ({
-    timestamp: r.scraped_at ?? r.run_hour,
-    runHour: r.run_hour,
-    operator: r.operator,
-    receivingCountry: r.receiving_country,
-    receiveAmount: r.receive_amount,
-    sendAmountKRW: r.send_amount_krw,
-    receiveMultiplier: 1,
-    adjustedSendingAmount: r.send_amount_krw,
-    serviceFee: r.service_fee ?? 0,
-    totalSendingAmount: r.total_sending_amount,
-    gmeBaseline: r.gme_baseline,
-    priceGap: r.price_gap,
-    status: mapStatus(r.status, r.operator),
-  }));
+  // Build GME baseline map per (run_hour, receiving_country) from raw data
+  const gmeBaselineMap = new Map<string, number>();
+  data.forEach(r => {
+    if (r.operator === 'GME' && r.total_sending_amount) {
+      gmeBaselineMap.set(`${r.run_hour}|${r.receiving_country}`, r.total_sending_amount);
+    }
+  });
+
+  const records: RateRecord[] = data.map(r => {
+    const gmeBaseline = gmeBaselineMap.get(`${r.run_hour}|${r.receiving_country}`) ?? null;
+    const priceGap = r.operator !== 'GME' && gmeBaseline
+      ? r.total_sending_amount - gmeBaseline
+      : null;
+    const status = r.operator === 'GME'
+      ? 'GME'
+      : priceGap === null
+        ? 'Expensive than GME'
+        : priceGap > 0
+          ? 'Expensive than GME'
+          : 'Cheaper than GME';
+
+    return {
+      timestamp: r.scraped_at ?? r.run_hour,
+      runHour: r.run_hour,
+      operator: r.operator,
+      receivingCountry: r.receiving_country,
+      receiveAmount: r.receive_amount,
+      sendAmountKRW: r.send_amount_krw,
+      receiveMultiplier: 1,
+      adjustedSendingAmount: r.send_amount_krw,
+      serviceFee: r.service_fee ?? 0,
+      totalSendingAmount: r.total_sending_amount,
+      gmeBaseline,
+      priceGap,
+      status,
+    };
+  });
 
   return <Dashboard records={records} />;
 }
