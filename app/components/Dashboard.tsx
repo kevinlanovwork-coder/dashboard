@@ -256,6 +256,15 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
     localStorage.setItem('dashboard-lang', isEn ? 'en' : 'ko');
   }, [isEn]);
 
+  // Persist selected country
+  useEffect(() => {
+    const saved = localStorage.getItem('dashboard-country');
+    if (saved) setSelectedCountry(saved);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem('dashboard-country', selectedCountry);
+  }, [selectedCountry]);
+
   const ct = {
     grid:     isDark ? '#1e293b' : '#e2e8f0',
     tick:     isDark ? '#64748b' : '#94a3b8',
