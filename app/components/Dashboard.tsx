@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  LineChart, Line, ResponsiveContainer, ReferenceLine, Cell,
+  LineChart, Line, ResponsiveContainer, ReferenceLine, Cell, LabelList,
 } from 'recharts';
 import type { RateRecord } from '@/app/lib/parseRates';
 
@@ -40,8 +40,8 @@ const EN = {
   records: (n: number) => `${n.toLocaleString()} records`,
   searchOperator: 'Search operator...',
   allStatus: 'All Status',
-  tableHeaders: ['Time', 'Operator', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Status'],
-  rightAlignHeaders: ['Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff'],
+  tableHeaders: ['Time', 'Operator', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Rate', 'Status'],
+  rightAlignHeaders: ['Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Rate'],
   pagination: (start: number, end: number, total: number) =>
     `${start.toLocaleString()}–${end.toLocaleString()} of ${total.toLocaleString()}`,
   prev: 'Prev',
@@ -91,8 +91,8 @@ const KO = {
   records: (n: number) => `${n.toLocaleString()}건`,
   searchOperator: '운영사 검색...',
   allStatus: '전체 상태',
-  tableHeaders: ['시간대', '운영사', '국가', '수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '상태'],
-  rightAlignHeaders: ['수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이'],
+  tableHeaders: ['시간대', '운영사', '국가', '수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '환율', '상태'],
+  rightAlignHeaders: ['수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '환율'],
   pagination: (start: number, end: number, total: number) =>
     `${start.toLocaleString()}–${end.toLocaleString()} / ${total.toLocaleString()}건`,
   prev: '이전',
@@ -301,6 +301,16 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
     [snapshot]
   );
 
+  const snapshotChartData = useMemo(
+    () => snapshot.map(r => ({
+      ...r,
+      displayRate: r.sendAmountKRW > 0
+        ? parseFloat((r.receiveAmount / r.sendAmountKRW).toFixed(2))
+        : null,
+    })),
+    [snapshot]
+  );
+
   const operatorStats = useMemo(() => {
     const map: Record<string, { gaps: number[]; count: number }> = {};
     byCountry
@@ -459,9 +469,9 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                   {snapshotSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
                 </button>
               </div>
-              {snapshot.length > 0 ? (
+              {snapshotChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={snapshot} layout="vertical" margin={{ top: 0, right: 55, left: 88, bottom: 0 }}>
+                  <BarChart data={snapshotChartData} layout="vertical" margin={{ top: 0, right: 75, left: 88, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
                     <XAxis
                       type="number"
@@ -489,9 +499,15 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                       />
                     )}
                     <Bar dataKey="totalSendingAmount" radius={[0, 4, 4, 0]}>
-                      {snapshot.map((entry, i) => (
+                      {snapshotChartData.map((entry, i) => (
                         <Cell key={i} fill={statusColor(entry.status).hex} />
                       ))}
+                      <LabelList
+                        dataKey="displayRate"
+                        position="right"
+                        formatter={(v: number) => v != null ? v.toFixed(2) : ''}
+                        style={{ fill: ct.tick, fontSize: 10 }}
+                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -619,7 +635,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800">
                     {t.tableHeaders.map(h => (
-                      <th key={h} className={`py-2.5 px-3 text-slate-500 dark:text-slate-500 font-medium text-xs ${t.rightAlignHeaders.includes(h) ? 'text-right' : h === t.tableHeaders[9] ? 'text-center' : 'text-left'}`}>
+                      <th key={h} className={`py-2.5 px-3 text-slate-500 dark:text-slate-500 font-medium text-xs ${t.rightAlignHeaders.includes(h) ? 'text-right' : h === t.tableHeaders[t.tableHeaders.length - 1] ? 'text-center' : 'text-left'}`}>
                         {h}
                       </th>
                     ))}
@@ -645,6 +661,11 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                         <td className={`py-2.5 px-3 text-right font-mono whitespace-nowrap ${r.priceGap === null || r.priceGap === 0 ? 'text-slate-400 dark:text-slate-500' : r.priceGap < 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
                           {r.priceGap !== null && r.priceGap !== 0
                             ? `${r.priceGap > 0 ? '+' : ''}${r.priceGap.toLocaleString('ko-KR')}`
+                            : '—'}
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-200 font-mono whitespace-nowrap">
+                          {r.sendAmountKRW > 0
+                            ? (() => { const rate = r.receiveAmount / r.sendAmountKRW; return rate >= 10 ? rate.toFixed(2) : rate >= 1 ? rate.toFixed(3) : rate.toFixed(4); })()
                             : '—'}
                         </td>
                         <td className="py-2.5 px-3 text-center">
