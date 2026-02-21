@@ -268,7 +268,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
   );
 
   const byCountry = useMemo(
-    () => selectedCountry === 'all' ? records : records.filter(r => r.receivingCountry === selectedCountry),
+    () => records.filter(r => r.receivingCountry === selectedCountry),
     [records, selectedCountry]
   );
 
@@ -365,7 +365,6 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                 onChange={e => { setSelectedCountry(e.target.value); setSelectedRunHour('all'); setTablePage(0); }}
                 className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="all">{t.allCountries}</option>
                 {countries.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <select
