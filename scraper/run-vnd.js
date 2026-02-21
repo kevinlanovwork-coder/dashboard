@@ -192,7 +192,7 @@ async function scrapeJrf(browser) {
   try {
     await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
-    await page.click('#div_curr'); await page.waitForTimeout(500);
+    await page.click('#div_curr', { force: true }); await page.waitForTimeout(500);
     await page.click('li#VND'); await page.waitForTimeout(1500);
     await page.click('#rec_money', { clickCount: 3 });
     await page.fill('#rec_money', String(AMOUNT));
