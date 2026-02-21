@@ -14,10 +14,7 @@ const EN = {
   subtitle: 'Remittance Service Rate Competitiveness Analysis',
   allCountries: 'All Countries',
   latestSnapshot: 'Latest Snapshot',
-  totalDataPoints: 'Total Data Points',
-  timeSlots: (n: number) => `${n} time slots`,
-  trackedOperators: 'Tracked Operators',
-  services: 'services',
+  receiveBaseline: 'Receive Baseline',
   latestGMEBaseline: 'Latest GME Baseline',
   cheaperCompetitors: 'Cheaper Competitors',
   basedOnSnapshot: 'Based on snapshot',
@@ -65,10 +62,7 @@ const KO = {
   subtitle: '해외 송금 서비스 요율 경쟁력 분석',
   allCountries: '전체 국가',
   latestSnapshot: '최신 스냅샷',
-  totalDataPoints: '총 데이터 포인트',
-  timeSlots: (n: number) => `${n}개 시간대`,
-  trackedOperators: '추적 운영사',
-  services: '서비스',
+  receiveBaseline: '수령 기준액',
   latestGMEBaseline: '최신 GME 기준가',
   cheaperCompetitors: '더 저렴한 경쟁사',
   basedOnSnapshot: '스냅샷 기준',
@@ -369,7 +363,8 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
   const cheaperCount = snapshot.filter(r => r.status === 'Cheaper than GME').length;
   const expensiveCount = snapshot.filter(r => r.status === 'Expensive than GME').length;
   const totalCompetitors = snapshot.filter(r => r.status !== 'GME').length;
-  const operators = useMemo(() => [...new Set(byCountry.map(r => r.operator))], [byCountry]);
+  const receiveBaseline = byCountry[0]?.receiveAmount ?? null;
+  const receiveCurrency = CURRENCY_MAP[selectedCountry] ?? '';
 
   const tableData = useMemo(() => {
     let data = byCountry;
@@ -446,16 +441,11 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
 
         <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <KPICard
-              title={t.totalDataPoints}
-              value={byCountry.length.toLocaleString()}
-              sub={t.timeSlots(runHours.length)}
-            />
-            <KPICard
-              title={t.trackedOperators}
-              value={`${operators.length}`}
-              sub={t.services}
+              title={t.receiveBaseline}
+              value={receiveBaseline ? `${receiveBaseline.toLocaleString()} ${receiveCurrency}` : '-'}
+              sub={selectedCountry}
             />
             <KPICard
               title={t.latestGMEBaseline}
