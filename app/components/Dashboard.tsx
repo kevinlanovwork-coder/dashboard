@@ -505,7 +505,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                       <LabelList
                         dataKey="displayRate"
                         position="right"
-                        formatter={(v: number) => v != null ? v.toFixed(2) : ''}
+                        formatter={(v: unknown) => (typeof v === 'number' ? v.toFixed(2) : '')}
                         style={{ fill: ct.tick, fontSize: 10 }}
                       />
                     </Bar>
