@@ -133,8 +133,8 @@ function statusColor(status: string) {
 }
 
 const CURRENCY_MAP: Record<string, string> = {
-  Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Philippines: 'PHP',
-  Nepal: 'NPR', Malaysia: 'MYR', Singapore: 'SGD', Cambodia: 'USD',
+  Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Nepal: 'NPR',
+  Philippines: 'PHP', Malaysia: 'MYR', Singapore: 'SGD', Cambodia: 'USD',
   Japan: 'JPY', China: 'CNY', Mongolia: 'MNT',
 };
 

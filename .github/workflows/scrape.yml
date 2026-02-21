@@ -27,6 +27,8 @@ jobs:
             script: run-mnt.js
           - name: Vietnam VND
             script: run-vnd.js
+          - name: Nepal NPR
+            script: run-npr.js
 
     defaults:
       run:
