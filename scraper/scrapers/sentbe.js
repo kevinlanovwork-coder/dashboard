@@ -20,6 +20,9 @@ export async function scrape(browser) {
 
     // ── 팝업 닫기 ──────────────────────────────────────────────────────
     await page.click('button.close').catch(() => null);
+    await page.waitForTimeout(300);
+    // app-download 팝업이 오버레이를 가리는 경우 dim 클릭으로 닫기
+    await page.click('article.app-download-popup .dim').catch(() => null);
     await page.waitForTimeout(500);
 
     // ── 수신 국가: 인도네시아 / 루피아 - IDR 선택 ──────────────────────

@@ -10,7 +10,7 @@ export async function scrape(browser) {
   const page = await browser.newPage();
   try {
     await page.goto('https://www.jpremit.co.kr/', {
-      waitUntil: 'networkidle',
+      waitUntil: 'domcontentloaded',
       timeout: 30000,
     });
     await page.waitForTimeout(3000);
