@@ -77,7 +77,7 @@ async function scrapeSentbe(browser) {
     const raw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
     const total = extractNumber(raw);
     if (!total) throw new Error('총 송금액 추출 실패');
-    const fee = 5000;
+    const fee = 0;
     return { operator: 'Sentbe', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
   } finally { await page.close(); await context.close(); }
@@ -123,8 +123,7 @@ async function scrapeJrf(browser) {
     const sendAmtRaw = await page.inputValue('#send_money');
     const sendAmt = extractNumber(sendAmtRaw);
     if (!sendAmt) throw new Error('총 송금액 추출 실패');
-    const feeRaw = await page.textContent('#servicefee').catch(() => null);
-    const fee = extractNumber(feeRaw) ?? 5000;
+    const fee = 3000;
     return { operator: 'JRF', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
   } finally { await page.close(); }
