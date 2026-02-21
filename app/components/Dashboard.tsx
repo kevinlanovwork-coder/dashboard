@@ -144,6 +144,22 @@ const CURRENCY_MAP: Record<string, string> = {
   Japan: 'JPY', China: 'CNY', Mongolia: 'MNT',
 };
 
+// GME embeds a service fee inside send_amount_krw for these corridors.
+// Subtract it to get the true exchange-only amount used for rate calculation.
+const GME_EMBEDDED_FEE: Record<string, number> = {
+  Indonesia: 5000,
+  Thailand: 5000,
+  Mongolia: 5000,
+};
+
+function rateExchangeKRW(r: RateRecord): number {
+  if (r.operator === 'GME') {
+    const embedded = GME_EMBEDDED_FEE[r.receivingCountry] ?? 0;
+    return Math.max(r.sendAmountKRW - embedded, 1);
+  }
+  return r.sendAmountKRW;
+}
+
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
 function SunIcon() {
@@ -318,7 +334,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
     () => snapshot.map(r => ({
       ...r,
       displayRate: r.sendAmountKRW > 0
-        ? (() => { const raw = r.receiveAmount / r.sendAmountKRW; return parseFloat((raw >= 1 ? raw : r.sendAmountKRW / r.receiveAmount).toFixed(2)); })()
+        ? (() => { const exKRW = rateExchangeKRW(r); const raw = r.receiveAmount / exKRW; return parseFloat((raw >= 1 ? raw : exKRW / r.receiveAmount).toFixed(2)); })()
         : null,
     })),
     [snapshot]
@@ -822,7 +838,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                         </td>
                         <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-200 font-mono whitespace-nowrap">
                           {r.sendAmountKRW > 0
-                            ? (() => { const raw = r.receiveAmount / r.sendAmountKRW; const rate = raw >= 1 ? raw : r.sendAmountKRW / r.receiveAmount; return rate >= 10 ? rate.toFixed(2) : rate >= 1 ? rate.toFixed(3) : rate.toFixed(4); })()
+                            ? (() => { const exKRW = rateExchangeKRW(r); const raw = r.receiveAmount / exKRW; const rate = raw >= 1 ? raw : exKRW / r.receiveAmount; return rate >= 10 ? rate.toFixed(2) : rate >= 1 ? rate.toFixed(3) : rate.toFixed(4); })()
                             : '—'}
                         </td>
                         <td className="py-2.5 px-3 text-center">
