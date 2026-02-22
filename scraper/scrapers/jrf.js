@@ -7,7 +7,8 @@ import { extractNumber } from '../lib/browser.js';
 export const OPERATOR = 'JRF';
 
 export async function scrape(browser) {
-  const page = await browser.newPage();
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  const page = await context.newPage();
   try {
     await page.goto('https://www.jpremit.co.kr/', {
       waitUntil: 'domcontentloaded',
@@ -46,5 +47,6 @@ export async function scrape(browser) {
     };
   } finally {
     await page.close();
+    await context.close();
   }
 }

@@ -262,7 +262,8 @@ async function scrapeCoinshot(browser) {
 
 // ─── JRF ─────────────────────────────────────────────────────────────────────
 async function scrapeJrf(browser) {
-  const page = await browser.newPage();
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  const page = await context.newPage();
   try {
     await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
@@ -281,7 +282,7 @@ async function scrapeJrf(browser) {
     const fee = extractNumber(feeRaw) ?? 5000;
     return { operator: 'JRF', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
-  } finally { await page.close(); }
+  } finally { await page.close(); await context.close(); }
 }
 
 // ─── E9Pay ────────────────────────────────────────────────────────────────────
