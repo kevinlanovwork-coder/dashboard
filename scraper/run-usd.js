@@ -2,7 +2,11 @@
  * Cambodia (USD) 스크래퍼 — 1,000 USD 기준
  * 실행: node --env-file=.env run-usd.js
  *
- * 지원 사업자: GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay
+ * 지원 사업자: GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay
+ * (GME Cambodia USD: 계산기 미지원 — 추후 추가 예정)
+ *
+ * 수수료 (하드코딩):
+ *   Sentbe=1,875
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber } from './lib/browser.js';
@@ -10,28 +14,6 @@ import { saveRates } from './lib/supabase.js';
 
 const COUNTRY = 'Cambodia';
 const AMOUNT  = 1_000;
-
-// ─── GME ─────────────────────────────────────────────────────────────────────
-async function scrapeGme(browser) {
-  const page = await browser.newPage();
-  try {
-    await page.goto('https://online.gmeremit.com/', { waitUntil: 'networkidle', timeout: 30000 });
-    await page.waitForSelector('#nCountry', { timeout: 10000 });
-    await page.click('#nCountry'); await page.waitForTimeout(500);
-    await page.fill('#CountryValue', 'Cambodia'); await page.waitForTimeout(300);
-    await page.click('#toCurrUl li[data-countrycode="USD"]');
-    await page.waitForTimeout(1000);
-    await page.click('#recAmt', { clickCount: 3 });
-    await page.fill('#recAmt', String(AMOUNT));
-    await page.dispatchEvent('#recAmt', 'change');
-    await page.waitForTimeout(3000);
-    const raw = await page.$eval('#numAmount', el => el.value || el.textContent).catch(() => null);
-    const total = extractNumber(raw);
-    if (!total) throw new Error('총 송금액 추출 실패');
-    return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total, service_fee: 0, total_sending_amount: total };
-  } finally { await page.close(); }
-}
 
 // ─── GMoneyTrans (API) ────────────────────────────────────────────────────────
 async function scrapeGmoneytrans() {
@@ -69,7 +51,7 @@ async function scrapeSentbe(browser) {
     await page.click('article.app-download-popup .dim').catch(() => null); await page.waitForTimeout(500);
     await page.waitForSelector('.receiveAmountInput .el-input-group__append', { timeout: 10000 });
     await page.click('.receiveAmountInput .el-input-group__append'); await page.waitForTimeout(500);
-    await page.click('.receiveAmountInput .el-select-dropdown__item:has-text("캄보디아")');
+    await page.click('.receiveAmountInput .el-select-dropdown__item:has-text("캄보디아 / 달러")');
     await page.waitForTimeout(1000);
     await page.click('#receiveAmount', { clickCount: 3 });
     await page.fill('#receiveAmount', String(AMOUNT));
@@ -77,7 +59,7 @@ async function scrapeSentbe(browser) {
     const raw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
     const total = extractNumber(raw);
     if (!total) throw new Error('총 송금액 추출 실패');
-    const fee = 0; // hardcoded
+    const fee = 1875; // hardcoded
     return { operator: 'Sentbe', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
   } finally { await page.close(); await context.close(); }
@@ -166,7 +148,6 @@ async function scrapeE9pay(browser) {
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
-  { name: 'GME',         fn: scrapeGme,         needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Sentbe',      fn: scrapeSentbe,       needsBrowser: true  },
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: true  },
