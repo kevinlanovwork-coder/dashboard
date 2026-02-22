@@ -2,11 +2,10 @@
  * Cambodia (USD) 스크래퍼 — 1,000 USD 기준
  * 실행: node --env-file=.env run-usd.js
  *
- * 지원 사업자: GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay
- * (GME Cambodia USD: 계산기 미지원 — 추후 추가 예정)
+ * 지원 사업자: GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay
  *
  * 수수료 (하드코딩):
- *   Sentbe=1,875
+ *   Sentbe=1,875  (GME scCharge API에서 자동 추출)
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber } from './lib/browser.js';
@@ -14,6 +13,28 @@ import { saveRates } from './lib/supabase.js';
 
 const COUNTRY = 'Cambodia';
 const AMOUNT  = 1_000;
+
+// ─── GME (API) ────────────────────────────────────────────────────────────────
+async function scrapeGme() {
+  const body = new URLSearchParams({
+    method: 'GetExRate', pCurr: 'USD', pCountryName: 'Cambodia',
+    collCurr: 'KRW', deliveryMethod: '1', cAmt: '', pAmt: String(AMOUNT),
+    cardOnline: 'false', calBy: 'P',
+  }).toString();
+  const res = await fetch('https://online.gmeremit.com/Default.aspx', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body, signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.errorCode !== '0') throw new Error(`GME API 오류: ${data.msg}`);
+  const total = extractNumber(data.collAmt);
+  const fee   = extractNumber(data.scCharge) ?? 0;
+  if (!total) throw new Error('총 송금액 추출 실패');
+  return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
+}
 
 // ─── GMoneyTrans (API) ────────────────────────────────────────────────────────
 async function scrapeGmoneytrans() {
@@ -153,6 +174,7 @@ async function scrapeE9pay(browser) {
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
+  { name: 'GME',         fn: scrapeGme,          needsBrowser: false },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Sentbe',      fn: scrapeSentbe,       needsBrowser: true  },
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: true  },
