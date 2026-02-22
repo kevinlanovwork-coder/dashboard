@@ -1,5 +1,5 @@
 /**
- * Myanmar (MMK) 스크래퍼 — 1,000,000 MMK 기준
+ * Myanmar (MMK) 스크래퍼 — 5,000,000 MMK 기준
  * 실행: node --env-file=.env run-mmk.js
  *
  * 지원 사업자: GME, GMoneyTrans, Hanpass, SBI, E9Pay
@@ -9,7 +9,7 @@ import { getRunHour, extractNumber } from './lib/browser.js';
 import { saveRates } from './lib/supabase.js';
 
 const COUNTRY = 'Myanmar';
-const AMOUNT  = 1_000_000;
+const AMOUNT  = 5_000_000;
 
 // ─── GME ─────────────────────────────────────────────────────────────────────
 async function scrapeGme(browser) {
@@ -218,7 +218,7 @@ async function main() {
     errors.forEach(e => console.warn(`   - ${e.name}: ${e.error}`));
   }
 
-  console.log('\n── Myanmar MMK 1,000,000 결과 요약 ────────────────────────────────');
+  console.log('\n── Myanmar MMK 5,000,000 결과 요약 ────────────────────────────────');
   console.log(`${'운영사'.padEnd(14)} ${'송금액(KRW)'.padStart(12)} ${'수수료'.padStart(8)} ${'합계'.padStart(12)} 차이`);
   console.log('─'.repeat(60));
   toSave.sort((a, b) => a.total_sending_amount - b.total_sending_amount).forEach(r => {
