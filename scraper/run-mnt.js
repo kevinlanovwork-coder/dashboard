@@ -170,10 +170,14 @@ async function scrapeHanpass(browser) {
     await page.fill('#countrySearch', 'Mongolia'); await page.waitForTimeout(500);
     await page.locator('button[aria-label="Mongolia MNT"]').first().click();
     await page.waitForTimeout(1500);
+    const prevDeposit = await page.$eval('#deposit', el => el.value).catch(() => '');
     await page.click('#recipient', { clickCount: 3 });
-    await page.fill('#recipient', String(AMOUNT));
-    await page.press('#recipient', 'Tab');
-    await page.waitForTimeout(3000);
+    await page.keyboard.type(String(AMOUNT));
+    await page.dispatchEvent('#recipient', 'blur');
+    await page.waitForFunction(
+      (prev) => { const el = document.querySelector('#deposit'); return el && el.value !== prev && el.value !== '' && el.value !== '0'; },
+      prevDeposit, { timeout: 10000 }
+    ).catch(() => null);
     const raw = await page.$eval('#deposit', el => el.value).catch(() => null);
     const total = extractNumber(raw);
     if (!total) throw new Error('총 송금액 추출 실패');
