@@ -2,7 +2,7 @@
  * China (CNY) 스크래퍼 — 10,000 CNY 기준
  * 실행: node --env-file=.env run-cny.js
  *
- * 지원 사업자: GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin
+ * 지원 사업자: GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk
  * 수령 방식: GMoneyTrans = Alipay, 나머지 = Bank Account (Alipay 미지원)
  *
  * 수수료 (하드코딩):
@@ -307,6 +307,30 @@ async function scrapeMoin(browser) {
   } finally { await page.close(); }
 }
 
+// ─── Debunk ───────────────────────────────────────────────────────────────────
+async function scrapeDebunk(browser) {
+  const page = await browser.newPage();
+  try {
+    await page.goto('https://www.debunk.co.kr/', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForTimeout(2000);
+    // Default currency is already CNY — enter receive amount
+    const prevSend = await page.$eval('#sendCurrency', el => el.value).catch(() => '');
+    await page.click('#receiveCurrency', { clickCount: 3 });
+    await page.keyboard.type(String(AMOUNT));
+    await page.dispatchEvent('#receiveCurrency', 'blur');
+    await page.waitForFunction(
+      (prev) => { const el = document.querySelector('#sendCurrency'); return el && el.value !== prev && el.value !== ''; },
+      prevSend, { timeout: 10000 }
+    ).catch(() => null);
+    const raw = await page.$eval('#sendCurrency', el => el.value).catch(() => null);
+    const sendAmt = extractNumber(raw);
+    if (!sendAmt) throw new Error('총 송금액 추출 실패');
+    const fee = 5000; // hardcoded (shown on page)
+    return { operator: 'Debunk', receiving_country: COUNTRY, receive_amount: AMOUNT,
+      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
+  } finally { await page.close(); }
+}
+
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
   { name: 'GME',         fn: scrapeGme,         needsBrowser: true  },
@@ -320,6 +344,7 @@ const SCRAPERS = [
   { name: 'E9Pay',       fn: scrapeE9pay,        needsBrowser: true  },
   { name: 'Utransfer',   fn: scrapeUtransfer,    needsBrowser: true  },
   { name: 'Moin',        fn: scrapeMoin,         needsBrowser: true  },
+  { name: 'Debunk',      fn: scrapeDebunk,       needsBrowser: true  },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
