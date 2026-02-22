@@ -2,7 +2,7 @@
  * China (CNY) 스크래퍼 — 10,000 CNY 기준
  * 실행: node --env-file=.env run-cny.js
  *
- * 지원 사업자: GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer
+ * 지원 사업자: GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin
  * 수령 방식: GMoneyTrans = Alipay, 나머지 = Bank Account (Alipay 미지원)
  *
  * 수수료 (하드코딩):
@@ -271,6 +271,37 @@ async function scrapeUtransfer(browser) {
   } finally { await page.close(); }
 }
 
+// ─── Moin ─────────────────────────────────────────────────────────────────────
+async function scrapeMoin(browser) {
+  const page = await browser.newPage();
+  try {
+    await page.goto('https://www.themoin.com/', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForTimeout(3000);
+    // Close popup (transparent close div at top-right of modal)
+    await page.evaluate(() => {
+      document.querySelector('#portalRoot div[style*="top: 21px"]')?.click();
+    });
+    await page.waitForTimeout(1000);
+    // Click receive currency dropdown
+    await page.locator('div[color="var(--primary-100)"] div[class*="sc-qZusK"]').click();
+    await page.waitForTimeout(2000);
+    // Select China CNY
+    await page.locator('text=중국').first().click();
+    await page.waitForTimeout(2000);
+    // Fill receive amount
+    await page.click('#sendAmountForeignCurrency', { clickCount: 3 });
+    await page.fill('#sendAmountForeignCurrency', String(AMOUNT));
+    await page.press('#sendAmountForeignCurrency', 'Tab');
+    await page.waitForTimeout(3000);
+    // Read KRW send amount
+    const raw = await page.$eval('#sendAmountLocalCurrency', el => el.value).catch(() => null);
+    const total = extractNumber(raw);
+    if (!total) throw new Error('총 송금액 추출 실패');
+    return { operator: 'Moin', receiving_country: COUNTRY, receive_amount: AMOUNT,
+      send_amount_krw: total, service_fee: 0, total_sending_amount: total };
+  } finally { await page.close(); }
+}
+
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
   { name: 'GME',         fn: scrapeGme,         needsBrowser: true  },
@@ -283,6 +314,7 @@ const SCRAPERS = [
   { name: 'Coinshot',    fn: scrapeCoinshot,     needsBrowser: true  },
   { name: 'E9Pay',       fn: scrapeE9pay,        needsBrowser: true  },
   { name: 'Utransfer',   fn: scrapeUtransfer,    needsBrowser: true  },
+  { name: 'Moin',        fn: scrapeMoin,         needsBrowser: true  },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
