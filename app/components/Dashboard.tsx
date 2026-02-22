@@ -141,7 +141,7 @@ function statusColor(status: string) {
 const CURRENCY_MAP: Record<string, string> = {
   Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Nepal: 'NPR',
   Philippines: 'PHP', Malaysia: 'MYR', Singapore: 'SGD', Cambodia: 'USD',
-  Japan: 'JPY', China: 'CNY', Mongolia: 'MNT',
+  Japan: 'JPY', China: 'CNY', Mongolia: 'MNT', Myanmar: 'MMK',
 };
 
 // GME embeds a service fee inside send_amount_krw for these corridors.

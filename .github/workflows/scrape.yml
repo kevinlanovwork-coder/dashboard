@@ -30,6 +30,8 @@ jobs:
             script: run-cny.js
           - name: Cambodia USD
             script: run-usd.js
+          - name: Myanmar MMK
+            script: run-mmk.js
 
     defaults:
       run:
