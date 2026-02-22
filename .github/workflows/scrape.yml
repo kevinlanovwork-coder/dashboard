@@ -65,7 +65,40 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: Run scraper (${{ matrix.name }})
+        id: scraper
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: node ${{ matrix.script }}
+        run: |
+          set -o pipefail
+          node ${{ matrix.script }} 2>&1 | tee scraper_output.log
+          if grep -q "실패한 스크래퍼" scraper_output.log; then
+            echo "has_failures=true" >> $GITHUB_OUTPUT
+            {
+              echo "details<<HEREDOC"
+              grep -A 20 "실패한 스크래퍼" scraper_output.log
+              echo "HEREDOC"
+            } >> $GITHUB_OUTPUT
+          else
+            echo "has_failures=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send failure notification email
+        if: steps.scraper.outputs.has_failures == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.NOTIFY_EMAIL }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "⚠️ [${{ matrix.name }}] 스크래퍼 부분 실패"
+          to: ${{ secrets.NOTIFY_EMAIL }}
+          from: ${{ secrets.NOTIFY_EMAIL }}
+          body: |
+            [${{ matrix.name }}] 스크래핑 중 일부 운영사가 실패했습니다.
+
+            ${{ steps.scraper.outputs.details }}
+
+            Actions 실행 확인:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
