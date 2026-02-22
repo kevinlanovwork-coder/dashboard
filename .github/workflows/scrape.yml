@@ -17,7 +17,7 @@ jobs:
       matrix:
         include:
           - name: Indonesia IDR
-            script: index.js
+            script: run-idr.js
           - name: Thailand THB
             script: run-thb.js
           - name: Mongolia MNT
@@ -28,8 +28,8 @@ jobs:
             script: run-npr.js
           - name: China CNY
             script: run-cny.js
-          - name: Cambodia USD
-            script: run-usd.js
+          - name: Cambodia KHM
+            script: run-khm.js
           - name: Myanmar MMK
             script: run-mmk.js
 

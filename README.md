@@ -114,7 +114,7 @@ dashboard/
 │   │   ├── browser.js          # Shared helpers (extractNumber, getRunHour)
 │   │   └── supabase.js         # Supabase client (write)
 │   ├── scrapers/               # Shared scraper modules (Indonesia corridor)
-│   ├── index.js                # Indonesia IDR scraper
+│   ├── run-idr.js              # Indonesia IDR scraper
 │   ├── run-thb.js              # Thailand THB scraper
 │   ├── run-vnd.js              # Vietnam VND scraper
 │   ├── run-mnt.js              # Mongolia MNT scraper
@@ -141,12 +141,14 @@ echo "SUPABASE_URL=https://xxxx.supabase.co" >> .env
 echo "SUPABASE_SERVICE_KEY=your_service_key" >> .env
 
 # Run a specific corridor
-node --env-file=.env index.js        # Indonesia
+node --env-file=.env run-idr.js      # Indonesia
 node --env-file=.env run-thb.js      # Thailand
 node --env-file=.env run-vnd.js      # Vietnam
 node --env-file=.env run-mnt.js      # Mongolia
 node --env-file=.env run-npr.js      # Nepal
 node --env-file=.env run-cny.js      # China
+node --env-file=.env run-khm.js      # Cambodia
+node --env-file=.env run-mmk.js      # Myanmar
 ```
 
 ---

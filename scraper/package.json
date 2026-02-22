@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "scrape": "node --env-file=.env index.js",
-    "scrape:dry": "node --env-file=.env index.js --dry-run"
+    "scrape": "node --env-file=.env run-idr.js",
+    "scrape:dry": "node --env-file=.env run-idr.js --dry-run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
