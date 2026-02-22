@@ -150,6 +150,7 @@ const GME_EMBEDDED_FEE: Record<string, number> = {
   Indonesia: 5000,
   Thailand: 5000,
   Mongolia: 2500,
+  Vietnam: 5000,
 };
 
 function rateExchangeKRW(r: RateRecord): number {
