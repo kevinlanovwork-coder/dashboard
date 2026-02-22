@@ -149,7 +149,7 @@ const CURRENCY_MAP: Record<string, string> = {
 const GME_EMBEDDED_FEE: Record<string, number> = {
   Indonesia: 5000,
   Thailand: 5000,
-  Mongolia: 5000,
+  Mongolia: 2500,
 };
 
 function rateExchangeKRW(r: RateRecord): number {
