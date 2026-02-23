@@ -21,16 +21,19 @@ export async function scrape(browser) {
     await page.fill('#countrySearch', 'Indonesia');
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Indonesia IDR"]').first().click();
-    await page.waitForTimeout(1500);
+    // Wait for rate API to load after country change before reading prevDeposit
+    await page.waitForTimeout(3000);
 
     // ── 수령액 입력: 13,000,000 IDR ────────────────────────────────────
     const prevDeposit = await page.$eval('#deposit', el => el.value).catch(() => '');
     await page.click('#recipient', { clickCount: 3 });
+    await page.waitForTimeout(300); // allow triple-click selection to settle
     await page.keyboard.type('13000000');
+    await page.dispatchEvent('#recipient', 'input'); // trigger React onChange
     await page.dispatchEvent('#recipient', 'blur');
     await page.waitForFunction(
       (prev) => { const el = document.querySelector('#deposit'); return el && el.value !== prev && el.value !== '' && el.value !== '0'; },
-      prevDeposit, { timeout: 10000 }
+      prevDeposit, { timeout: 15000 }
     ).catch(() => null);
 
     // ── 총 송금액(KRW) 추출 — #deposit 값이 fee 포함 총액 ───────────────
