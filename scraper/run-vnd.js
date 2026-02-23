@@ -225,7 +225,7 @@ const SCRAPERS = [
   { name: 'E9Pay',       fn: scrapeE9pay,        needsBrowser: true  },
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: true  },
   { name: 'Cross',       fn: scrapeCross,        needsBrowser: true  },
-  { name: 'JRF',         fn: scrapeJrf,          needsBrowser: true  },
+  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b)), needsBrowser: true  },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
