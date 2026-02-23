@@ -2,7 +2,7 @@
  * Mongolia (MNT) 스크래퍼 — 2,500,000 MNT 기준
  * 실행: node --env-file=.env run-mnt.js
  *
- * 지원 사업자: GME, GMoneyTrans, Cross, E9Pay, Coinshot, Hanpass
+ * 지원 사업자: GME, GMoneyTrans, Utransfer, Cross, E9Pay, Coinshot, Hanpass
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
@@ -55,6 +55,28 @@ async function scrapeGmoneytrans() {
 function parseField(text, field) {
   const m = text.match(new RegExp(`${field}--td_clm--([\\d.]+)--td_end--`));
   return m ? parseFloat(m[1]) : null;
+}
+
+// ─── Utransfer ────────────────────────────────────────────────────────────────
+async function scrapeUtransfer(browser) {
+  const page = await browser.newPage();
+  try {
+    await page.goto('https://www.utransfer.com', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForTimeout(2000);
+    await page.locator('select').nth(1).selectOption('MNT');
+    await page.waitForTimeout(1000);
+    await page.click('input[name="toAmount"]', { clickCount: 3 });
+    await page.fill('input[name="toAmount"]', String(AMOUNT));
+    await page.dispatchEvent('input[name="toAmount"]', 'change');
+    await page.waitForTimeout(3000);
+    const raw = await page.inputValue('input[name="fromAmount"]').catch(() => null);
+    const sendAmt = extractNumber(raw);
+    if (!sendAmt) throw new Error('총 송금액 추출 실패');
+    const feeRaw = await page.locator('.utransfer_fees').textContent().catch(() => null);
+    const fee = extractNumber(feeRaw) ?? 5000;
+    return { operator: 'Utransfer', receiving_country: COUNTRY, receive_amount: AMOUNT,
+      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
+  } finally { await page.close(); }
 }
 
 // ─── Cross ────────────────────────────────────────────────────────────────────
@@ -161,6 +183,7 @@ async function scrapeHanpass() {
 const SCRAPERS = [
   { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
+  { name: 'Utransfer',   fn: scrapeUtransfer,    needsBrowser: true  },
   { name: 'Cross',       fn: scrapeCross,        needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'Coinshot',    fn: scrapeCoinshot,     needsBrowser: true  },
