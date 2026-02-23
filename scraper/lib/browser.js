@@ -23,6 +23,21 @@ export function getRunHour() {
 }
 
 /**
+ * 실패 시 최대 retries번 재시도 (지수 백오프)
+ */
+export async function withRetry(fn, retries = 2, delayMs = 3000) {
+  for (let attempt = 1; attempt <= retries + 1; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt > retries) throw err;
+      console.warn(`  재시도 ${attempt}/${retries} — ${err.message?.slice(0, 80)}`);
+      await new Promise(r => setTimeout(r, delayMs * attempt));
+    }
+  }
+}
+
+/**
  * Playwright 페이지에서 여러 셀렉터 중 하나를 시도
  */
 export async function trySelectors(page, selectors, timeout = 5000) {

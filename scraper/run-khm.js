@@ -8,7 +8,7 @@
  *   Sentbe=1,875  (GME scCharge API에서 자동 추출)
  */
 import { chromium } from 'playwright';
-import { getRunHour, extractNumber } from './lib/browser.js';
+import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
 import { saveRates } from './lib/supabase.js';
 
 const COUNTRY = 'Cambodia';
@@ -174,7 +174,7 @@ async function scrapeE9pay(browser) {
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
-  { name: 'GME',         fn: scrapeGme,          needsBrowser: false },
+  { name: 'GME',         fn: () => withRetry(() => scrapeGme()),   needsBrowser: false },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Sentbe',      fn: scrapeSentbe,       needsBrowser: true  },
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: true  },

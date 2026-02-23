@@ -5,7 +5,7 @@
  * - Supabase에 저장
  */
 import { chromium } from 'playwright';
-import { getRunHour } from './lib/browser.js';
+import { getRunHour, withRetry } from './lib/browser.js';
 import { saveRates } from './lib/supabase.js';
 
 // ── 스크래퍼 임포트 ──────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ import { scrape as scrapeE9pay }      from './scrapers/e9pay.js';
 // needsBrowser: true → Playwright 브라우저 필요
 // needsBrowser: false → 직접 fetch (브라우저 불필요)
 const SCRAPERS = [
-  { name: 'GME',          fn: scrapeGme,         needsBrowser: true  },
+  { name: 'GME',          fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
   { name: 'GMoneyTrans',  fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Sentbe',       fn: scrapeSentbe,       needsBrowser: true  },
   { name: 'Hanpass',      fn: scrapeHanpass,      needsBrowser: true  },

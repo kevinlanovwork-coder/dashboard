@@ -9,7 +9,7 @@
  *   E9Pay=7,000  GMoneyTrans=4,000  Sentbe=0  SBI=5,000  Hanpass=0  Coinshot=10,000
  */
 import { chromium } from 'playwright';
-import { getRunHour, extractNumber } from './lib/browser.js';
+import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
 import { saveRates } from './lib/supabase.js';
 
 const COUNTRY = 'China';
@@ -19,7 +19,7 @@ const AMOUNT  = 10_000;
 async function scrapeGme(browser) {
   const page = await browser.newPage();
   try {
-    await page.goto('https://online.gmeremit.com/', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto('https://online.gmeremit.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForSelector('#nCountry', { timeout: 10000 });
     await page.click('#nCountry'); await page.waitForTimeout(500);
     await page.fill('#CountryValue', 'China'); await page.waitForTimeout(300);
@@ -333,7 +333,7 @@ async function scrapeDebunk(browser) {
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
-  { name: 'GME',         fn: scrapeGme,         needsBrowser: true  },
+  { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Sentbe',      fn: scrapeSentbe,       needsBrowser: true  },
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: true  },
