@@ -24,7 +24,7 @@ import { scrape as scrapeE9pay }      from './scrapers/e9pay.js';
 // needsBrowser: true → Playwright 브라우저 필요
 // needsBrowser: false → 직접 fetch (브라우저 불필요)
 const SCRAPERS = [
-  { name: 'GME',          fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
+  { name: 'GME',          fn: () => withRetry(() => scrapeGme()),   needsBrowser: false },
   { name: 'GMoneyTrans',  fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Sentbe',       fn: scrapeSentbe,       needsBrowser: true  },
   { name: 'Hanpass',      fn: scrapeHanpass,      needsBrowser: true  },

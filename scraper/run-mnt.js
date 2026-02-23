@@ -11,27 +11,25 @@ import { saveRates } from './lib/supabase.js';
 const COUNTRY = 'Mongolia';
 const AMOUNT  = 2_500_000;
 
-// ─── GME ─────────────────────────────────────────────────────────────────────
-async function scrapeGme(browser) {
-  const page = await browser.newPage();
-  try {
-    await page.goto('https://online.gmeremit.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForSelector('#nCountry', { timeout: 10000 });
-    await page.click('#nCountry'); await page.waitForTimeout(500);
-    await page.waitForSelector('#CountryValue', { timeout: 5000 });
-    await page.fill('#CountryValue', 'Mongolia'); await page.waitForTimeout(300);
-    await page.click('#toCurrUl li[data-countrycode="MNT"]');
-    await page.waitForTimeout(1000);
-    await page.click('#recAmt', { clickCount: 3 });
-    await page.fill('#recAmt', String(AMOUNT));
-    await page.dispatchEvent('#recAmt', 'change');
-    await page.waitForTimeout(3000);
-    const raw = await page.$eval('#numAmount', el => el.value || el.textContent).catch(() => null);
-    const total = extractNumber(raw);
-    if (!total) throw new Error('총 송금액 추출 실패');
-    return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total, service_fee: 0, total_sending_amount: total };
-  } finally { await page.close(); }
+// ─── GME (API) ────────────────────────────────────────────────────────────────
+async function scrapeGme() {
+  const body = new URLSearchParams({
+    method: 'GetExRate', pCurr: 'MNT', pCountryName: 'Mongolia',
+    collCurr: 'KRW', deliveryMethod: '2', cAmt: '', pAmt: String(AMOUNT),
+    cardOnline: 'false', calBy: 'P',
+  }).toString();
+  const res = await fetch('https://online.gmeremit.com/Default.aspx', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body, signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.errorCode !== '0') throw new Error(`GME API 오류: ${data.msg}`);
+  const total = extractNumber(data.collAmt);
+  if (!total) throw new Error('총 송금액 추출 실패');
+  return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
+    send_amount_krw: total, service_fee: 0, total_sending_amount: total };
 }
 
 // ─── GMoneyTrans (API) ────────────────────────────────────────────────────────
@@ -194,7 +192,7 @@ async function scrapeHanpass(browser) {
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
-  { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
+  { name: 'GME',         fn: () => withRetry(() => scrapeGme()),   needsBrowser: false },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Utransfer',   fn: scrapeUtransfer,    needsBrowser: true  },
   { name: 'Cross',       fn: scrapeCross,        needsBrowser: true  },
