@@ -97,14 +97,16 @@ async function scrapeHanpass(browser) {
     await page.waitForSelector('#countrySearch', { timeout: 10000 });
     await page.fill('#countrySearch', 'China'); await page.waitForTimeout(500);
     await page.locator('button[aria-label="China CNY"]').first().click();
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(3000);
     const prevDeposit = await page.$eval('#deposit', el => el.value).catch(() => '');
     await page.click('#recipient', { clickCount: 3 });
+    await page.waitForTimeout(300);
     await page.keyboard.type(String(AMOUNT));
+    await page.dispatchEvent('#recipient', 'input');
     await page.dispatchEvent('#recipient', 'blur');
     await page.waitForFunction(
       (prev) => { const el = document.querySelector('#deposit'); return el && el.value !== prev && el.value !== '' && el.value !== '0'; },
-      prevDeposit, { timeout: 10000 }
+      prevDeposit, { timeout: 15000 }
     ).catch(() => null);
     const raw = await page.$eval('#deposit', el => el.value).catch(() => null);
     const total = extractNumber(raw);
