@@ -30,10 +30,9 @@ async function scrapeGme() {
   const data = await res.json();
   if (data.errorCode !== '0') throw new Error(`GME API 오류: ${data.msg}`);
   const total = extractNumber(data.collAmt);
-  const fee   = extractNumber(data.scCharge) ?? 0;
   if (!total) throw new Error('총 송금액 추출 실패');
   return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
-    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
+    send_amount_krw: total, service_fee: 0, total_sending_amount: total };
 }
 
 // ─── GMoneyTrans (API) ────────────────────────────────────────────────────────
