@@ -33,7 +33,7 @@ const SCRAPERS = [
   { name: 'Cross',        fn: scrapeCross,        needsBrowser: true  },
   { name: 'Coinshot',     fn: scrapeCoinshot,     needsBrowser: true  },
   { name: 'JRF',          fn: (b) => withRetry(() => scrapeJrf(b)), needsBrowser: true  },
-  { name: 'E9Pay',        fn: scrapeE9pay,        needsBrowser: true  },
+  { name: 'E9Pay',        fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
 ];
 
 async function main() {

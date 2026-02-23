@@ -196,7 +196,7 @@ const SCRAPERS = [
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Utransfer',   fn: scrapeUtransfer,    needsBrowser: true  },
   { name: 'Cross',       fn: scrapeCross,        needsBrowser: true  },
-  { name: 'E9Pay',       fn: scrapeE9pay,        needsBrowser: true  },
+  { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'Coinshot',    fn: scrapeCoinshot,     needsBrowser: true  },
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: true  },
 ];

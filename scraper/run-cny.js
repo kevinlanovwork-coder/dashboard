@@ -341,7 +341,7 @@ const SCRAPERS = [
   { name: 'Cross',       fn: scrapeCross,        needsBrowser: true  },
   { name: 'WireBarley',  fn: scrapeWirebarley,   needsBrowser: true  },
   { name: 'Coinshot',    fn: scrapeCoinshot,     needsBrowser: true  },
-  { name: 'E9Pay',       fn: scrapeE9pay,        needsBrowser: true  },
+  { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'Utransfer',   fn: scrapeUtransfer,    needsBrowser: true  },
   { name: 'Moin',        fn: scrapeMoin,         needsBrowser: true  },
   { name: 'Debunk',      fn: scrapeDebunk,       needsBrowser: true  },
