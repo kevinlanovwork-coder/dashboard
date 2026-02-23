@@ -32,6 +32,8 @@ jobs:
             script: run-khm.js
           - name: Myanmar MMK
             script: run-mmk.js
+          - name: Philippines PHP
+            script: run-php.js
 
     defaults:
       run:
