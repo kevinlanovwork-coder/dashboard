@@ -147,7 +147,7 @@ const SCRAPERS = [
   { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: true  },
-  { name: 'SBI',         fn: scrapeSbi,          needsBrowser: true  },
+  { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'E9Pay',       fn: scrapeE9pay,        needsBrowser: true  },
 ];
 

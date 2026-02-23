@@ -18,7 +18,7 @@ export async function scrape(browser) {
 
     // ── 수신 통화: IDR 선택 ─────────────────────────────────────────────
     await page.click('#div_curr', { force: true });
-    await page.waitForTimeout(500);
+    await page.waitForSelector('li#IDR', { state: 'visible', timeout: 10000 });
     await page.click('li#IDR');
     await page.waitForTimeout(1500);
 

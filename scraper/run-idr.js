@@ -29,7 +29,7 @@ const SCRAPERS = [
   { name: 'Sentbe',       fn: scrapeSentbe,       needsBrowser: true  },
   { name: 'Hanpass',      fn: scrapeHanpass,      needsBrowser: true  },
   { name: 'Utransfer',    fn: scrapeUtransfer,    needsBrowser: true  },
-  { name: 'SBI',          fn: scrapeSbi,          needsBrowser: true  },
+  { name: 'SBI',          fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Cross',        fn: scrapeCross,        needsBrowser: true  },
   { name: 'Coinshot',     fn: scrapeCoinshot,     needsBrowser: true  },
   { name: 'JRF',          fn: scrapeJrf,          needsBrowser: true  },

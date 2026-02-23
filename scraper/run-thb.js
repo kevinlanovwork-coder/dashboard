@@ -272,7 +272,7 @@ async function scrapeJrf(browser) {
     await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
     await page.click('#div_curr', { force: true });
-    await page.waitForTimeout(500);
+    await page.waitForSelector('li#THB', { state: 'visible', timeout: 10000 });
     await page.click('li#THB');
     await page.waitForTimeout(1500);
     await page.click('#rec_money', { clickCount: 3 });
@@ -328,7 +328,7 @@ const SCRAPERS = [
   { name: 'WireBarley',  fn: scrapeWirebarley,   needsBrowser: true  },
   { name: 'Sentbe',      fn: scrapeSentbe,       needsBrowser: true  },
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: true  },
-  { name: 'SBI',         fn: scrapeSbi,          needsBrowser: true  },
+  { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Cross',       fn: scrapeCross,        needsBrowser: true  },
   { name: 'Coinshot',    fn: scrapeCoinshot,     needsBrowser: true  },
   { name: 'JRF',         fn: scrapeJrf,          needsBrowser: true  },

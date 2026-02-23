@@ -201,7 +201,8 @@ async function scrapeJrf(browser) {
   try {
     await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
-    await page.click('#div_curr', { force: true }); await page.waitForTimeout(500);
+    await page.click('#div_curr', { force: true });
+    await page.waitForSelector('li#VND', { state: 'visible', timeout: 10000 });
     await page.click('li#VND'); await page.waitForTimeout(1500);
     await page.click('#rec_money', { clickCount: 3 });
     await page.fill('#rec_money', String(AMOUNT));
@@ -219,7 +220,7 @@ async function scrapeJrf(browser) {
 const SCRAPERS = [
   { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
   { name: 'Sentbe',      fn: scrapeSentbe,       needsBrowser: true  },
-  { name: 'SBI',         fn: scrapeSbi,          needsBrowser: true  },
+  { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'E9Pay',       fn: scrapeE9pay,        needsBrowser: true  },
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: true  },
