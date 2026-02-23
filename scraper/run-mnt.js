@@ -183,10 +183,10 @@ async function scrapeHanpass() {
 const SCRAPERS = [
   { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
-  { name: 'Utransfer',   fn: scrapeUtransfer,    needsBrowser: true  },
-  { name: 'Cross',       fn: scrapeCross,        needsBrowser: true  },
+  { name: 'Utransfer',   fn: (b) => withRetry(() => scrapeUtransfer(b)), needsBrowser: true  },
+  { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
-  { name: 'Coinshot',    fn: scrapeCoinshot,     needsBrowser: true  },
+  { name: 'Coinshot',    fn: (b) => withRetry(() => scrapeCoinshot(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: false },
 ];
 

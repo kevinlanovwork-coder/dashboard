@@ -181,11 +181,11 @@ async function scrapeCoinshot(browser) {
 const SCRAPERS = [
   { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
-  { name: 'Sentbe',      fn: scrapeSentbe,       needsBrowser: true  },
+  { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: false },
   { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b)), needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
-  { name: 'Coinshot',    fn: scrapeCoinshot,     needsBrowser: true  },
+  { name: 'Coinshot',    fn: (b) => withRetry(() => scrapeCoinshot(b)), needsBrowser: true  },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
