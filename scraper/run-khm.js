@@ -85,37 +85,24 @@ async function scrapeSentbe(browser) {
   } finally { await page.close(); await context.close(); }
 }
 
-// ─── Hanpass ──────────────────────────────────────────────────────────────────
-async function scrapeHanpass(browser) {
-  const page = await browser.newPage();
-  try {
-    await page.goto('https://www.hanpass.com/en', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(3000);
-    await page.locator('[class*="recipientAmountField"] button').click();
-    await page.waitForSelector('#countrySearch', { timeout: 10000 });
-    await page.fill('#countrySearch', 'Cambodia'); await page.waitForTimeout(500);
-    await page.locator('button[aria-label="Cambodia USD"]').first().click();
-    await page.waitForTimeout(3000);
-    const prevDeposit = await page.$eval('#deposit', el => el.value).catch(() => '');
-    await page.click('#recipient', { clickCount: 3 });
-    await page.waitForTimeout(300);
-    await page.keyboard.type(String(AMOUNT));
-    await page.dispatchEvent('#recipient', 'input');
-    await page.dispatchEvent('#recipient', 'blur');
-    await page.waitForFunction(
-      (prev) => { const el = document.querySelector('#deposit'); return el && el.value !== prev && el.value !== '' && el.value !== '0'; },
-      prevDeposit, { timeout: 15000 }
-    ).catch(() => null);
-    const raw = await page.$eval('#deposit', el => el.value).catch(() => null);
-    const total = extractNumber(raw);
-    if (!total) throw new Error('총 송금액 추출 실패');
-    const feeRaw = await page.locator('[class*="ExchangeCalculator_row"]')
-      .filter({ hasText: 'Remittance fee' }).locator('span:last-child')
-      .textContent().catch(() => null);
-    const fee = extractNumber(feeRaw) ?? 0;
-    return { operator: 'Hanpass', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
-  } finally { await page.close(); }
+// ─── Hanpass (API) ────────────────────────────────────────────────────────────
+async function scrapeHanpass() {
+  const res = await fetch('https://app.hanpass.com/app/v1/remittance/get-cost', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inputAmount: String(AMOUNT), inputCurrencyCode: 'USD',
+      fromCurrencyCode: 'KRW', toCurrencyCode: 'USD', toCountryCode: 'KH',
+      memberSeq: '1', lang: 'en' }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.resultCode !== '0') throw new Error(`Hanpass API 오류: ${data.resultMessage}`);
+  const total = data.depositAmountIncludingFee;
+  const fee   = data.transferFee ?? 0;
+  if (!total) throw new Error('총 송금액 추출 실패');
+  return { operator: 'Hanpass', receiving_country: COUNTRY, receive_amount: AMOUNT,
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
 }
 
 // ─── SBI ──────────────────────────────────────────────────────────────────────
@@ -178,7 +165,7 @@ const SCRAPERS = [
   { name: 'GME',         fn: () => withRetry(() => scrapeGme()),   needsBrowser: false },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Sentbe',      fn: scrapeSentbe,       needsBrowser: true  },
-  { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: true  },
+  { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
 ];

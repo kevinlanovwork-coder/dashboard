@@ -15,25 +15,26 @@ import { saveRates } from './lib/supabase.js';
 const COUNTRY = 'China';
 const AMOUNT  = 10_000;
 
-// ─── GME (API) ────────────────────────────────────────────────────────────────
-async function scrapeGme() {
-  const body = new URLSearchParams({
-    method: 'GetExRate', pCurr: 'CNY', pCountryName: 'China',
-    collCurr: 'KRW', deliveryMethod: '1', cAmt: '', pAmt: String(AMOUNT),
-    cardOnline: 'false', calBy: 'P',
-  }).toString();
-  const res = await fetch('https://online.gmeremit.com/Default.aspx', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body, signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  if (data.errorCode !== '0') throw new Error(`GME API 오류: ${data.msg}`);
-  const total = extractNumber(data.collAmt);
-  if (!total) throw new Error('총 송금액 추출 실패');
-  return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
-    send_amount_krw: total, service_fee: 0, total_sending_amount: total };
+// ─── GME ─────────────────────────────────────────────────────────────────────
+async function scrapeGme(browser) {
+  const page = await browser.newPage();
+  try {
+    await page.goto('https://online.gmeremit.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForSelector('#nCountry', { timeout: 10000 });
+    await page.click('#nCountry'); await page.waitForTimeout(500);
+    await page.fill('#CountryValue', 'China'); await page.waitForTimeout(300);
+    await page.click('#toCurrUl li[data-countrycode="CNY"]');
+    await page.waitForTimeout(1000);
+    await page.click('#recAmt', { clickCount: 3 });
+    await page.fill('#recAmt', String(AMOUNT));
+    await page.dispatchEvent('#recAmt', 'change');
+    await page.waitForTimeout(3000);
+    const raw = await page.$eval('#numAmount', el => el.value || el.textContent).catch(() => null);
+    const total = extractNumber(raw);
+    if (!total) throw new Error('총 송금액 추출 실패');
+    return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
+      send_amount_krw: total, service_fee: 0, total_sending_amount: total };
+  } finally { await page.close(); }
 }
 
 // ─── GMoneyTrans (API — Alipay) ───────────────────────────────────────────────
@@ -86,34 +87,24 @@ async function scrapeSentbe(browser) {
   } finally { await page.close(); await context.close(); }
 }
 
-// ─── Hanpass ──────────────────────────────────────────────────────────────────
-async function scrapeHanpass(browser) {
-  const page = await browser.newPage();
-  try {
-    await page.goto('https://www.hanpass.com/en', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(3000);
-    await page.locator('[class*="recipientAmountField"] button').click();
-    await page.waitForSelector('#countrySearch', { timeout: 10000 });
-    await page.fill('#countrySearch', 'China'); await page.waitForTimeout(500);
-    await page.locator('button[aria-label="China CNY"]').first().click();
-    await page.waitForTimeout(3000);
-    const prevDeposit = await page.$eval('#deposit', el => el.value).catch(() => '');
-    await page.click('#recipient', { clickCount: 3 });
-    await page.waitForTimeout(300);
-    await page.keyboard.type(String(AMOUNT));
-    await page.dispatchEvent('#recipient', 'input');
-    await page.dispatchEvent('#recipient', 'blur');
-    await page.waitForFunction(
-      (prev) => { const el = document.querySelector('#deposit'); return el && el.value !== prev && el.value !== '' && el.value !== '0'; },
-      prevDeposit, { timeout: 15000 }
-    ).catch(() => null);
-    const raw = await page.$eval('#deposit', el => el.value).catch(() => null);
-    const total = extractNumber(raw);
-    if (!total) throw new Error('총 송금액 추출 실패');
-    const fee = 0; // hardcoded
-    return { operator: 'Hanpass', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total, service_fee: fee, total_sending_amount: total };
-  } finally { await page.close(); }
+// ─── Hanpass (API) ────────────────────────────────────────────────────────────
+async function scrapeHanpass() {
+  const res = await fetch('https://app.hanpass.com/app/v1/remittance/get-cost', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inputAmount: String(AMOUNT), inputCurrencyCode: 'CNY',
+      fromCurrencyCode: 'KRW', toCurrencyCode: 'CNY', toCountryCode: 'CN',
+      memberSeq: '1', lang: 'en' }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.resultCode !== '0') throw new Error(`Hanpass API 오류: ${data.resultMessage}`);
+  const total = data.depositAmountIncludingFee;
+  const fee   = data.transferFee ?? 0;
+  if (!total) throw new Error('총 송금액 추출 실패');
+  return { operator: 'Hanpass', receiving_country: COUNTRY, receive_amount: AMOUNT,
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
 }
 
 // ─── SBI ──────────────────────────────────────────────────────────────────────
@@ -334,10 +325,10 @@ async function scrapeDebunk(browser) {
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
-  { name: 'GME',         fn: () => withRetry(() => scrapeGme()),   needsBrowser: false },
+  { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Sentbe',      fn: scrapeSentbe,       needsBrowser: true  },
-  { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: true  },
+  { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Cross',       fn: scrapeCross,        needsBrowser: true  },
   { name: 'WireBarley',  fn: scrapeWirebarley,   needsBrowser: true  },
