@@ -133,9 +133,9 @@ function statusLabel(status: string, t: T) {
 }
 
 function statusColor(status: string) {
-  if (status === 'GME') return { bg: 'bg-blue-500/20', text: 'text-blue-500 dark:text-blue-400', hex: '#3b82f6' };
+  if (status === 'GME') return { bg: 'bg-red-500/20', text: 'text-red-500 dark:text-red-400', hex: '#ef4444' };
   if (status === 'Cheaper than GME') return { bg: 'bg-green-500/20', text: 'text-green-600 dark:text-green-400', hex: '#22c55e' };
-  return { bg: 'bg-red-500/20', text: 'text-red-500 dark:text-red-400', hex: '#ef4444' };
+  return { bg: 'bg-orange-500/20', text: 'text-orange-500 dark:text-orange-400', hex: '#f97316' };
 }
 
 const CURRENCY_MAP: Record<string, string> = {
@@ -583,9 +583,9 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                     {snapshotGMEBaseline && (
                       <ReferenceLine
                         x={snapshotGMEBaseline}
-                        stroke="#3b82f6"
+                        stroke="#ef4444"
                         strokeDasharray="5 3"
-                        label={{ value: 'GME', fill: '#60a5fa', fontSize: 11, position: 'right' }}
+                        label={{ value: 'GME', fill: '#ef4444', fontSize: 11, position: 'right' }}
                       />
                     )}
                     <Bar dataKey="totalSendingAmount" radius={[0, 4, 4, 0]}>
@@ -605,8 +605,8 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                 <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.noData}</div>
               )}
               <div className="flex items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block" />{t.gmeBaselineLegend}</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />{t.moreExpensiveLegend}</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />{t.gmeBaselineLegend}</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.moreExpensiveLegend}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.cheaperLegend}</span>
               </div>
             </div>
@@ -651,7 +651,7 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                     <ReferenceLine x={0} stroke={ct.refLine} strokeWidth={1.5} />
                     <Bar dataKey="avgGap" radius={[0, 4, 4, 0]}>
                       {operatorStats.map((entry, i) => (
-                        <Cell key={i} fill={entry.avgGap < 0 ? '#22c55e' : '#ef4444'} />
+                        <Cell key={i} fill={entry.avgGap < 0 ? '#22c55e' : '#f97316'} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -705,10 +705,10 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
                   <Line
                     type="monotone"
                     dataKey="gmeBaseline"
-                    stroke="#3b82f6"
+                    stroke="#ef4444"
                     strokeWidth={2}
-                    dot={{ fill: '#3b82f6', r: 3, strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: '#60a5fa', strokeWidth: 0 }}
+                    dot={{ fill: '#ef4444', r: 3, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#f87171', strokeWidth: 0 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
