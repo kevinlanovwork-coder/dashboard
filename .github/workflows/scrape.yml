@@ -36,6 +36,8 @@ jobs:
             script: run-php.js
           - name: Cameroon XAF
             script: run-xaf.js
+          - name: Liberia USD
+            script: run-lbr.js
 
     defaults:
       run:
