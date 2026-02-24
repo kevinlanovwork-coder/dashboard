@@ -11,9 +11,14 @@ export default async function Home() {
     process.env.SUPABASE_ANON_KEY!,
   );
 
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - 30);
+  const fromDateStr = fromDate.toISOString().slice(0, 10); // "YYYY-MM-DD"
+
   const { data, error } = await supabase
     .from('rate_records')
     .select('*')
+    .gte('run_hour', fromDateStr)
     .order('run_hour', { ascending: false });
 
   if (error || !data) {
