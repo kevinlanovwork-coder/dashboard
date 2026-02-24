@@ -2,7 +2,7 @@
  * Philippines (PHP) 스크래퍼 — 40,000 PHP 기준
  * 실행: node --env-file=.env run-php.js
  *
- * 지원 사업자: GME, GMoneyTrans, SBI, Coinshot, E9Pay, JRF, Utransfer, Hanpass
+ * 지원 사업자: GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
@@ -105,6 +105,56 @@ async function scrapeCoinshot(browser) {
   } finally { await page.close(); }
 }
 
+// ─── Cross ────────────────────────────────────────────────────────────────────
+async function scrapeCross(browser) {
+  const page = await browser.newPage();
+  try {
+    await page.goto('https://crossenf.com/remittance', { waitUntil: 'load', timeout: 30000 });
+    await page.waitForTimeout(3000);
+
+    // Open receiving currency dropdown (default may show THB or other currency)
+    const dropdown = page.locator('div.relative').filter({ hasText: /^(THB|IDR|PHP|VND|USD)$/ }).first();
+    await dropdown.click();
+    await page.waitForSelector('#aside-root ul', { state: 'visible', timeout: 15000 });
+    await page.waitForTimeout(500);
+
+    // Try multiple selectors for Philippines flag/label
+    const phSelectors = [
+      '#aside-root li:has(img[alt="PH flag"])',
+      '#aside-root li:has(img[alt="Philippines flag"])',
+      '#aside-root li:has(img[alt="ph flag"])',
+      '#aside-root li:has-text("PHP")',
+      '#aside-root li:has-text("Philippines")',
+    ];
+    let selected = false;
+    for (const sel of phSelectors) {
+      const el = page.locator(sel);
+      if (await el.count() > 0) {
+        await el.first().click();
+        selected = true;
+        break;
+      }
+    }
+    if (!selected) throw new Error('Philippines 국가 선택 실패 — 모든 셀렉터 불일치');
+
+    await page.waitForTimeout(1500);
+
+    // Fill receiving amount
+    const receiveInput = page.locator('input[inputmode="numeric"]').nth(1);
+    await receiveInput.click({ clickCount: 3 });
+    await receiveInput.fill(String(AMOUNT));
+    await receiveInput.press('Tab');
+    await page.waitForTimeout(4000);
+
+    const totalRaw = await page.locator('input[inputmode="numeric"]').nth(0).inputValue();
+    const total = extractNumber(totalRaw);
+    if (!total) throw new Error('총 송금액 추출 실패');
+    const fee = 5000;
+    return { operator: 'Cross', receiving_country: COUNTRY, receive_amount: AMOUNT,
+      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
+  } finally { await page.close(); }
+}
+
 // ─── E9Pay ────────────────────────────────────────────────────────────────────
 async function scrapeE9pay(browser) {
   const page = await browser.newPage();
@@ -204,6 +254,7 @@ const SCRAPERS = [
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Coinshot',    fn: (b) => withRetry(() => scrapeCoinshot(b)), needsBrowser: true  },
+  { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)),    needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b)), needsBrowser: true  },
   { name: 'Utransfer',   fn: (b) => withRetry(() => scrapeUtransfer(b)), needsBrowser: true  },
