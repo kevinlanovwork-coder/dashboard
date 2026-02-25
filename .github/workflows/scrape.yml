@@ -1,7 +1,7 @@
 name: Hourly Rate Scraper
 
 on:
-  workflow_dispatch: # cron-job.org triggers this every hour at :00 UTC
+  workflow_dispatch: # cron-job.org triggers this every 30 min at :00 and :30 UTC
 
 concurrency:
   group: scrape

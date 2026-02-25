@@ -10,7 +10,8 @@ export function extractNumber(text) {
 }
 
 /**
- * 현재 시각을 KST (UTC+9) 기준 "YYYY-MM-DD HH:00" 형식으로 반환
+ * 현재 시각을 KST (UTC+9) 기준 "YYYY-MM-DD HH:MM" 형식으로 반환
+ * 30분 단위로 반올림: :00~:29 → :00, :30~:59 → :30
  * GitHub Actions(UTC)와 로컬(KST) 모두 동일한 값을 반환
  */
 export function getRunHour() {
@@ -19,7 +20,8 @@ export function getRunHour() {
   const mm = String(kst.getUTCMonth() + 1).padStart(2, '0');
   const dd = String(kst.getUTCDate()).padStart(2, '0');
   const hh = String(kst.getUTCHours()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd} ${hh}:00`;
+  const min = kst.getUTCMinutes() < 30 ? '00' : '30';
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
 }
 
 /**
