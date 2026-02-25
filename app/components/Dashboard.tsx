@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   LineChart, Line, ResponsiveContainer, ReferenceLine, Cell, LabelList,
@@ -255,6 +255,9 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
   const [selectedTrendOperator, setSelectedTrendOperator] = useState('');
   const [gmeTrendFromDate, setGmeTrendFromDate] = useState('');
   const [operatorTrendFromDate, setOperatorTrendFromDate] = useState('');
+  const [countrySearch, setCountrySearch] = useState('');
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+  const countryDropdownRef = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = 20;
 
   const t = isEn ? EN : KO;
@@ -286,6 +289,17 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
     localStorage.setItem('dashboard-country', selectedCountry);
   }, [selectedCountry]);
 
+  // Close country dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(e.target as Node)) {
+        setCountryDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const ct = {
     grid:     isDark ? '#1e293b' : '#e2e8f0',
     tick:     isDark ? '#64748b' : '#94a3b8',
@@ -297,6 +311,13 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
   const countries = useMemo(
     () => [...new Set(records.map(r => r.receivingCountry))].sort(),
     [records]
+  );
+
+  const filteredCountries = useMemo(
+    () => countrySearch
+      ? countries.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()))
+      : countries,
+    [countries, countrySearch]
   );
 
   const byCountry = useMemo(
@@ -467,6 +488,46 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
               <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.subtitle}</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Country searchable dropdown */}
+              <div ref={countryDropdownRef} className="relative">
+                <button
+                  onClick={() => { setCountryDropdownOpen(o => !o); setCountrySearch(''); }}
+                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-1.5"
+                >
+                  <span>{selectedCountry}</span>
+                  <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                </button>
+                {countryDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-52 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                    <div className="p-1.5">
+                      <input
+                        type="text"
+                        placeholder={isEn ? 'Search country...' : '국가 검색...'}
+                        value={countrySearch}
+                        onChange={e => setCountrySearch(e.target.value)}
+                        autoFocus
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <ul className="max-h-56 overflow-y-auto py-1">
+                      {filteredCountries.map(c => (
+                        <li key={c}>
+                          <button
+                            onClick={() => { setSelectedCountry(c); setSelectedRunHour('all'); setTablePage(0); setCountryDropdownOpen(false); }}
+                            className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${c === selectedCountry ? 'bg-blue-500 text-white' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                          >
+                            {c}
+                          </button>
+                        </li>
+                      ))}
+                      {filteredCountries.length === 0 && (
+                        <li className="px-3 py-2 text-sm text-slate-400 dark:text-slate-500">{t.noData}</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
               <select
                 value={selectedRunHour}
                 onChange={e => setSelectedRunHour(e.target.value)}
@@ -510,19 +571,11 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
         <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
           {/* KPI Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
-              <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{t.receiveBaseline}</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {receiveBaseline ? `${receiveBaseline.toLocaleString()} ${receiveCurrency}` : '-'}
-              </p>
-              <select
-                value={selectedCountry}
-                onChange={e => { setSelectedCountry(e.target.value); setSelectedRunHour('all'); setTablePage(0); }}
-                className="mt-1.5 w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {countries.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
+            <KPICard
+              title={t.receiveBaseline}
+              value={receiveBaseline ? `${receiveBaseline.toLocaleString()} ${receiveCurrency}` : '-'}
+              sub={selectedCountry}
+            />
             <KPICard
               title={t.latestGMEBaseline}
               value={latestGMEBaseline ? `${latestGMEBaseline.toLocaleString('ko-KR')}${t.won}` : '-'}
