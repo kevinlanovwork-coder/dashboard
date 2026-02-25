@@ -122,7 +122,7 @@ function formatKRW(value: number, t: T) {
 function formatRunHour(runHour: string) {
   const m = runHour.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
   if (!m) return runHour;
-  return `${parseInt(m[2])}/${parseInt(m[3])} ${m[4]}:00`;
+  return `${parseInt(m[2])}/${parseInt(m[3])} ${m[4]}:${m[5]}`;
 }
 
 function statusLabel(status: string, t: T) {
