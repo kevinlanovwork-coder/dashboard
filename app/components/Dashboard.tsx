@@ -242,10 +242,18 @@ function TrendTooltip({ active, payload, label, t }: { active?: boolean; payload
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
-export default function Dashboard({ records }: { records: RateRecord[] }) {
+interface DashboardProps {
+  initialRecords: RateRecord[];
+  countries: string[];
+  defaultCountry: string;
+}
+
+export default function Dashboard({ initialRecords, countries, defaultCountry }: DashboardProps) {
+  const [records, setRecords] = useState(initialRecords);
+  const [isLoadingRecords, setIsLoadingRecords] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [isEn, setIsEn] = useState(true);
-  const [selectedCountry, setSelectedCountry] = useState('Indonesia');
+  const [selectedCountry, setSelectedCountry] = useState(defaultCountry);
   const [selectedRunHour, setSelectedRunHour] = useState('all');
   const [tableSearch, setTableSearch] = useState('');
   const [tableStatus, setTableStatus] = useState('all');
@@ -280,14 +288,34 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
     localStorage.setItem('dashboard-lang', isEn ? 'en' : 'ko');
   }, [isEn]);
 
-  // Persist selected country
+  // Persist selected country & fetch data on change
   useEffect(() => {
     const saved = localStorage.getItem('dashboard-country');
-    if (saved) setSelectedCountry(saved);
-  }, []);
+    if (saved && saved !== defaultCountry) {
+      setSelectedCountry(saved);
+    }
+  }, [defaultCountry]);
   useEffect(() => {
     localStorage.setItem('dashboard-country', selectedCountry);
   }, [selectedCountry]);
+
+  // Fetch 30-day data when country changes
+  useEffect(() => {
+    if (selectedCountry === defaultCountry) {
+      setRecords(initialRecords);
+      return;
+    }
+    let cancelled = false;
+    setIsLoadingRecords(true);
+    fetch(`/api/rates?country=${encodeURIComponent(selectedCountry)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!cancelled) setRecords(data);
+      })
+      .catch(err => console.error('Failed to fetch rates:', err))
+      .finally(() => { if (!cancelled) setIsLoadingRecords(false); });
+    return () => { cancelled = true; };
+  }, [selectedCountry, defaultCountry, initialRecords]);
 
   // Close country dropdown on click outside
   useEffect(() => {
@@ -308,11 +336,6 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
     refLine:  isDark ? '#334155' : '#cbd5e1',
   };
 
-  const countries = useMemo(
-    () => [...new Set(records.map(r => r.receivingCountry))].sort(),
-    [records]
-  );
-
   const filteredCountries = useMemo(
     () => countrySearch
       ? countries.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()))
@@ -320,10 +343,8 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
     [countries, countrySearch]
   );
 
-  const byCountry = useMemo(
-    () => records.filter(r => r.receivingCountry === selectedCountry),
-    [records, selectedCountry]
-  );
+  // All records are already filtered for the selected country
+  const byCountry = records;
 
   const runHours = useMemo(
     () => [...new Set(byCountry.map(r => r.runHour))].sort(),
@@ -569,6 +590,12 @@ export default function Dashboard({ records }: { records: RateRecord[] }) {
         </header>
 
         <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+          {isLoadingRecords && (
+            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+              {isEn ? 'Loading data...' : '데이터 로딩 중...'}
+            </div>
+          )}
           {/* KPI Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <KPICard

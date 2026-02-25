@@ -5,21 +5,34 @@ import type { RateRecord } from './lib/parseRates';
 // 빌드 시 정적 생성 방지 — 항상 서버에서 실시간 렌더링
 export const dynamic = 'force-dynamic';
 
+const DEFAULT_COUNTRY = 'Indonesia';
+
 export default async function Home() {
   const supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_ANON_KEY!,
   );
 
+  // Fetch list of distinct countries
+  const { data: countryRows } = await supabase
+    .from('rate_records')
+    .select('receiving_country')
+    .limit(50000);
+
+  const countries = [...new Set((countryRows ?? []).map((r: { receiving_country: string }) => r.receiving_country))].sort() as string[];
+
+  // Fetch 30 days of data for the default country
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - 30);
-  const fromDateStr = fromDate.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  const fromDateStr = fromDate.toISOString().slice(0, 10);
 
   const { data, error } = await supabase
     .from('rate_records')
     .select('*')
+    .eq('receiving_country', DEFAULT_COUNTRY)
     .gte('run_hour', fromDateStr)
-    .order('run_hour', { ascending: false });
+    .order('run_hour', { ascending: false })
+    .limit(50000);
 
   if (error || !data) {
     return (
@@ -29,16 +42,16 @@ export default async function Home() {
     );
   }
 
-  // Build GME baseline map per (run_hour, receiving_country) from raw data
+  // Build GME baseline map per run_hour
   const gmeBaselineMap = new Map<string, number>();
   data.forEach(r => {
     if (r.operator === 'GME' && r.total_sending_amount) {
-      gmeBaselineMap.set(`${r.run_hour}|${r.receiving_country}`, r.total_sending_amount);
+      gmeBaselineMap.set(r.run_hour, r.total_sending_amount);
     }
   });
 
   const records: RateRecord[] = data.map(r => {
-    const gmeBaseline = gmeBaselineMap.get(`${r.run_hour}|${r.receiving_country}`) ?? null;
+    const gmeBaseline = gmeBaselineMap.get(r.run_hour) ?? null;
     const priceGap = r.operator !== 'GME' && gmeBaseline
       ? r.total_sending_amount - gmeBaseline
       : null;
@@ -67,5 +80,5 @@ export default async function Home() {
     };
   });
 
-  return <Dashboard records={records} />;
+  return <Dashboard initialRecords={records} countries={countries} defaultCountry={DEFAULT_COUNTRY} />;
 }
