@@ -13,11 +13,12 @@ export default async function Home() {
     process.env.SUPABASE_ANON_KEY!,
   );
 
-  // Fetch list of distinct countries
+  // Fetch distinct countries from recent data
   const { data: countryRows } = await supabase
     .from('rate_records')
     .select('receiving_country')
-    .limit(50000);
+    .order('run_hour', { ascending: false })
+    .limit(1000);
 
   const countries = [...new Set((countryRows ?? []).map((r: { receiving_country: string }) => r.receiving_country))].sort() as string[];
 
