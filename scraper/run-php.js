@@ -222,7 +222,7 @@ async function scrapeUtransfer(browser) {
     const sendAmt = extractNumber(raw);
     if (!sendAmt) throw new Error('총 송금액 추출 실패');
     const feeRaw = await page.locator('.utransfer_fees').textContent().catch(() => null);
-    const fee = extractNumber(feeRaw) ?? 5000;
+    const fee = extractNumber(feeRaw) ?? 2500;
     return { operator: 'Utransfer', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
   } finally { await page.close(); }
