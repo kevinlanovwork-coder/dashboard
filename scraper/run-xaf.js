@@ -2,8 +2,8 @@
  * Cameroon (XAF) 스크래퍼 — 200,000 XAF 기준
  * 실행: node --env-file=.env run-xaf.js
  *
- * 지원 사업자: GME
- * 수령 방법: Mobile Wallet
+ * 지원 사업자: GME, GMoneyTrans
+ * 수령 방법: Mobile Wallet (GME), MTN (GMoneyTrans)
  */
 import { getRunHour, withRetry } from './lib/browser.js';
 import { saveRates } from './lib/supabase.js';
@@ -32,9 +32,33 @@ async function scrapeGme() {
     send_amount_krw: total, service_fee: 0, total_sending_amount: total };
 }
 
+// ─── GMoneyTrans (API) ────────────────────────────────────────────────────────
+async function scrapeGmoneytrans() {
+  const url = 'https://mapi.gmoneytrans.net/exratenew1/ajx_calcRate.asp'
+    + `?receive_amount=${AMOUNT}`
+    + '&payout_country=Cameroon'
+    + '&total_collected=0'
+    + '&payment_type=MTN'
+    + '&currencyType=XAF';
+  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  const serviceCharge = parseField(text, 'serviceCharge') ?? 5000;
+  const sendAmount    = parseField(text, 'sendAmount');
+  if (!sendAmount) throw new Error(`파싱 실패: ${text.slice(0, 200)}`);
+  return { operator: 'GMoneyTrans', receiving_country: COUNTRY, receive_amount: AMOUNT,
+    send_amount_krw: sendAmount, service_fee: serviceCharge,
+    total_sending_amount: sendAmount + serviceCharge };
+}
+function parseField(text, field) {
+  const m = text.match(new RegExp(`${field}--td_clm--([\\d.]+)--td_end--`));
+  return m ? parseFloat(m[1]) : null;
+}
+
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
-  { name: 'GME', fn: () => withRetry(() => scrapeGme()), needsBrowser: false },
+  { name: 'GME',         fn: () => withRetry(() => scrapeGme()),         needsBrowser: false },
+  { name: 'GMoneyTrans', fn: () => withRetry(() => scrapeGmoneytrans()), needsBrowser: false },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
