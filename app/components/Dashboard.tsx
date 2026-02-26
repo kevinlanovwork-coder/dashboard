@@ -863,7 +863,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             {filteredTrendData.length > 1 ? (
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={filteredTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                  onClick={(e) => { if (e?.activePayload?.[0]?.payload?.runHour) jumpToDetailedData(e.activePayload[0].payload.runHour); }}
+                  onClick={(e: Record<string, unknown>) => { const p = (e?.activePayload as Array<{ payload: { runHour?: string } }>)?.[0]; if (p?.payload?.runHour) jumpToDetailedData(p.payload.runHour); }}
                   style={{ cursor: 'pointer' }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
@@ -926,7 +926,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             {filteredOperatorTrendData.length > 1 ? (
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={filteredOperatorTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                  onClick={(e) => { if (e?.activePayload?.[0]?.payload?.runHour) jumpToDetailedData(e.activePayload[0].payload.runHour, effectiveTrendOperator); }}
+                  onClick={(e: Record<string, unknown>) => { const p = (e?.activePayload as Array<{ payload: { runHour?: string } }>)?.[0]; if (p?.payload?.runHour) jumpToDetailedData(p.payload.runHour, effectiveTrendOperator); }}
                   style={{ cursor: 'pointer' }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
