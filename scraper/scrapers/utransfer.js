@@ -23,12 +23,16 @@ export async function scrape(browser) {
     await page.click('input[name="toAmount"]', { clickCount: 3 });
     await page.fill('input[name="toAmount"]', '13000000');
     await page.dispatchEvent('input[name="toAmount"]', 'change');
-    await page.waitForTimeout(3000);
 
-    // ── 총 송금액(KRW) 추출 ────────────────────────────────────────────
-    const sendAmtRaw = await page.inputValue('input[name="fromAmount"]').catch(() => null);
-    const sendAmt = extractNumber(sendAmtRaw);
-    if (!sendAmt) throw new Error('총 송금액을 추출할 수 없습니다.');
+    // ── 총 송금액(KRW) 추출 — 계산 완료 대기 ────────────────────────
+    let sendAmt = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.inputValue('input[name="fromAmount"]').catch(() => null);
+      sendAmt = extractNumber(raw);
+      if (sendAmt && sendAmt > 1_000_000) break;
+    }
+    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
 
     // ── 수수료 추출 ────────────────────────────────────────────────────
     const feeRaw = await page.locator('.utransfer_fees').textContent().catch(() => null);

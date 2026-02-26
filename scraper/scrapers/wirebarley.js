@@ -40,16 +40,20 @@ export async function scrape(browser) {
     await page.locator('input').nth(1).click({ clickCount: 3 });
     await page.locator('input').nth(1).fill('13000000');
     await page.locator('input').nth(1).press('Enter');
-    await page.waitForTimeout(3000);
 
-    // ── 총 입금액(KRW) 추출 ────────────────────────────────────────────
-    const totalRaw = await page.evaluate(() => {
-      const ps = Array.from(document.querySelectorAll('p'));
-      const label = ps.find(p => p.textContent.trim() === '총 입금액');
-      return label?.nextElementSibling?.textContent?.trim() ?? null;
-    });
-    const total = extractNumber(totalRaw);
-    if (!total) throw new Error('총 송금액을 추출할 수 없습니다.');
+    // ── 총 입금액(KRW) 추출 (polling) ────────────────────────────────────
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const totalRaw = await page.evaluate(() => {
+        const ps = Array.from(document.querySelectorAll('p'));
+        const label = ps.find(p => p.textContent.trim() === '총 입금액');
+        return label?.nextElementSibling?.textContent?.trim() ?? null;
+      });
+      total = extractNumber(totalRaw);
+      if (total && total > 1_000_000) break;
+    }
+    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
 
     // ── 수수료 추출 ────────────────────────────────────────────────────
     const feeRaw = await page.evaluate(() => {

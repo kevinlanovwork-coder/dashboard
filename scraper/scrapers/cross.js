@@ -30,12 +30,16 @@ export async function scrape(browser) {
     await receiveInput.click({ clickCount: 3 });
     await receiveInput.fill('13000000');
     await receiveInput.press('Tab');
-    await page.waitForTimeout(3000);
 
-    // ── 총 송금액(KRW) 추출 ────────────────────────────────────────────
-    const totalRaw = await page.locator('input[inputmode="numeric"]').nth(0).inputValue();
-    const total = extractNumber(totalRaw);
-    if (!total) throw new Error('총 송금액을 추출할 수 없습니다.');
+    // ── 총 송금액(KRW) 추출 — 계산 완료 대기 ────────────────────────
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.locator('input[inputmode="numeric"]').nth(0).inputValue();
+      total = extractNumber(raw);
+      if (total && total > 1_000_000) break;
+    }
+    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
 
     const fee = 5000;
 

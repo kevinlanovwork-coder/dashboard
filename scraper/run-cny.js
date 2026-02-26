@@ -28,10 +28,14 @@ async function scrapeGme(browser) {
     await page.click('#recAmt', { clickCount: 3 });
     await page.fill('#recAmt', String(AMOUNT));
     await page.dispatchEvent('#recAmt', 'change');
-    await page.waitForTimeout(3000);
-    const raw = await page.$eval('#numAmount', el => el.value || el.textContent).catch(() => null);
-    const total = extractNumber(raw);
-    if (!total) throw new Error('총 송금액 추출 실패');
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.$eval('#numAmount', el => el.value || el.textContent).catch(() => null);
+      total = extractNumber(raw);
+      if (total && total > 1_000_000) break;
+    }
+    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: 0, total_sending_amount: total };
   } finally { await page.close(); }
@@ -77,10 +81,15 @@ async function scrapeSentbe(browser) {
     await page.waitForTimeout(1000);
     await page.click('#receiveAmount', { clickCount: 3 });
     await page.fill('#receiveAmount', String(AMOUNT));
-    await page.press('#receiveAmount', 'Tab'); await page.waitForTimeout(3000);
-    const raw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
-    const total = extractNumber(raw);
-    if (!total) throw new Error('총 송금액 추출 실패');
+    await page.press('#receiveAmount', 'Tab');
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
+      total = extractNumber(raw);
+      if (total && total > 1_000_000) break;
+    }
+    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const fee = 0; // hardcoded
     return { operator: 'Sentbe', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
@@ -150,10 +159,15 @@ async function scrapeCross(browser) {
     const receiveInput = page.locator('input[inputmode="numeric"]').nth(1);
     await receiveInput.click({ clickCount: 3 });
     await receiveInput.fill(String(AMOUNT));
-    await receiveInput.press('Tab'); await page.waitForTimeout(3000);
-    const totalRaw = await page.locator('input[inputmode="numeric"]').nth(0).inputValue();
-    const total = extractNumber(totalRaw);
-    if (!total) throw new Error('총 송금액 추출 실패');
+    await receiveInput.press('Tab');
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.locator('input[inputmode="numeric"]').nth(0).inputValue();
+      total = extractNumber(raw);
+      if (total && total > 1_000_000) break;
+    }
+    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const fee = 5000;
     return { operator: 'Cross', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
@@ -181,14 +195,18 @@ async function scrapeWirebarley(browser) {
     await page.locator('input').nth(1).click({ clickCount: 3 });
     await page.locator('input').nth(1).fill(String(AMOUNT));
     await page.locator('input').nth(1).press('Enter');
-    await page.waitForTimeout(3000);
-    const totalRaw = await page.evaluate(() => {
-      const ps = Array.from(document.querySelectorAll('p'));
-      const label = ps.find(p => p.textContent.trim() === '총 입금액');
-      return label?.nextElementSibling?.textContent?.trim() ?? null;
-    });
-    const total = extractNumber(totalRaw);
-    if (!total) throw new Error('총 송금액 추출 실패');
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.evaluate(() => {
+        const ps = Array.from(document.querySelectorAll('p'));
+        const label = ps.find(p => p.textContent.trim() === '총 입금액');
+        return label?.nextElementSibling?.textContent?.trim() ?? null;
+      });
+      total = extractNumber(raw);
+      if (total && total > 1_000_000) break;
+    }
+    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const feeRaw = await page.evaluate(() => {
       const ps = Array.from(document.querySelectorAll('p'));
       const label = ps.find(p => p.textContent.trim() === '수수료');
@@ -213,10 +231,15 @@ async function scrapeCoinshot(browser) {
     await page.waitForTimeout(1000);
     await page.click('#receiving-input', { clickCount: 3 });
     await page.fill('#receiving-input', String(AMOUNT));
-    await page.press('#receiving-input', 'Enter'); await page.waitForTimeout(3000);
-    const raw = await page.inputValue('#sending-input');
-    const sendAmt = extractNumber(raw);
-    if (!sendAmt) throw new Error('총 송금액 추출 실패');
+    await page.press('#receiving-input', 'Enter');
+    let sendAmt = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.inputValue('#sending-input');
+      sendAmt = extractNumber(raw);
+      if (sendAmt && sendAmt > 1_000_000) break;
+    }
+    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const fee = 10000; // hardcoded
     return { operator: 'Coinshot', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
@@ -241,10 +264,15 @@ async function scrapeE9pay(browser) {
     await page.waitForSelector('#receive-money', { timeout: 5000 });
     await page.click('#receive-money', { clickCount: 3 });
     await page.fill('#receive-money', String(AMOUNT));
-    await page.dispatchEvent('#receive-money', 'blur'); await page.waitForTimeout(3000);
-    const raw = await page.$eval('#send-money', el => el.value).catch(() => null);
-    const total = extractNumber(raw);
-    if (!total) throw new Error('총 송금액 추출 실패');
+    await page.dispatchEvent('#receive-money', 'blur');
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.$eval('#send-money', el => el.value).catch(() => null);
+      total = extractNumber(raw);
+      if (total && total > 1_000_000) break;
+    }
+    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const fee = 7000; // hardcoded
     return { operator: 'E9Pay', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
@@ -262,10 +290,14 @@ async function scrapeUtransfer(browser) {
     await page.click('input[name="toAmount"]', { clickCount: 3 });
     await page.fill('input[name="toAmount"]', String(AMOUNT));
     await page.dispatchEvent('input[name="toAmount"]', 'change');
-    await page.waitForTimeout(3000);
-    const raw = await page.inputValue('input[name="fromAmount"]').catch(() => null);
-    const sendAmt = extractNumber(raw);
-    if (!sendAmt) throw new Error('총 송금액 추출 실패');
+    let sendAmt = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.inputValue('input[name="fromAmount"]').catch(() => null);
+      sendAmt = extractNumber(raw);
+      if (sendAmt && sendAmt > 1_000_000) break;
+    }
+    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const feeRaw = await page.locator('.utransfer_fees').textContent().catch(() => null);
     const fee = extractNumber(feeRaw) ?? 5000;
     return { operator: 'Utransfer', receiving_country: COUNTRY, receive_amount: AMOUNT,
@@ -294,11 +326,15 @@ async function scrapeMoin(browser) {
     await page.click('#sendAmountForeignCurrency', { clickCount: 3 });
     await page.fill('#sendAmountForeignCurrency', String(AMOUNT));
     await page.press('#sendAmountForeignCurrency', 'Tab');
-    await page.waitForTimeout(3000);
-    // Read KRW send amount
-    const raw = await page.$eval('#sendAmountLocalCurrency', el => el.value).catch(() => null);
-    const total = extractNumber(raw);
-    if (!total) throw new Error('총 송금액 추출 실패');
+    // Read KRW send amount — poll until calculated
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.$eval('#sendAmountLocalCurrency', el => el.value).catch(() => null);
+      total = extractNumber(raw);
+      if (total && total > 1_000_000) break;
+    }
+    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     return { operator: 'Moin', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: 0, total_sending_amount: total };
   } finally { await page.close(); }

@@ -30,12 +30,16 @@ export async function scrape(browser) {
     await page.click('#receiving-input', { clickCount: 3 });
     await page.fill('#receiving-input', '13000000');
     await page.press('#receiving-input', 'Enter');
-    await page.waitForTimeout(3000);
 
-    // ── 총 송금액(KRW) 추출 — 수수료 미포함 금액 ──────────────────────
-    const sendAmtRaw = await page.inputValue('#sending-input');
-    const sendAmt = extractNumber(sendAmtRaw);
-    if (!sendAmt) throw new Error('총 송금액을 추출할 수 없습니다.');
+    // ── 총 송금액(KRW) 추출 — 계산 완료 대기 ────────────────────────
+    let sendAmt = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.inputValue('#sending-input');
+      sendAmt = extractNumber(raw);
+      if (sendAmt && sendAmt > 1_000_000) break;
+    }
+    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
 
     // ── 수수료 추출 — h5.text-left 에 "코인샷 수수료 X원이 포함되지 않은 금액입니다" ──
     const feeRaw = await page.locator('h5.text-left').textContent().catch(() => null);

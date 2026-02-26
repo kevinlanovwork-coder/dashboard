@@ -75,10 +75,15 @@ async function scrapeSentbe(browser) {
     await page.waitForTimeout(1000);
     await page.click('#receiveAmount', { clickCount: 3 });
     await page.fill('#receiveAmount', String(AMOUNT));
-    await page.press('#receiveAmount', 'Tab'); await page.waitForTimeout(3000);
-    const raw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
-    const total = extractNumber(raw);
-    if (!total) throw new Error('총 송금액 추출 실패');
+    await page.press('#receiveAmount', 'Tab');
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
+      total = extractNumber(raw);
+      if (total && total > 1_000_000) break;
+    }
+    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const fee = 1875; // hardcoded
     return { operator: 'Sentbe', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
@@ -154,10 +159,15 @@ async function scrapeE9pay(browser) {
     await page.waitForSelector('#receive-money', { timeout: 5000 });
     await page.click('#receive-money', { clickCount: 3 });
     await page.fill('#receive-money', String(AMOUNT));
-    await page.dispatchEvent('#receive-money', 'blur'); await page.waitForTimeout(3000);
-    const raw = await page.$eval('#send-money', el => el.value).catch(() => null);
-    const total = extractNumber(raw);
-    if (!total) throw new Error('총 송금액 추출 실패');
+    await page.dispatchEvent('#receive-money', 'blur');
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.$eval('#send-money', el => el.value).catch(() => null);
+      total = extractNumber(raw);
+      if (total && total > 1_000_000) break;
+    }
+    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const feeRaw = await page.$eval('#remit-fee', el => el.textContent || el.value).catch(() => null);
     const fee = extractNumber(feeRaw) ?? 0;
     return { operator: 'E9Pay', receiving_country: COUNTRY, receive_amount: AMOUNT,
