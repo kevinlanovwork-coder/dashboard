@@ -182,7 +182,7 @@ async function scrapeWirebarley(browser) {
   });
   const page = await context.newPage();
   try {
-    await page.goto('https://www.wirebarley.com/ko', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto('https://www.wirebarley.com/ko', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
     await page.locator('#lafc-popup button').click().catch(() => null); await page.waitForTimeout(1000);
     await page.locator('[data-title="currencyToMoneyBox"]').nth(1)
@@ -309,7 +309,7 @@ async function scrapeUtransfer(browser) {
 async function scrapeMoin(browser) {
   const page = await browser.newPage();
   try {
-    await page.goto('https://www.themoin.com/', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto('https://www.themoin.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
     // Close popup (transparent close div at top-right of modal)
     await page.evaluate(() => {
@@ -344,7 +344,7 @@ async function scrapeMoin(browser) {
 async function scrapeDebunk(browser) {
   const page = await browser.newPage();
   try {
-    await page.goto('https://www.debunk.co.kr/', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto('https://www.debunk.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(2000);
     // Default currency is already CNY — enter receive amount
     const prevSend = await page.$eval('#sendCurrency', el => el.value).catch(() => '');
@@ -372,12 +372,12 @@ const SCRAPERS = [
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },
-  { name: 'WireBarley',  fn: scrapeWirebarley,   needsBrowser: true  },
+  { name: 'WireBarley',  fn: (b) => withRetry(() => scrapeWirebarley(b)), needsBrowser: true  },
   { name: 'Coinshot',    fn: (b) => withRetry(() => scrapeCoinshot(b)), needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'Utransfer',   fn: (b) => withRetry(() => scrapeUtransfer(b)), needsBrowser: true  },
-  { name: 'Moin',        fn: scrapeMoin,         needsBrowser: true  },
-  { name: 'Debunk',      fn: scrapeDebunk,       needsBrowser: true  },
+  { name: 'Moin',        fn: (b) => withRetry(() => scrapeMoin(b)), needsBrowser: true  },
+  { name: 'Debunk',      fn: (b) => withRetry(() => scrapeDebunk(b)), needsBrowser: true  },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────

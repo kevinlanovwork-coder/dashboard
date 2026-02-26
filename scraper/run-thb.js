@@ -73,7 +73,7 @@ async function scrapeWirebarley(browser) {
   });
   const page = await context.newPage();
   try {
-    await page.goto('https://www.wirebarley.com/ko', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto('https://www.wirebarley.com/ko', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
     await page.locator('#lafc-popup button').click().catch(() => null);
     await page.waitForTimeout(1000);
@@ -351,7 +351,7 @@ async function scrapeE9pay(browser) {
 const SCRAPERS = [
   { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
-  { name: 'WireBarley',  fn: scrapeWirebarley,   needsBrowser: true  },
+  { name: 'WireBarley',  fn: (b) => withRetry(() => scrapeWirebarley(b)), needsBrowser: true  },
   { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },

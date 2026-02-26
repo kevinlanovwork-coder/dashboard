@@ -14,7 +14,7 @@ export async function scrape(browser) {
   const page = await context.newPage();
   try {
     await page.goto('https://www.wirebarley.com/ko', {
-      waitUntil: 'networkidle',
+      waitUntil: 'domcontentloaded',
       timeout: 30000,
     });
     await page.waitForTimeout(3000);
