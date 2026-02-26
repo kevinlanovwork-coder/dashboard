@@ -724,7 +724,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     <YAxis
                       type="category"
                       dataKey="operator"
-                      tick={(props: { x: number; y: number; payload: { value: string } }) => {
+                      tick={(props: { x: string | number; y: string | number; payload: { value: string } }) => {
                         const isGME = props.payload.value === 'GME';
                         return (
                           <text x={props.x} y={props.y} dy={4} textAnchor="end" fontSize={12}
@@ -810,7 +810,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     <YAxis
                       type="category"
                       dataKey="operator"
-                      tick={(props: { x: number; y: number; payload: { value: string } }) => {
+                      tick={(props: { x: string | number; y: string | number; payload: { value: string } }) => {
                         const isGME = props.payload.value === 'GME';
                         return (
                           <text x={props.x} y={props.y} dy={4} textAnchor="end" fontSize={12}
