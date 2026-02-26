@@ -31,6 +31,7 @@ export default async function Home() {
     .from('rate_records')
     .select('*')
     .eq('receiving_country', DEFAULT_COUNTRY)
+    .is('deleted_at', null)
     .gte('run_hour', fromDateStr)
     .order('run_hour', { ascending: false })
     .limit(50000);
@@ -65,6 +66,7 @@ export default async function Home() {
           : 'Cheaper than GME';
 
     return {
+      id: r.id,
       timestamp: r.scraped_at ?? r.run_hour,
       runHour: r.run_hour,
       operator: r.operator,
