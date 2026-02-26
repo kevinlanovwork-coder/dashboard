@@ -195,10 +195,15 @@ async function scrapeSbi(browser) {
     await page.click('#targetAmount', { clickCount: 3 });
     await page.fill('#targetAmount', String(AMOUNT));
     await page.dispatchEvent('#targetAmount', 'input');
-    await page.waitForTimeout(2000);
-    const sendAmtRaw = await page.inputValue('#krwAmount');
-    const sendAmt = extractNumber(sendAmtRaw);
-    if (!sendAmt) throw new Error('총 송금액 추출 실패');
+    // Wait for calculated value to stabilize (not the default 1,000,000)
+    let sendAmt = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const sendAmtRaw = await page.inputValue('#krwAmount');
+      sendAmt = extractNumber(sendAmtRaw);
+      if (sendAmt && sendAmt > 1_000_000) break;
+    }
+    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const fee = 5000; // Thailand Bank Transfer: 5,000원
     return { operator: 'SBI', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
@@ -266,10 +271,15 @@ async function scrapeJrf(browser) {
     await page.click('#rec_money', { clickCount: 3 });
     await page.fill('#rec_money', String(AMOUNT));
     await page.dispatchEvent('#rec_money', 'keyup');
-    await page.waitForTimeout(3000);
-    const sendAmtRaw = await page.inputValue('#send_money');
-    const sendAmt = extractNumber(sendAmtRaw);
-    if (!sendAmt) throw new Error('총 송금액 추출 실패');
+    // Wait for calculated value to stabilize (not the default 1,000,000)
+    let sendAmt = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const sendAmtRaw = await page.inputValue('#send_money');
+      sendAmt = extractNumber(sendAmtRaw);
+      if (sendAmt && sendAmt > 1_000_000) break;
+    }
+    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const feeRaw = await page.textContent('#servicefee').catch(() => null);
     const fee = extractNumber(feeRaw) ?? 5000;
     return { operator: 'JRF', receiving_country: COUNTRY, receive_amount: AMOUNT,
