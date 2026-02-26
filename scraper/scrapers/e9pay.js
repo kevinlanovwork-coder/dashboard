@@ -42,9 +42,9 @@ export async function scrape(browser) {
       await page.waitForTimeout(1000);
       const raw = await page.$eval('#send-money', el => el.value).catch(() => null);
       total = extractNumber(raw);
-      if (total && total > 1_000_000) break;
+      if (total && total !== 1_000_000) break;
     }
-    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
 
     // ── 수수료 추출 ────────────────────────────────────────────────────
     const feeRaw = await page.$eval('#remit-fee', el => el.textContent || el.value).catch(() => null);

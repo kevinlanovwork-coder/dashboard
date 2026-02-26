@@ -43,9 +43,9 @@ export async function scrape(browser) {
       await page.waitForTimeout(1000);
       const sendAmtRaw = await page.inputValue('#krwAmount');
       sendAmt = extractNumber(sendAmtRaw);
-      if (sendAmt && sendAmt > 1_000_000) break;
+      if (sendAmt && sendAmt !== 1_000_000) break;
     }
-    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
 
     // ── 수수료: 인도네시아 Bank Transfer 고정 5,000원 ───────────────────
     const fee = 5000;

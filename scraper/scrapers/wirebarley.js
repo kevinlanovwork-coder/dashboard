@@ -51,9 +51,9 @@ export async function scrape(browser) {
         return label?.nextElementSibling?.textContent?.trim() ?? null;
       });
       total = extractNumber(totalRaw);
-      if (total && total > 1_000_000) break;
+      if (total && total !== 1_000_000) break;
     }
-    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
 
     // ── 수수료 추출 ────────────────────────────────────────────────────
     const feeRaw = await page.evaluate(() => {

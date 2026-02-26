@@ -37,9 +37,9 @@ export async function scrape(browser) {
       await page.waitForTimeout(1000);
       const raw = await page.inputValue('#sending-input');
       sendAmt = extractNumber(raw);
-      if (sendAmt && sendAmt > 1_000_000) break;
+      if (sendAmt && sendAmt !== 1_000_000) break;
     }
-    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
 
     // ── 수수료 추출 — h5.text-left 에 "코인샷 수수료 X원이 포함되지 않은 금액입니다" ──
     const feeRaw = await page.locator('h5.text-left').textContent().catch(() => null);

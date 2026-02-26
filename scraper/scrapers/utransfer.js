@@ -30,9 +30,9 @@ export async function scrape(browser) {
       await page.waitForTimeout(1000);
       const raw = await page.inputValue('input[name="fromAmount"]').catch(() => null);
       sendAmt = extractNumber(raw);
-      if (sendAmt && sendAmt > 1_000_000) break;
+      if (sendAmt && sendAmt !== 1_000_000) break;
     }
-    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
 
     // ── 수수료 추출 ────────────────────────────────────────────────────
     const feeRaw = await page.locator('.utransfer_fees').textContent().catch(() => null);

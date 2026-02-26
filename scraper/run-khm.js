@@ -81,9 +81,9 @@ async function scrapeSentbe(browser) {
       await page.waitForTimeout(1000);
       const raw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
       total = extractNumber(raw);
-      if (total && total > 1_000_000) break;
+      if (total && total !== 1_000_000) break;
     }
-    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const fee = 1875; // hardcoded
     return { operator: 'Sentbe', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
@@ -131,9 +131,9 @@ async function scrapeSbi(browser) {
       await page.waitForTimeout(1000);
       const raw = await page.inputValue('#krwAmount');
       sendAmt = extractNumber(raw);
-      if (sendAmt && sendAmt > 1_000_000) break;
+      if (sendAmt && sendAmt !== 1_000_000) break;
     }
-    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const feeRaw = await page.$eval('.fee-amount', el => el.textContent).catch(() => null);
     const fee = extractNumber(feeRaw) ?? 5000;
     return { operator: 'SBI', receiving_country: COUNTRY, receive_amount: AMOUNT,
@@ -165,9 +165,9 @@ async function scrapeE9pay(browser) {
       await page.waitForTimeout(1000);
       const raw = await page.$eval('#send-money', el => el.value).catch(() => null);
       total = extractNumber(raw);
-      if (total && total > 1_000_000) break;
+      if (total && total !== 1_000_000) break;
     }
-    if (!total || total <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const feeRaw = await page.$eval('#remit-fee', el => el.textContent || el.value).catch(() => null);
     const fee = extractNumber(feeRaw) ?? 0;
     return { operator: 'E9Pay', receiving_country: COUNTRY, receive_amount: AMOUNT,
