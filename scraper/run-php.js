@@ -21,9 +21,23 @@ async function scrapeGme(browser) {
     await page.fill('#CountryValue', 'Philippines'); await page.waitForTimeout(300);
     await page.click('#toCurrUl li[data-countrycode="PHP"]');
     await page.waitForTimeout(1000);
-    // Select "Bank Deposit" delivery method (required for Philippines)
+    // Select delivery method (required for Philippines) — options loaded via AJAX
     await page.waitForSelector('#sendingType', { timeout: 10000 });
-    await page.selectOption('#sendingType', { label: 'Bank Deposit' });
+    // Wait for options to populate after country selection
+    await page.waitForFunction(() => {
+      const sel = document.querySelector('#sendingType');
+      return sel && sel.options.length > 1;
+    }, null, { timeout: 10000 });
+    // Select Bank Deposit/Transfer option, or fall back to first available
+    const picked = await page.evaluate(() => {
+      const sel = document.querySelector('#sendingType');
+      const opts = Array.from(sel.options);
+      const bank = opts.find(o => /bank/i.test(o.text));
+      const target = bank || opts.find(o => o.value && o.value !== '');
+      if (target) { sel.value = target.value; sel.dispatchEvent(new Event('change', { bubbles: true })); return target.text; }
+      return null;
+    });
+    console.log(`    GME Philippines delivery method: ${picked}`);
     await page.waitForTimeout(1000);
     await page.click('#recAmt', { clickCount: 3 });
     await page.fill('#recAmt', String(AMOUNT));
