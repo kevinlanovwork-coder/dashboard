@@ -71,10 +71,15 @@ async function scrapeSbi(browser) {
     await page.click('a[data-currency="PHP"]'); await page.waitForTimeout(1500);
     await page.click('#targetAmount', { clickCount: 3 });
     await page.fill('#targetAmount', String(AMOUNT));
-    await page.dispatchEvent('#targetAmount', 'input'); await page.waitForTimeout(2000);
-    const raw = await page.inputValue('#krwAmount');
-    const sendAmt = extractNumber(raw);
-    if (!sendAmt) throw new Error('총 송금액 추출 실패');
+    await page.dispatchEvent('#targetAmount', 'input');
+    let sendAmt = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.inputValue('#krwAmount');
+      sendAmt = extractNumber(raw);
+      if (sendAmt && sendAmt > 1_000_000) break;
+    }
+    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const fee = 5000;
     return { operator: 'SBI', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
@@ -196,10 +201,15 @@ async function scrapeJrf(browser) {
     await page.click('li#PHP'); await page.waitForTimeout(1500);
     await page.click('#rec_money', { clickCount: 3 });
     await page.fill('#rec_money', String(AMOUNT));
-    await page.dispatchEvent('#rec_money', 'keyup'); await page.waitForTimeout(3000);
-    const raw = await page.inputValue('#send_money');
-    const sendAmt = extractNumber(raw);
-    if (!sendAmt) throw new Error('총 송금액 추출 실패');
+    await page.dispatchEvent('#rec_money', 'keyup');
+    let sendAmt = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.inputValue('#send_money');
+      sendAmt = extractNumber(raw);
+      if (sendAmt && sendAmt > 1_000_000) break;
+    }
+    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const fee = 4000;
     return { operator: 'JRF', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };

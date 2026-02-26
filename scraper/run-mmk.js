@@ -91,10 +91,15 @@ async function scrapeSbi(browser) {
     await page.click('a[data-currency="MMK"]'); await page.waitForTimeout(1500);
     await page.click('#targetAmount', { clickCount: 3 });
     await page.fill('#targetAmount', String(AMOUNT));
-    await page.dispatchEvent('#targetAmount', 'input'); await page.waitForTimeout(2000);
-    const raw = await page.inputValue('#krwAmount');
-    const sendAmt = extractNumber(raw);
-    if (!sendAmt) throw new Error('총 송금액 추출 실패');
+    await page.dispatchEvent('#targetAmount', 'input');
+    let sendAmt = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.inputValue('#krwAmount');
+      sendAmt = extractNumber(raw);
+      if (sendAmt && sendAmt > 1_000_000) break;
+    }
+    if (!sendAmt || sendAmt <= 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const feeRaw = await page.$eval('.fee-amount', el => el.textContent).catch(() => null);
     const fee = extractNumber(feeRaw) ?? 5000;
     return { operator: 'SBI', receiving_country: COUNTRY, receive_amount: AMOUNT,
