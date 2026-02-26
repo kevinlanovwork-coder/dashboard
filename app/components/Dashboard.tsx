@@ -40,6 +40,7 @@ const EN = {
   records: (n: number) => `${n.toLocaleString()} records`,
   searchOperator: 'Search operator...',
   allStatus: 'All Status',
+  allDateTime: 'All Date & Time',
   tableHeaders: ['Time', 'Operator', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Rate', 'Status'],
   rightAlignHeaders: ['Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Rate'],
   pagination: (start: number, end: number, total: number) =>
@@ -91,6 +92,7 @@ const KO = {
   records: (n: number) => `${n.toLocaleString()}건`,
   searchOperator: '운영사 검색...',
   allStatus: '전체 상태',
+  allDateTime: '전체 일시',
   tableHeaders: ['시간대', '운영사', '국가', '수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '환율', '상태'],
   rightAlignHeaders: ['수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '환율'],
   pagination: (start: number, end: number, total: number) =>
@@ -257,6 +259,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [selectedRunHour, setSelectedRunHour] = useState('all');
   const [tableSearch, setTableSearch] = useState('');
   const [tableStatus, setTableStatus] = useState('all');
+  const [tableDateTime, setTableDateTime] = useState('all');
   const [tablePage, setTablePage] = useState(0);
   const [snapshotSortDesc, setSnapshotSortDesc] = useState(true);
   const [avgDate, setAvgDate] = useState('');
@@ -492,8 +495,11 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     if (tableStatus !== 'all') {
       data = data.filter(r => r.status === tableStatus);
     }
+    if (tableDateTime !== 'all') {
+      data = data.filter(r => r.runHour === tableDateTime);
+    }
     return [...data].sort((a, b) => b.runHour.localeCompare(a.runHour));
-  }, [byCountry, tableSearch, tableStatus]);
+  }, [byCountry, tableSearch, tableStatus, tableDateTime]);
 
   const totalPages = Math.ceil(tableData.length / PAGE_SIZE);
 
@@ -881,6 +887,16 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   <option value="GME">GME</option>
                   <option value="Cheaper than GME">{t.statusCheaper}</option>
                   <option value="Expensive than GME">{t.statusExpensive}</option>
+                </select>
+                <select
+                  value={tableDateTime}
+                  onChange={e => { setTableDateTime(e.target.value); setTablePage(0); }}
+                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">{t.allDateTime}</option>
+                  {[...runHours].reverse().map(rh => (
+                    <option key={rh} value={rh}>{formatRunHour(rh)}</option>
+                  ))}
                 </select>
               </div>
             </div>
