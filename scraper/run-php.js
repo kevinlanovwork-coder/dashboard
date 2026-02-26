@@ -44,16 +44,19 @@ async function scrapeGme(browser) {
     await page.waitForTimeout(2000);
     await page.click('#recAmt', { clickCount: 3 });
     await page.fill('#recAmt', String(AMOUNT));
+    // Capture initial value before triggering calculation
+    const initRaw = await page.$eval('#numAmount', el => el.value || el.textContent).catch(() => null);
+    const initVal = extractNumber(initRaw);
     // Explicitly trigger calculation (site uses keypress monitoring, not onchange)
     await page.evaluate(() => Calculate('P'));
     let total = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
+    for (let attempt = 0; attempt < 15; attempt++) {
       await page.waitForTimeout(1000);
       const raw = await page.$eval('#numAmount', el => el.value || el.textContent).catch(() => null);
       total = extractNumber(raw);
-      if (total) break;
+      if (total && total !== initVal) break;
     }
-    if (!total) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    if (!total || total === initVal) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: 0, total_sending_amount: total };
   } finally { await page.close(); }
