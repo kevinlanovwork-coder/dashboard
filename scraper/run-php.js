@@ -23,25 +23,29 @@ async function scrapeGme(browser) {
     await page.waitForTimeout(1000);
     // Select delivery method (required for Philippines) — options loaded via AJAX
     await page.waitForSelector('#sendingType', { timeout: 10000 });
-    // Wait for options to populate after country selection
     await page.waitForFunction(() => {
       const sel = document.querySelector('#sendingType');
       return sel && sel.options.length > 1;
     }, null, { timeout: 10000 });
-    // Select Bank Deposit/Transfer option, or fall back to first available
+    // Use jQuery .trigger('change') so the site's jQuery handler fires
+    // (native dispatchEvent does NOT trigger jQuery .on('change') handlers)
     const picked = await page.evaluate(() => {
       const sel = document.querySelector('#sendingType');
       const opts = Array.from(sel.options);
       const bank = opts.find(o => /bank/i.test(o.text));
       const target = bank || opts.find(o => o.value && o.value !== '');
-      if (target) { sel.value = target.value; sel.dispatchEvent(new Event('change', { bubbles: true })); return target.text; }
+      if (target) {
+        $('#sendingType').val(target.value).trigger('change');
+        return target.text;
+      }
       return null;
     });
     console.log(`    GME Philippines delivery method: ${picked}`);
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
     await page.click('#recAmt', { clickCount: 3 });
     await page.fill('#recAmt', String(AMOUNT));
-    await page.dispatchEvent('#recAmt', 'change');
+    // Explicitly trigger calculation (site uses keypress monitoring, not onchange)
+    await page.evaluate(() => Calculate('P'));
     let total = null;
     for (let attempt = 0; attempt < 10; attempt++) {
       await page.waitForTimeout(1000);
