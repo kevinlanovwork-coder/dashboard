@@ -21,6 +21,10 @@ async function scrapeGme(browser) {
     await page.fill('#CountryValue', 'Philippines'); await page.waitForTimeout(300);
     await page.click('#toCurrUl li[data-countrycode="PHP"]');
     await page.waitForTimeout(1000);
+    // Select "Bank Deposit" delivery method (required for Philippines)
+    await page.waitForSelector('#sendingType', { timeout: 10000 });
+    await page.selectOption('#sendingType', { label: 'Bank Deposit' });
+    await page.waitForTimeout(1000);
     await page.click('#recAmt', { clickCount: 3 });
     await page.fill('#recAmt', String(AMOUNT));
     await page.dispatchEvent('#recAmt', 'change');
@@ -181,6 +185,20 @@ async function scrapeE9pay(browser) {
       radio.dispatchEvent(new Event('change', { bubbles: true }));
       radio.dispatchEvent(new Event('click',  { bubbles: true }));
     });
+    await page.waitForTimeout(1000);
+    // Select delivery method (required for Philippines)
+    await page.click('#select-method').catch(() => null);
+    await page.waitForTimeout(500);
+    // Try Account transfer first, then BDO, then any available method
+    const methodSelectors = [
+      '#remit-methods li:has-text("Account transfer")',
+      '#remit-methods li:has-text("BDO")',
+      '#remit-methods li:has-text("Gcash")',
+    ];
+    for (const sel of methodSelectors) {
+      const el = page.locator(sel);
+      if (await el.count() > 0) { await el.first().click(); break; }
+    }
     await page.waitForTimeout(1000);
     await page.click('#reverse'); await page.waitForTimeout(500);
     await page.waitForSelector('#receive-money', { timeout: 5000 });
