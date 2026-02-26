@@ -40,9 +40,12 @@ const EN = {
   records: (n: number) => `${n.toLocaleString()} records`,
   searchOperator: 'Search operator...',
   allStatus: 'All Status',
-  allDateTime: 'All Date & Time',
-  tableHeaders: ['Time', 'Operator', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Rate', 'Status'],
+  allDate: 'All Dates',
+  allTime: 'All Times',
+  tableHeaders: ['Time', 'Operator', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Rate', 'Status', ''],
   rightAlignHeaders: ['Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Rate'],
+  deleteConfirm: (op: string, time: string) => `Delete record for ${op} at ${time}?`,
+  deleting: 'Deleting...',
   pagination: (start: number, end: number, total: number) =>
     `${start.toLocaleString()}–${end.toLocaleString()} of ${total.toLocaleString()}`,
   prev: 'Prev',
@@ -92,9 +95,12 @@ const KO = {
   records: (n: number) => `${n.toLocaleString()}건`,
   searchOperator: '운영사 검색...',
   allStatus: '전체 상태',
-  allDateTime: '전체 일시',
-  tableHeaders: ['시간대', '운영사', '국가', '수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '환율', '상태'],
+  allDate: '전체 날짜',
+  allTime: '전체 시간',
+  tableHeaders: ['시간대', '운영사', '국가', '수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '환율', '상태', ''],
   rightAlignHeaders: ['수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '환율'],
+  deleteConfirm: (op: string, time: string) => `${op} (${time}) 기록을 삭제하시겠습니까?`,
+  deleting: '삭제 중...',
   pagination: (start: number, end: number, total: number) =>
     `${start.toLocaleString()}–${end.toLocaleString()} / ${total.toLocaleString()}건`,
   prev: '이전',
@@ -259,16 +265,20 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [selectedRunHour, setSelectedRunHour] = useState('all');
   const [tableSearch, setTableSearch] = useState('');
   const [tableStatus, setTableStatus] = useState('all');
-  const [tableDateTime, setTableDateTime] = useState('all');
+  const [tableDate, setTableDate] = useState('all');
+  const [tableTime, setTableTime] = useState('all');
   const [tablePage, setTablePage] = useState(0);
   const [snapshotSortDesc, setSnapshotSortDesc] = useState(true);
   const [avgDate, setAvgDate] = useState('');
+  const [avgGapSortDesc, setAvgGapSortDesc] = useState(true);
   const [selectedTrendOperator, setSelectedTrendOperator] = useState('');
   const [gmeTrendFromDate, setGmeTrendFromDate] = useState('');
   const [operatorTrendFromDate, setOperatorTrendFromDate] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const countryDropdownRef = useRef<HTMLDivElement>(null);
+  const detailedDataRef = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = 20;
 
   const t = isEn ? EN : KO;
@@ -319,6 +329,25 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
       .finally(() => { if (!cancelled) setIsLoadingRecords(false); });
     return () => { cancelled = true; };
   }, [selectedCountry, defaultCountry, initialRecords]);
+
+  async function handleDelete(r: RateRecord) {
+    if (!confirm(t.deleteConfirm(r.operator, formatRunHour(r.runHour)))) return;
+    setDeletingId(r.id);
+    try {
+      const res = await fetch('/api/rates', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: r.id }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setRecords(prev => prev.filter(rec => rec.id !== r.id));
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert(String(err));
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   // Close country dropdown on click outside
   useEffect(() => {
@@ -410,14 +439,20 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
         map[r.operator].gaps.push(r.priceGap!);
         map[r.operator].count++;
       });
-    return Object.entries(map)
+    const stats = Object.entries(map)
       .map(([operator, { gaps, count }]) => ({
         operator,
         avgGap: Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length),
         count,
-      }))
-      .sort((a, b) => a.avgGap - b.avgGap);
-  }, [byCountry, effectiveAvgDate]);
+      }));
+    // Add GME as a zero-baseline reference
+    if (stats.length > 0) {
+      stats.push({ operator: 'GME', avgGap: 0, count: 0 });
+    }
+    return stats.sort((a, b) => avgGapSortDesc
+      ? b.avgGap - a.avgGap
+      : a.avgGap - b.avgGap);
+  }, [byCountry, effectiveAvgDate, avgGapSortDesc]);
 
   const trendData = useMemo(() => {
     const map: Record<string, number> = {};
@@ -432,7 +467,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   }, [byCountry]);
 
   const gmeTrendDates = useMemo(
-    () => [...new Set(trendData.map(d => d.runHour.slice(0, 10)))].sort(),
+    () => [...new Set(trendData.map(d => d.runHour.slice(0, 10)))].sort().reverse(),
     [trendData]
   );
 
@@ -466,7 +501,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   }, [byCountry, effectiveTrendOperator]);
 
   const operatorTrendDates = useMemo(
-    () => [...new Set(operatorTrendData.map(d => d.runHour.slice(0, 10)))].sort(),
+    () => [...new Set(operatorTrendData.map(d => d.runHour.slice(0, 10)))].sort().reverse(),
     [operatorTrendData]
   );
 
@@ -486,6 +521,21 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const receiveBaseline = byCountry[0]?.receiveAmount ?? null;
   const receiveCurrency = CURRENCY_MAP[selectedCountry] ?? '';
 
+  const tableDates = useMemo(
+    () => [...new Set(runHours.map(rh => rh.slice(0, 10)))].sort().reverse(),
+    [runHours]
+  );
+
+  const tableTimes = useMemo(
+    () => {
+      const filtered = tableDate === 'all'
+        ? runHours
+        : runHours.filter(rh => rh.slice(0, 10) === tableDate);
+      return [...filtered].reverse();
+    },
+    [runHours, tableDate]
+  );
+
   const tableData = useMemo(() => {
     let data = byCountry;
     if (tableSearch) {
@@ -495,13 +545,27 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     if (tableStatus !== 'all') {
       data = data.filter(r => r.status === tableStatus);
     }
-    if (tableDateTime !== 'all') {
-      data = data.filter(r => r.runHour === tableDateTime);
+    if (tableDate !== 'all') {
+      data = data.filter(r => r.runHour.slice(0, 10) === tableDate);
+    }
+    if (tableTime !== 'all') {
+      data = data.filter(r => r.runHour === tableTime);
     }
     return [...data].sort((a, b) => b.runHour.localeCompare(a.runHour));
-  }, [byCountry, tableSearch, tableStatus, tableDateTime]);
+  }, [byCountry, tableSearch, tableStatus, tableDate, tableTime]);
 
   const totalPages = Math.ceil(tableData.length / PAGE_SIZE);
+
+  const jumpToDetailedData = (runHour: string, operator?: string) => {
+    const date = runHour.slice(0, 10);
+    const time = runHour;
+    setTableDate(date);
+    setTableTime(time);
+    if (operator) setTableSearch(operator);
+    setTableStatus('all');
+    setTablePage(0);
+    setTimeout(() => detailedDataRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+  };
 
   return (
     <div className={isDark ? 'dark' : ''}>
@@ -646,7 +710,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 </button>
               </div>
               {snapshotChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={Math.max(300, snapshotChartData.length * 36)}>
                   <BarChart data={snapshotChartData} layout="vertical" margin={{ top: 0, right: 75, left: 88, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
                     <XAxis
@@ -660,7 +724,17 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     <YAxis
                       type="category"
                       dataKey="operator"
-                      tick={{ fill: ct.yLabel, fontSize: 12 }}
+                      tick={(props: { x: number; y: number; payload: { value: string } }) => {
+                        const isGME = props.payload.value === 'GME';
+                        return (
+                          <text x={props.x} y={props.y} dy={4} textAnchor="end" fontSize={12}
+                            fill={isGME ? '#ef4444' : ct.yLabel}
+                            fontWeight={isGME ? 700 : 400}
+                          >
+                            {isGME ? '★ GME' : props.payload.value}
+                          </text>
+                        );
+                      }}
                       axisLine={false}
                       tickLine={false}
                       width={85}
@@ -704,18 +778,26 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   <h2 className="text-sm font-semibold">{t.avgDiffTitle}</h2>
                   <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(effectiveAvgDate)}</p>
                 </div>
-                <select
-                  value={effectiveAvgDate}
-                  onChange={e => setAvgDate(e.target.value)}
-                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
-                >
-                  {[...avgDates].reverse().map(d => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setAvgGapSortDesc(d => !d)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
+                  >
+                    {avgGapSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
+                  </button>
+                  <select
+                    value={effectiveAvgDate}
+                    onChange={e => setAvgDate(e.target.value)}
+                    className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+                  >
+                    {[...avgDates].reverse().map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               {operatorStats.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={Math.max(300, operatorStats.length * 36)}>
                   <BarChart data={operatorStats} layout="vertical" margin={{ top: 0, right: 55, left: 88, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
                     <XAxis
@@ -728,16 +810,26 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     <YAxis
                       type="category"
                       dataKey="operator"
-                      tick={{ fill: ct.yLabel, fontSize: 12 }}
+                      tick={(props: { x: number; y: number; payload: { value: string } }) => {
+                        const isGME = props.payload.value === 'GME';
+                        return (
+                          <text x={props.x} y={props.y} dy={4} textAnchor="end" fontSize={12}
+                            fill={isGME ? '#ef4444' : ct.yLabel}
+                            fontWeight={isGME ? 700 : 400}
+                          >
+                            {isGME ? '★ GME' : props.payload.value}
+                          </text>
+                        );
+                      }}
                       axisLine={false}
                       tickLine={false}
                       width={85}
                     />
                     <Tooltip content={(props) => <GapTooltip {...props} t={t} />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
-                    <ReferenceLine x={0} stroke={ct.refLine} strokeWidth={1.5} />
+                    <ReferenceLine x={0} stroke={ct.refLine} strokeWidth={1.5} label={{ value: 'GME', position: 'top', fill: '#ef4444', fontSize: 11, fontWeight: 700 }} />
                     <Bar dataKey="avgGap" radius={[0, 4, 4, 0]}>
                       {operatorStats.map((entry, i) => (
-                        <Cell key={i} fill={entry.avgGap < 0 ? '#22c55e' : '#f97316'} />
+                        <Cell key={i} fill={entry.operator === 'GME' ? '#ef4444' : entry.avgGap < 0 ? '#22c55e' : '#f97316'} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -746,7 +838,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.noData}</div>
               )}
               <div className="flex items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />{t.gmeWins}</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.gmeWins}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.gmeLoses}</span>
               </div>
             </div>
@@ -770,7 +862,10 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             </div>
             {filteredTrendData.length > 1 ? (
               <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={filteredTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <LineChart data={filteredTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                  onClick={(e) => { if (e?.activePayload?.[0]?.payload?.runHour) jumpToDetailedData(e.activePayload[0].payload.runHour); }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                   <XAxis
                     dataKey="label"
@@ -830,7 +925,10 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             </div>
             {filteredOperatorTrendData.length > 1 ? (
               <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={filteredOperatorTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <LineChart data={filteredOperatorTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                  onClick={(e) => { if (e?.activePayload?.[0]?.payload?.runHour) jumpToDetailedData(e.activePayload[0].payload.runHour, effectiveTrendOperator); }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                   <XAxis
                     dataKey="label"
@@ -864,7 +962,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           </div>
 
           {/* Data Table */}
-          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+          <div ref={detailedDataRef} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-sm font-semibold">{t.detailedData}</h2>
@@ -889,13 +987,23 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   <option value="Expensive than GME">{t.statusExpensive}</option>
                 </select>
                 <select
-                  value={tableDateTime}
-                  onChange={e => { setTableDateTime(e.target.value); setTablePage(0); }}
+                  value={tableDate}
+                  onChange={e => { setTableDate(e.target.value); setTableTime('all'); setTablePage(0); }}
                   className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="all">{t.allDateTime}</option>
-                  {[...runHours].reverse().map(rh => (
-                    <option key={rh} value={rh}>{formatRunHour(rh)}</option>
+                  <option value="all">{t.allDate}</option>
+                  {tableDates.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+                <select
+                  value={tableTime}
+                  onChange={e => { setTableTime(e.target.value); setTablePage(0); }}
+                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">{t.allTime}</option>
+                  {tableTimes.map(rh => (
+                    <option key={rh} value={rh}>{rh.slice(11)}</option>
                   ))}
                 </select>
               </div>
@@ -913,10 +1021,10 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   </tr>
                 </thead>
                 <tbody>
-                  {tableData.slice(tablePage * PAGE_SIZE, (tablePage + 1) * PAGE_SIZE).map((r, i) => {
+                  {tableData.slice(tablePage * PAGE_SIZE, (tablePage + 1) * PAGE_SIZE).map((r) => {
                     const sc = statusColor(r.status);
                     return (
-                      <tr key={i} className="border-b border-slate-200 dark:border-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/20 transition-colors">
+                      <tr key={r.id} className="border-b border-slate-200 dark:border-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/20 transition-colors">
                         <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-mono text-xs whitespace-nowrap">{formatRunHour(r.runHour)}</td>
                         <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200 whitespace-nowrap">{r.operator}</td>
                         <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">{r.receivingCountry}</td>
@@ -943,6 +1051,22 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
                             {statusLabel(r.status, t)}
                           </span>
+                        </td>
+                        <td className="py-2.5 px-1 text-center">
+                          <button
+                            onClick={() => handleDelete(r)}
+                            disabled={deletingId === r.id}
+                            title={deletingId === r.id ? t.deleting : undefined}
+                            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500 dark:hover:text-red-400 disabled:opacity-40 transition-colors"
+                          >
+                            {deletingId === r.id ? (
+                              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                              </svg>
+                            )}
+                          </button>
                         </td>
                       </tr>
                     );

@@ -1,6 +1,7 @@
 import { RATES_DATA } from './ratesData';
 
 export interface RateRecord {
+  id: number;
   timestamp: string;
   runHour: string;
   operator: string;

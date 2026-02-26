@@ -2,6 +2,7 @@ import type { RateRecord } from './parseRates';
 
 export const RATES_DATA: RateRecord[] = [
   {
+    "id": 1,
     "timestamp": "1/29/2026 11:53:57",
     "runHour": "2026-01-29 11:00",
     "operator": "GMoneyTrans",
@@ -17,6 +18,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 2,
     "timestamp": "1/29/2026 11:59:46",
     "runHour": "2026-01-29 11:00",
     "operator": "Hanpass",
@@ -32,6 +34,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 3,
     "timestamp": "1/29/2026 12:00:12",
     "runHour": "2026-01-29 12:00",
     "operator": "Hanpass",
@@ -47,6 +50,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 4,
     "timestamp": "1/30/2026 11:01:01",
     "runHour": "2026-01-30 11:00",
     "operator": "Hanpass",
@@ -62,6 +66,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 5,
     "timestamp": "1/30/2026 11:02:02",
     "runHour": "2026-01-30 11:00",
     "operator": "Sentbe",
@@ -77,6 +82,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 6,
     "timestamp": "1/30/2026 11:03:31",
     "runHour": "2026-01-30 11:00",
     "operator": "Sentbe",
@@ -92,6 +98,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 7,
     "timestamp": "1/30/2026 11:05:54",
     "runHour": "2026-01-30 11:00",
     "operator": "Sentbe",
@@ -107,6 +114,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 8,
     "timestamp": "1/30/2026 11:16:02",
     "runHour": "2026-01-30 11:00",
     "operator": "Utransfer",
@@ -122,6 +130,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 9,
     "timestamp": "1/30/2026 11:32:58",
     "runHour": "2026-01-30 11:00",
     "operator": "Global Money Express",
@@ -137,6 +146,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 10,
     "timestamp": "1/30/2026 11:34:06",
     "runHour": "2026-01-30 11:00",
     "operator": "Global Money Express",
@@ -152,6 +162,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 11,
     "timestamp": "1/30/2026 11:40:42",
     "runHour": "2026-01-30 11:00",
     "operator": "SBI",
@@ -167,6 +178,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 12,
     "timestamp": "1/30/2026 15:07:34",
     "runHour": "2026-01-30 15:00",
     "operator": "Cross",
@@ -182,6 +194,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 13,
     "timestamp": "1/30/2026 15:14:07",
     "runHour": "2026-01-30 15:00",
     "operator": "Coinshot",
@@ -197,6 +210,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 14,
     "timestamp": "1/30/2026 16:20:55",
     "runHour": "2026-01-30 16:00",
     "operator": "WireBarley",
@@ -212,6 +226,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 15,
     "timestamp": "1/30/2026 16:21:41",
     "runHour": "2026-01-30 16:00",
     "operator": "WireBarley",
@@ -227,6 +242,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 16,
     "timestamp": "1/30/2026 16:25:04",
     "runHour": "2026-01-30 16:00",
     "operator": "SBI",
@@ -242,6 +258,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 17,
     "timestamp": "1/30/2026 16:25:27",
     "runHour": "2026-01-30 16:00",
     "operator": "WireBarley",
@@ -257,6 +274,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 18,
     "timestamp": "1/30/2026 16:26:22",
     "runHour": "2026-01-30 16:00",
     "operator": "SBI",
@@ -272,6 +290,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 19,
     "timestamp": "1/30/2026 16:26:38",
     "runHour": "2026-01-30 16:00",
     "operator": "WireBarley",
@@ -287,6 +306,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 20,
     "timestamp": "1/30/2026 16:59:39",
     "runHour": "2026-01-30 16:00",
     "operator": "Coinshot",
@@ -302,6 +322,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 21,
     "timestamp": "1/30/2026 16:59:53",
     "runHour": "2026-01-30 16:00",
     "operator": "Cross",
@@ -317,6 +338,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 22,
     "timestamp": "1/30/2026 17:00:07",
     "runHour": "2026-01-30 17:00",
     "operator": "Global Money Express",
@@ -332,6 +354,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 23,
     "timestamp": "1/30/2026 17:00:21",
     "runHour": "2026-01-30 17:00",
     "operator": "GMoneyTrans",
@@ -347,6 +370,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 24,
     "timestamp": "1/30/2026 17:00:41",
     "runHour": "2026-01-30 17:00",
     "operator": "Hanpass",
@@ -362,6 +386,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 25,
     "timestamp": "1/30/2026 17:01:42",
     "runHour": "2026-01-30 17:00",
     "operator": "SBI",
@@ -377,6 +402,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 26,
     "timestamp": "1/30/2026 17:02:20",
     "runHour": "2026-01-30 17:00",
     "operator": "Sentbe",
@@ -392,6 +418,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 27,
     "timestamp": "1/30/2026 17:02:45",
     "runHour": "2026-01-30 17:00",
     "operator": "Utransfer",
@@ -407,6 +434,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 28,
     "timestamp": "1/30/2026 17:37:53",
     "runHour": "2026-01-30 17:00",
     "operator": "Coinshot",
@@ -422,6 +450,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 29,
     "timestamp": "1/30/2026 17:38:07",
     "runHour": "2026-01-30 17:00",
     "operator": "Cross",
@@ -437,6 +466,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 30,
     "timestamp": "1/30/2026 17:38:21",
     "runHour": "2026-01-30 17:00",
     "operator": "Global Money Express",
@@ -452,6 +482,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 31,
     "timestamp": "1/30/2026 17:38:35",
     "runHour": "2026-01-30 17:00",
     "operator": "GMoneyTrans",
@@ -467,6 +498,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 32,
     "timestamp": "1/30/2026 17:38:56",
     "runHour": "2026-01-30 17:00",
     "operator": "Hanpass",
@@ -482,6 +514,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 33,
     "timestamp": "1/30/2026 17:39:22",
     "runHour": "2026-01-30 17:00",
     "operator": "SBI",
@@ -497,6 +530,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 34,
     "timestamp": "1/30/2026 17:39:38",
     "runHour": "2026-01-30 17:00",
     "operator": "Sentbe",
@@ -512,6 +546,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 35,
     "timestamp": "1/30/2026 17:39:53",
     "runHour": "2026-01-30 17:00",
     "operator": "Utransfer",
@@ -527,6 +562,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 36,
     "timestamp": "2/2/2026 9:46:36",
     "runHour": "2026-02-02 09:00",
     "operator": "Coinshot",
@@ -542,6 +578,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 37,
     "timestamp": "2/2/2026 9:46:49",
     "runHour": "2026-02-02 09:00",
     "operator": "Cross",
@@ -557,6 +594,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 38,
     "timestamp": "2/2/2026 9:48:22",
     "runHour": "2026-02-02 09:00",
     "operator": "Global Money Express",
@@ -572,6 +610,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 39,
     "timestamp": "2/2/2026 9:49:02",
     "runHour": "2026-02-02 09:00",
     "operator": "GMoneyTrans",
@@ -587,6 +626,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 40,
     "timestamp": "2/2/2026 9:50:08",
     "runHour": "2026-02-02 09:00",
     "operator": "Hanpass",
@@ -602,6 +642,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 41,
     "timestamp": "2/2/2026 9:52:12",
     "runHour": "2026-02-02 09:00",
     "operator": "JRF",
@@ -617,6 +658,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 42,
     "timestamp": "2/2/2026 9:52:32",
     "runHour": "2026-02-02 09:00",
     "operator": "SBI",
@@ -632,6 +674,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 43,
     "timestamp": "2/2/2026 9:53:02",
     "runHour": "2026-02-02 09:00",
     "operator": "Sentbe",
@@ -647,6 +690,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 44,
     "timestamp": "2/2/2026 9:53:19",
     "runHour": "2026-02-02 09:00",
     "operator": "Utransfer",
@@ -662,6 +706,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 45,
     "timestamp": "2/2/2026 10:43:47",
     "runHour": "2026-02-02 10:00",
     "operator": "Coinshot",
@@ -677,6 +722,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 46,
     "timestamp": "2/2/2026 10:44:02",
     "runHour": "2026-02-02 10:00",
     "operator": "Cross",
@@ -692,6 +738,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 47,
     "timestamp": "2/2/2026 10:44:18",
     "runHour": "2026-02-02 10:00",
     "operator": "Global Money Express",
@@ -707,6 +754,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 48,
     "timestamp": "2/2/2026 10:44:34",
     "runHour": "2026-02-02 10:00",
     "operator": "GMoneyTrans",
@@ -722,6 +770,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 49,
     "timestamp": "2/2/2026 10:44:54",
     "runHour": "2026-02-02 10:00",
     "operator": "Hanpass",
@@ -737,6 +786,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 50,
     "timestamp": "2/2/2026 10:45:08",
     "runHour": "2026-02-02 10:00",
     "operator": "JRF",
@@ -752,6 +802,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 51,
     "timestamp": "2/2/2026 10:45:23",
     "runHour": "2026-02-02 10:00",
     "operator": "SBI",
@@ -767,6 +818,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 52,
     "timestamp": "2/2/2026 10:45:42",
     "runHour": "2026-02-02 10:00",
     "operator": "Sentbe",
@@ -782,6 +834,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 53,
     "timestamp": "2/2/2026 10:45:57",
     "runHour": "2026-02-02 10:00",
     "operator": "Utransfer",
@@ -797,6 +850,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 54,
     "timestamp": "2/2/2026 15:17:11",
     "runHour": "2026-02-02 15:00",
     "operator": "Coinshot",
@@ -812,6 +866,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 55,
     "timestamp": "2/2/2026 15:17:27",
     "runHour": "2026-02-02 15:00",
     "operator": "Cross",
@@ -827,6 +882,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 56,
     "timestamp": "2/2/2026 15:17:44",
     "runHour": "2026-02-02 15:00",
     "operator": "Global Money Express",
@@ -842,6 +898,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 57,
     "timestamp": "2/2/2026 15:18:01",
     "runHour": "2026-02-02 15:00",
     "operator": "GMoneyTrans",
@@ -857,6 +914,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 58,
     "timestamp": "2/2/2026 15:18:25",
     "runHour": "2026-02-02 15:00",
     "operator": "Hanpass",
@@ -872,6 +930,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 59,
     "timestamp": "2/2/2026 15:18:41",
     "runHour": "2026-02-02 15:00",
     "operator": "JRF",
@@ -887,6 +946,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 60,
     "timestamp": "2/2/2026 15:19:06",
     "runHour": "2026-02-02 15:00",
     "operator": "SBI",
@@ -902,6 +962,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 61,
     "timestamp": "2/2/2026 15:19:26",
     "runHour": "2026-02-02 15:00",
     "operator": "Sentbe",
@@ -917,6 +978,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 62,
     "timestamp": "2/2/2026 15:19:43",
     "runHour": "2026-02-02 15:00",
     "operator": "Utransfer",
@@ -932,6 +994,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 63,
     "timestamp": "2/3/2026 10:11:31",
     "runHour": "2026-02-03 10:00",
     "operator": "Coinshot",
@@ -947,6 +1010,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 64,
     "timestamp": "2/3/2026 10:11:44",
     "runHour": "2026-02-03 10:00",
     "operator": "Cross",
@@ -962,6 +1026,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 65,
     "timestamp": "2/3/2026 10:11:58",
     "runHour": "2026-02-03 10:00",
     "operator": "Global Money Express",
@@ -977,6 +1042,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 66,
     "timestamp": "2/3/2026 10:12:12",
     "runHour": "2026-02-03 10:00",
     "operator": "GMoneyTrans",
@@ -992,6 +1058,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 67,
     "timestamp": "2/3/2026 10:12:52",
     "runHour": "2026-02-03 10:00",
     "operator": "JRF",
@@ -1007,6 +1074,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 68,
     "timestamp": "2/3/2026 10:13:29",
     "runHour": "2026-02-03 10:00",
     "operator": "Sentbe",
@@ -1022,6 +1090,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 69,
     "timestamp": "2/3/2026 10:13:43",
     "runHour": "2026-02-03 10:00",
     "operator": "Utransfer",
@@ -1037,6 +1106,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 70,
     "timestamp": "2/3/2026 10:16:09",
     "runHour": "2026-02-03 10:00",
     "operator": "Hanpass",
@@ -1052,6 +1122,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 71,
     "timestamp": "2/3/2026 10:16:37",
     "runHour": "2026-02-03 10:00",
     "operator": "SBI",
@@ -1067,6 +1138,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 72,
     "timestamp": "2/3/2026 10:56:59",
     "runHour": "2026-02-03 10:00",
     "operator": "Coinshot",
@@ -1082,6 +1154,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 73,
     "timestamp": "2/3/2026 10:57:11",
     "runHour": "2026-02-03 10:00",
     "operator": "Cross",
@@ -1097,6 +1170,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 74,
     "timestamp": "2/3/2026 10:57:24",
     "runHour": "2026-02-03 10:00",
     "operator": "Global Money Express",
@@ -1112,6 +1186,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 75,
     "timestamp": "2/3/2026 10:57:38",
     "runHour": "2026-02-03 10:00",
     "operator": "GMoneyTrans",
@@ -1127,6 +1202,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 76,
     "timestamp": "2/3/2026 10:57:55",
     "runHour": "2026-02-03 10:00",
     "operator": "Hanpass",
@@ -1142,6 +1218,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 77,
     "timestamp": "2/3/2026 10:58:07",
     "runHour": "2026-02-03 10:00",
     "operator": "JRF",
@@ -1157,6 +1234,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 78,
     "timestamp": "2/3/2026 10:58:19",
     "runHour": "2026-02-03 10:00",
     "operator": "SBI",
@@ -1172,6 +1250,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 79,
     "timestamp": "2/3/2026 10:58:35",
     "runHour": "2026-02-03 10:00",
     "operator": "Sentbe",
@@ -1187,6 +1266,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 80,
     "timestamp": "2/3/2026 10:58:49",
     "runHour": "2026-02-03 10:00",
     "operator": "Utransfer",
@@ -1202,6 +1282,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 81,
     "timestamp": "2/3/2026 17:23:04",
     "runHour": "2026-02-03 17:00",
     "operator": "Coinshot",
@@ -1217,6 +1298,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 82,
     "timestamp": "2/3/2026 17:23:17",
     "runHour": "2026-02-03 17:00",
     "operator": "Cross",
@@ -1232,6 +1314,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 83,
     "timestamp": "2/3/2026 17:23:30",
     "runHour": "2026-02-03 17:00",
     "operator": "Global Money Express",
@@ -1247,6 +1330,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 84,
     "timestamp": "2/3/2026 17:23:45",
     "runHour": "2026-02-03 17:00",
     "operator": "GMoneyTrans",
@@ -1262,6 +1346,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 85,
     "timestamp": "2/3/2026 17:24:03",
     "runHour": "2026-02-03 17:00",
     "operator": "Hanpass",
@@ -1277,6 +1362,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 86,
     "timestamp": "2/3/2026 17:24:16",
     "runHour": "2026-02-03 17:00",
     "operator": "JRF",
@@ -1292,6 +1378,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 87,
     "timestamp": "2/3/2026 17:24:29",
     "runHour": "2026-02-03 17:00",
     "operator": "SBI",
@@ -1307,6 +1394,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 88,
     "timestamp": "2/3/2026 17:28:25",
     "runHour": "2026-02-03 17:00",
     "operator": "Utransfer",
@@ -1322,6 +1410,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 89,
     "timestamp": "2/5/2026 15:53:30",
     "runHour": "2026-02-05 15:00",
     "operator": "Coinshot",
@@ -1337,6 +1426,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 90,
     "timestamp": "2/5/2026 15:53:45",
     "runHour": "2026-02-05 15:00",
     "operator": "Cross",
@@ -1352,6 +1442,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 91,
     "timestamp": "2/5/2026 15:53:58",
     "runHour": "2026-02-05 15:00",
     "operator": "Global Money Express",
@@ -1367,6 +1458,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 92,
     "timestamp": "2/5/2026 15:54:12",
     "runHour": "2026-02-05 15:00",
     "operator": "GMoneyTrans",
@@ -1382,6 +1474,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 93,
     "timestamp": "2/5/2026 15:54:39",
     "runHour": "2026-02-05 15:00",
     "operator": "Hanpass",
@@ -1397,6 +1490,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 94,
     "timestamp": "2/5/2026 15:54:51",
     "runHour": "2026-02-05 15:00",
     "operator": "JRF",
@@ -1412,6 +1506,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 95,
     "timestamp": "2/5/2026 15:55:04",
     "runHour": "2026-02-05 15:00",
     "operator": "SBI",
@@ -1427,6 +1522,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 96,
     "timestamp": "2/5/2026 15:55:28",
     "runHour": "2026-02-05 15:00",
     "operator": "Sentbe",
@@ -1442,6 +1538,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 97,
     "timestamp": "2/5/2026 15:55:49",
     "runHour": "2026-02-05 15:00",
     "operator": "Utransfer",
@@ -1457,6 +1554,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 98,
     "timestamp": "2/10/2026 9:58:16",
     "runHour": "2026-02-10 09:00",
     "operator": "Coinshot",
@@ -1472,6 +1570,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 99,
     "timestamp": "2/10/2026 9:58:32",
     "runHour": "2026-02-10 09:00",
     "operator": "Cross",
@@ -1487,6 +1586,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 100,
     "timestamp": "2/10/2026 9:58:48",
     "runHour": "2026-02-10 09:00",
     "operator": "Global Money Express",
@@ -1502,6 +1602,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 101,
     "timestamp": "2/10/2026 9:59:05",
     "runHour": "2026-02-10 09:00",
     "operator": "GMoneyTrans",
@@ -1517,6 +1618,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 102,
     "timestamp": "2/10/2026 9:59:33",
     "runHour": "2026-02-10 09:00",
     "operator": "Hanpass",
@@ -1532,6 +1634,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 103,
     "timestamp": "2/10/2026 9:59:48",
     "runHour": "2026-02-10 09:00",
     "operator": "JRF",
@@ -1547,6 +1650,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 104,
     "timestamp": "2/10/2026 10:00:03",
     "runHour": "2026-02-10 10:00",
     "operator": "SBI",
@@ -1562,6 +1666,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 105,
     "timestamp": "2/10/2026 10:00:27",
     "runHour": "2026-02-10 10:00",
     "operator": "Sentbe",
@@ -1577,6 +1682,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 106,
     "timestamp": "2/10/2026 10:00:43",
     "runHour": "2026-02-10 10:00",
     "operator": "Utransfer",
@@ -1592,6 +1698,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 107,
     "timestamp": "2/10/2026 16:17:43",
     "runHour": "2026-02-10 16:00",
     "operator": "Coinshot",
@@ -1607,6 +1714,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 108,
     "timestamp": "2/11/2026 15:44:25",
     "runHour": "2026-02-11 15:00",
     "operator": "Coinshot",
@@ -1622,6 +1730,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 109,
     "timestamp": "2/11/2026 15:44:39",
     "runHour": "2026-02-11 15:00",
     "operator": "Cross",
@@ -1637,6 +1746,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 110,
     "timestamp": "2/11/2026 15:58:31",
     "runHour": "2026-02-11 15:00",
     "operator": "Global Money Express",
@@ -1652,6 +1762,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 111,
     "timestamp": "2/11/2026 15:58:53",
     "runHour": "2026-02-11 15:00",
     "operator": "GMoneyTrans",
@@ -1667,6 +1778,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 112,
     "timestamp": "2/11/2026 15:59:17",
     "runHour": "2026-02-11 15:00",
     "operator": "Hanpass",
@@ -1682,6 +1794,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 113,
     "timestamp": "2/11/2026 15:59:31",
     "runHour": "2026-02-11 15:00",
     "operator": "JRF",
@@ -1697,6 +1810,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 114,
     "timestamp": "2/11/2026 15:59:46",
     "runHour": "2026-02-11 15:00",
     "operator": "SBI",
@@ -1712,6 +1826,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 115,
     "timestamp": "2/11/2026 16:00:05",
     "runHour": "2026-02-11 16:00",
     "operator": "Sentbe",
@@ -1727,6 +1842,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 116,
     "timestamp": "2/11/2026 16:00:24",
     "runHour": "2026-02-11 16:00",
     "operator": "Utransfer",
@@ -1742,6 +1858,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 117,
     "timestamp": "2/12/2026 10:53:45",
     "runHour": "2026-02-12 10:00",
     "operator": "Coinshot",
@@ -1757,6 +1874,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 118,
     "timestamp": "2/12/2026 10:53:58",
     "runHour": "2026-02-12 10:00",
     "operator": "Cross",
@@ -1772,6 +1890,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 119,
     "timestamp": "2/12/2026 10:54:12",
     "runHour": "2026-02-12 10:00",
     "operator": "Global Money Express",
@@ -1787,6 +1906,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 120,
     "timestamp": "2/12/2026 10:54:25",
     "runHour": "2026-02-12 10:00",
     "operator": "GMoneyTrans",
@@ -1802,6 +1922,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 121,
     "timestamp": "2/12/2026 10:54:46",
     "runHour": "2026-02-12 10:00",
     "operator": "Hanpass",
@@ -1817,6 +1938,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 122,
     "timestamp": "2/12/2026 10:54:58",
     "runHour": "2026-02-12 10:00",
     "operator": "JRF",
@@ -1832,6 +1954,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 123,
     "timestamp": "2/12/2026 10:55:28",
     "runHour": "2026-02-12 10:00",
     "operator": "Sentbe",
@@ -1847,6 +1970,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Expensive than GME"
   },
   {
+    "id": 124,
     "timestamp": "2/12/2026 10:55:42",
     "runHour": "2026-02-12 10:00",
     "operator": "Utransfer",
@@ -1862,6 +1986,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 125,
     "timestamp": "2/12/2026 10:58:15",
     "runHour": "2026-02-12 10:00",
     "operator": "SBI",
@@ -1877,6 +2002,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 126,
     "timestamp": "2/13/2026 15:07:09",
     "runHour": "2026-02-13 15:00",
     "operator": "Coinshot",
@@ -1892,6 +2018,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 127,
     "timestamp": "2/13/2026 15:07:22",
     "runHour": "2026-02-13 15:00",
     "operator": "Cross",
@@ -1907,6 +2034,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 128,
     "timestamp": "2/13/2026 15:07:38",
     "runHour": "2026-02-13 15:00",
     "operator": "Global Money Express",
@@ -1922,6 +2050,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "GME"
   },
   {
+    "id": 129,
     "timestamp": "2/13/2026 15:07:53",
     "runHour": "2026-02-13 15:00",
     "operator": "GMoneyTrans",
@@ -1937,6 +2066,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 130,
     "timestamp": "2/13/2026 15:08:16",
     "runHour": "2026-02-13 15:00",
     "operator": "Hanpass",
@@ -1952,6 +2082,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 131,
     "timestamp": "2/13/2026 15:08:29",
     "runHour": "2026-02-13 15:00",
     "operator": "JRF",
@@ -1967,6 +2098,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 132,
     "timestamp": "2/13/2026 15:08:46",
     "runHour": "2026-02-13 15:00",
     "operator": "SBI",
@@ -1982,6 +2114,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 133,
     "timestamp": "2/13/2026 15:09:05",
     "runHour": "2026-02-13 15:00",
     "operator": "Sentbe",
@@ -1997,6 +2130,7 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
+    "id": 134,
     "timestamp": "2/13/2026 15:09:23",
     "runHour": "2026-02-13 15:00",
     "operator": "Utransfer",
