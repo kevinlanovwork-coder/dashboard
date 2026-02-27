@@ -149,7 +149,7 @@ async function scrapeE9pay(browser) {
 const SCRAPERS = [
   { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
-  { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: false },
+  { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
 ];

@@ -369,7 +369,7 @@ const SCRAPERS = [
   { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
-  { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: false },
+  { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },
   { name: 'WireBarley',  fn: (b) => withRetry(() => scrapeWirebarley(b)), needsBrowser: true  },

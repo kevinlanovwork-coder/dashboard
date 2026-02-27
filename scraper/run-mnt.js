@@ -207,7 +207,7 @@ const SCRAPERS = [
   { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'Coinshot',    fn: (b) => withRetry(() => scrapeCoinshot(b)), needsBrowser: true  },
-  { name: 'Hanpass',     fn: scrapeHanpass,      needsBrowser: false },
+  { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
