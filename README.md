@@ -1,6 +1,6 @@
 # GME Exchange Rate Comparison Dashboard
 
-A real-time remittance rate monitoring dashboard for **Global Money Express (GME)**, tracking how GME's KRW → foreign currency rates compare against competitors across multiple corridors — updated every 30 minutes, 24/7.
+A real-time remittance rate monitoring dashboard for **Global Money Express (GME)**, tracking how GME's KRW → foreign currency rates compare against competitors across multiple corridors - updated every 30 minutes, 24/7.
 
 ---
 
@@ -18,18 +18,18 @@ Every 30 minutes, automated scrapers visit competitor remittance websites, extra
 
 ```
 Competitor websites
-        │
-        ▼  (Playwright browser automation + fetch API, every 30 min)
-  GitHub Actions  ──────────────────────────────────────────┐
-  (matrix: one job per corridor, runs in parallel)          │
-        │                                                   │
-        ▼  (Supabase JS client)                             │
-    Supabase (PostgreSQL)                                   │
-        │                                                   │
-        ▼  (Next.js API route reads on each request)        │
-  Dashboard (Next.js + Recharts)  ◄── Vercel (auto-deploy) ─┘
-        │
-        ▼
+        |
+        v  (Playwright browser automation + fetch API, every 30 min)
+  GitHub Actions  -------------------------------------------+
+  (matrix: one job per corridor, runs in parallel)           |
+        |                                                    |
+        v  (Supabase JS client)                              |
+    Supabase (PostgreSQL)                                    |
+        |                                                    |
+        v  (Next.js API route reads on each request)         |
+  Dashboard (Next.js + Recharts)  <-- Vercel (auto-deploy) --+
+        |
+        v
     Browser (user)
 ```
 
@@ -57,16 +57,16 @@ Competitor websites
 
 ## Dashboard features
 
-- **Snapshot bar chart** — total send amount per operator at the latest scrape, with exchange rate labels
-- **Avg. Price Difference chart** — daily average gap vs GME per operator, with a date picker
-- **GME Baseline Trend** — GME send amount over time (line chart), filterable by start date
-- **Operator Trend** — per-operator send amount over time, with operator and date dropdowns
-- **KPI cards** — Receive Baseline, Latest GME Baseline, Cheaper Competitors, More Expensive Competitors
-- **Detailed data table** — full record history with search, status filter, and pagination
-- **Soft delete** — incorrect scrape results can be removed via the API without losing audit trail
-- **Dark / Light mode** — toggled in the header, persisted in `localStorage`
-- **EN / 한국어** — full bilingual UI, persisted in `localStorage`
-- **Country persistence** — selected corridor is remembered across page refreshes
+- **Snapshot bar chart** --total send amount per operator at the latest scrape, with exchange rate labels
+- **Avg. Price Difference chart** --daily average gap vs GME per operator, with a date picker
+- **GME Baseline Trend** --GME send amount over time (line chart), filterable by start date
+- **Operator Trend** --per-operator send amount over time, with operator and date dropdowns
+- **KPI cards** --Receive Baseline, Latest GME Baseline, Cheaper Competitors, More Expensive Competitors
+- **Detailed data table** --full record history with search, status filter, and pagination
+- **Soft delete** --incorrect scrape results can be removed via the API without losing audit trail
+- **Dark / Light mode** --toggled in the header, persisted in `localStorage`
+- **EN / Korean** --full bilingual UI, persisted in `localStorage`
+- **Country persistence** --selected corridor is remembered across page refreshes
 
 ---
 
@@ -80,7 +80,7 @@ Competitor websites
 | TypeScript | 5 | Type safety |
 | Tailwind CSS | 4 | Styling, dark mode |
 | Recharts | 3 | Charts (bar, line, tooltips) |
-| Vercel | — | Hosting, auto-deploy on push |
+| Vercel | --| Hosting, auto-deploy on push |
 
 ### Scraper (backend)
 | Technology | Version | Purpose |
@@ -101,7 +101,7 @@ Competitor websites
 ### AI
 | Tool | Purpose |
 |---|---|
-| Claude (Anthropic) | Built and iterated the entire project — scrapers, dashboard UI, debugging, git workflow |
+| Claude (Anthropic) | Built and iterated the entire project --scrapers, dashboard UI, debugging, git workflow |
 
 ---
 
@@ -109,53 +109,53 @@ Competitor websites
 
 ```
 dashboard/
-├── app/
-│   ├── api/
-│   │   └── rates/
-│   │       └── route.ts               # GET rates + DELETE (soft-delete) API
-│   ├── components/
-│   │   └── Dashboard.tsx              # Main dashboard component (charts, table, KPIs)
-│   ├── lib/
-│   │   ├── parseRates.ts             # RateRecord type + data loader
-│   │   └── ratesData.ts              # Static rates data (fallback)
-│   ├── page.tsx                       # Next.js root page (server-side data fetch)
-│   ├── layout.tsx                     # Root layout with fonts
-│   └── globals.css                    # Tailwind CSS styling
-├── scraper/
-│   ├── lib/
-│   │   ├── browser.js                 # Shared helpers (extractNumber, getRunHour, withRetry, trySelectors)
-│   │   └── supabase.js                # Supabase client (write, upsert)
-│   ├── scrapers/                      # Operator scraper modules
-│   │   ├── gme.js                     # GME (Playwright)
-│   │   ├── gmoneytrans.js             # GMoneyTrans (fetch API)
-│   │   ├── sentbe.js                  # Sentbe (Playwright)
-│   │   ├── hanpass.js                 # Hanpass (fetch API)
-│   │   ├── utransfer.js               # Utransfer (Playwright)
-│   │   ├── sbi.js                     # SBI (Playwright)
-│   │   ├── cross.js                   # Cross (Playwright)
-│   │   ├── coinshot.js                # Coinshot (Playwright)
-│   │   ├── jrf.js                     # JRF (Playwright)
-│   │   ├── e9pay.js                   # E9Pay (Playwright)
-│   │   └── wirebarley.js             # WireBarley (Playwright)
-│   ├── run-idr.js                     # Indonesia IDR scraper
-│   ├── run-thb.js                     # Thailand THB scraper
-│   ├── run-vnd.js                     # Vietnam VND scraper
-│   ├── run-mnt.js                     # Mongolia MNT scraper
-│   ├── run-npr.js                     # Nepal NPR scraper
-│   ├── run-cny.js                     # China CNY scraper
-│   ├── run-khm.js                     # Cambodia USD scraper
-│   ├── run-mmk.js                     # Myanmar MMK scraper
-│   ├── run-php.js                     # Philippines PHP scraper
-│   ├── run-xaf.js                     # Cameroon XAF scraper
-│   ├── run-lbr.js                     # Liberia USD scraper
-│   └── package.json
-├── data/
-│   └── rates.csv                      # Historical rates data (backup/seed)
-├── .github/
-│   └── workflows/
-│       └── scrape.yml                 # GitHub Actions — matrix scrape (11 corridors)
-├── vercel.json                        # Vercel deployment config
-└── README.md
++-- app/
+|   +-- api/
+|   |   +-- rates/
+|   |       +-- route.ts               # GET rates + DELETE (soft-delete) API
+|   +-- components/
+|   |   +-- Dashboard.tsx              # Main dashboard component (charts, table, KPIs)
+|   +-- lib/
+|   |   +-- parseRates.ts             # RateRecord type + data loader
+|   |   +-- ratesData.ts              # Static rates data (fallback)
+|   +-- page.tsx                       # Next.js root page (server-side data fetch)
+|   +-- layout.tsx                     # Root layout with fonts
+|   +-- globals.css                    # Tailwind CSS styling
++-- scraper/
+|   +-- lib/
+|   |   +-- browser.js                 # Shared helpers (extractNumber, getRunHour, withRetry, trySelectors)
+|   |   +-- supabase.js                # Supabase client (write, upsert)
+|   +-- scrapers/                      # Operator scraper modules
+|   |   +-- gme.js                     # GME (Playwright)
+|   |   +-- gmoneytrans.js             # GMoneyTrans (fetch API)
+|   |   +-- sentbe.js                  # Sentbe (Playwright)
+|   |   +-- hanpass.js                 # Hanpass (fetch API)
+|   |   +-- utransfer.js               # Utransfer (Playwright)
+|   |   +-- sbi.js                     # SBI (Playwright)
+|   |   +-- cross.js                   # Cross (Playwright)
+|   |   +-- coinshot.js                # Coinshot (Playwright)
+|   |   +-- jrf.js                     # JRF (Playwright)
+|   |   +-- e9pay.js                   # E9Pay (Playwright)
+|   |   +-- wirebarley.js             # WireBarley (Playwright)
+|   +-- run-idr.js                     # Indonesia IDR scraper
+|   +-- run-thb.js                     # Thailand THB scraper
+|   +-- run-vnd.js                     # Vietnam VND scraper
+|   +-- run-mnt.js                     # Mongolia MNT scraper
+|   +-- run-npr.js                     # Nepal NPR scraper
+|   +-- run-cny.js                     # China CNY scraper
+|   +-- run-khm.js                     # Cambodia USD scraper
+|   +-- run-mmk.js                     # Myanmar MMK scraper
+|   +-- run-php.js                     # Philippines PHP scraper
+|   +-- run-xaf.js                     # Cameroon XAF scraper
+|   +-- run-lbr.js                     # Liberia USD scraper
+|   +-- package.json
++-- data/
+|   +-- rates.csv                      # Historical rates data (backup/seed)
++-- .github/
+|   +-- workflows/
+|       +-- scrape.yml                 # GitHub Actions -- matrix scrape (11 corridors)
++-- vercel.json                        # Vercel deployment config
++-- README.md
 ```
 
 ---
@@ -219,12 +219,12 @@ An external cron service (cron-job.org) triggers the GitHub Actions workflow via
 
 ## Key engineering notes
 
-- **CSS module hash instability** — Some sites (e.g. Hanpass) use hashed CSS class names that change on redeploy. Selectors use partial attribute matching (`[class*="recipientAmountField"]`) for resilience.
-- **`networkidle` timeouts** — Several sites never fully settle. Scrapers use `domcontentloaded` + explicit `waitForTimeout` instead.
-- **Fee vs. exchange amount** — Some sites (e.g. E9Pay) show only the exchange amount in the "send" field; the service fee must be added separately to compute the true total.
-- **Parallel scraping** — All operators per corridor run via `Promise.allSettled()` so a single failure does not block the rest.
-- **Retry with backoff** — `withRetry()` wrapper retries failed scrapes with exponential backoff (3s, 6s delays).
-- **Selector fallbacks** — `trySelectors()` attempts multiple CSS selectors per field, handling sites that change their DOM structure.
-- **Soft deletes** — Records are soft-deleted via `deleted_at` timestamp to preserve audit trail.
-- **Hardcoded fees** — Where sites show fees inconsistently or not at all, fees are hardcoded per corridor based on verified values from the live site.
-- **Failure notifications** — GitHub Actions sends email alerts when scrapers partially fail, identifying which operators encountered errors.
+- **CSS module hash instability** --Some sites (e.g. Hanpass) use hashed CSS class names that change on redeploy. Selectors use partial attribute matching (`[class*="recipientAmountField"]`) for resilience.
+- **`networkidle` timeouts** --Several sites never fully settle. Scrapers use `domcontentloaded` + explicit `waitForTimeout` instead.
+- **Fee vs. exchange amount** --Some sites (e.g. E9Pay) show only the exchange amount in the "send" field; the service fee must be added separately to compute the true total.
+- **Parallel scraping** --All operators per corridor run via `Promise.allSettled()` so a single failure does not block the rest.
+- **Retry with backoff** --`withRetry()` wrapper retries failed scrapes with exponential backoff (3s, 6s delays).
+- **Selector fallbacks** --`trySelectors()` attempts multiple CSS selectors per field, handling sites that change their DOM structure.
+- **Soft deletes** --Records are soft-deleted via `deleted_at` timestamp to preserve audit trail.
+- **Hardcoded fees** --Where sites show fees inconsistently or not at all, fees are hardcoded per corridor based on verified values from the live site.
+- **Failure notifications** --GitHub Actions sends email alerts when scrapers partially fail, identifying which operators encountered errors.
