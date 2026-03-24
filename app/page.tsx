@@ -44,16 +44,21 @@ export default async function Home() {
     );
   }
 
-  // Build GME baseline map per run_hour
+  // Build GME baseline map per run_hour (delivery-method-aware for multi-method corridors like China)
   const gmeBaselineMap = new Map<string, number>();
   data.forEach(r => {
     if (r.operator === 'GME' && r.total_sending_amount) {
-      gmeBaselineMap.set(r.run_hour, r.total_sending_amount);
+      const dmKey = `${r.run_hour}||${r.delivery_method}`;
+      gmeBaselineMap.set(dmKey, r.total_sending_amount);
+      if (!gmeBaselineMap.has(r.run_hour)) {
+        gmeBaselineMap.set(r.run_hour, r.total_sending_amount);
+      }
     }
   });
 
   const records: RateRecord[] = data.map(r => {
-    const gmeBaseline = gmeBaselineMap.get(r.run_hour) ?? null;
+    const dmKey = `${r.run_hour}||${r.delivery_method}`;
+    const gmeBaseline = gmeBaselineMap.get(dmKey) ?? gmeBaselineMap.get(r.run_hour) ?? null;
     const priceGap = r.operator !== 'GME' && gmeBaseline
       ? r.total_sending_amount - gmeBaseline
       : null;
@@ -80,6 +85,7 @@ export default async function Home() {
       gmeBaseline,
       priceGap,
       status,
+      deliveryMethod: r.delivery_method ?? 'Bank Account',
     };
   });
 

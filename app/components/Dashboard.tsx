@@ -16,6 +16,7 @@ const EN = {
   latestSnapshot: 'Latest Snapshot',
   receiveBaseline: 'Receive Baseline',
   latestGMEBaseline: 'Latest GME Baseline',
+  depositMethod: 'Deposit Method',
   cheaperCompetitors: 'Cheaper Competitors',
   basedOnSnapshot: 'Based on snapshot',
   expensiveCompetitors: 'More Expensive Competitors',
@@ -71,6 +72,7 @@ const KO = {
   latestSnapshot: '최신 스냅샷',
   receiveBaseline: '수령 기준액',
   latestGMEBaseline: '최신 GME 기준가',
+  depositMethod: '입금 방식',
   cheaperCompetitors: '더 저렴한 경쟁사',
   basedOnSnapshot: '스냅샷 기준',
   expensiveCompetitors: 'GME 우위 경쟁사',
@@ -151,6 +153,14 @@ const CURRENCY_MAP: Record<string, string> = {
   Philippines: 'PHP', Malaysia: 'MYR', Singapore: 'SGD', Cambodia: 'USD',
   Japan: 'JPY', China: 'CNY', Mongolia: 'MNT', Myanmar: 'MMK',
   Cameroon: 'XAF', Liberia: 'USD',
+};
+
+const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
+  Indonesia: 'Bank Account', Thailand: 'Bank Account', Vietnam: 'Bank Account',
+  Nepal: 'Bank Account', Philippines: 'Bank Account', Malaysia: 'Bank Account',
+  Singapore: 'Bank Account', Cambodia: 'Bank Account', Japan: 'Bank Account',
+  China: ['Bank Account', 'Alipay'], Mongolia: 'Bank Account', Myanmar: 'Bank Account',
+  Cameroon: 'Mobile Wallet', Liberia: 'Cash Pickup',
 };
 
 // GME embeds a service fee inside send_amount_krw for these corridors.
@@ -277,6 +287,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [countrySearch, setCountrySearch] = useState('');
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState('');
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const detailedDataRef = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = 20;
@@ -368,6 +379,19 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     refLine:  isDark ? '#334155' : '#cbd5e1',
   };
 
+  // Delivery method support for multi-method corridors (e.g. China: Bank Account / Alipay)
+  const deliveryMethods = useMemo(() => {
+    const methods = DEPOSIT_METHOD_MAP[selectedCountry];
+    if (Array.isArray(methods)) return methods;
+    return [methods ?? 'Bank Account'];
+  }, [selectedCountry]);
+
+  const hasMultipleMethods = deliveryMethods.length > 1;
+
+  useEffect(() => {
+    setSelectedDeliveryMethod(deliveryMethods[0]);
+  }, [deliveryMethods]);
+
   const filteredCountries = useMemo(
     () => countrySearch
       ? countries.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()))
@@ -375,8 +399,11 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     [countries, countrySearch]
   );
 
-  // All records are already filtered for the selected country
-  const byCountry = records;
+  // All records are already filtered for the selected country; additionally filter by delivery method for multi-method corridors
+  const byCountry = useMemo(() => {
+    if (!hasMultipleMethods || !selectedDeliveryMethod) return records;
+    return records.filter(r => r.deliveryMethod === selectedDeliveryMethod);
+  }, [records, hasMultipleMethods, selectedDeliveryMethod]);
 
   const runHours = useMemo(
     () => [...new Set(byCountry.map(r => r.runHour))].sort(),
@@ -667,30 +694,54 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             </div>
           )}
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <KPICard
-              title={t.receiveBaseline}
-              value={receiveBaseline ? `${receiveBaseline.toLocaleString()} ${receiveCurrency}` : '-'}
-              sub={selectedCountry}
-            />
-            <KPICard
-              title={t.latestGMEBaseline}
-              value={latestGMEBaseline ? `${latestGMEBaseline.toLocaleString('ko-KR')}${t.won}` : '-'}
-              sub={latestRunHour ? formatRunHour(latestRunHour) : ''}
-              color="text-blue-600 dark:text-blue-400"
-            />
-            <KPICard
-              title={t.cheaperCompetitors}
-              value={`${cheaperCount} / ${totalCompetitors}`}
-              sub={t.basedOnSnapshot}
-              color={cheaperCount > totalCompetitors / 2 ? 'text-orange-500 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}
-            />
-            <KPICard
-              title={t.expensiveCompetitors}
-              value={`${expensiveCount} / ${totalCompetitors}`}
-              sub={t.pricierThanGME}
-              color={expensiveCount > totalCompetitors / 2 ? 'text-green-600 dark:text-green-400' : 'text-orange-500 dark:text-orange-400'}
-            />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left group — aligns with Snapshot Comparison below */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{t.depositMethod}</p>
+                {hasMultipleMethods ? (
+                  <select
+                    value={selectedDeliveryMethod}
+                    onChange={e => setSelectedDeliveryMethod(e.target.value)}
+                    className="text-2xl font-bold text-slate-900 dark:text-slate-100 bg-transparent border-none outline-none cursor-pointer w-full appearance-none"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0 center' }}
+                  >
+                    {deliveryMethods.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{deliveryMethods[0]}</p>
+                )}
+                <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">{selectedCountry}</p>
+              </div>
+              <KPICard
+                title={t.receiveBaseline}
+                value={receiveBaseline ? `${receiveBaseline.toLocaleString()} ${receiveCurrency}` : '-'}
+                sub={selectedCountry}
+              />
+              <KPICard
+                title={t.latestGMEBaseline}
+                value={latestGMEBaseline ? `${latestGMEBaseline.toLocaleString('ko-KR')}${t.won}` : '-'}
+                sub={latestRunHour ? formatRunHour(latestRunHour) : ''}
+                color="text-blue-600 dark:text-blue-400"
+              />
+            </div>
+            {/* Right group — aligns with Avg Price Difference below */}
+            <div className="grid grid-cols-2 gap-3">
+              <KPICard
+                title={t.cheaperCompetitors}
+                value={`${cheaperCount} / ${totalCompetitors}`}
+                sub={t.basedOnSnapshot}
+                color={cheaperCount > totalCompetitors / 2 ? 'text-orange-500 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}
+              />
+              <KPICard
+                title={t.expensiveCompetitors}
+                value={`${expensiveCount} / ${totalCompetitors}`}
+                sub={t.pricierThanGME}
+                color={expensiveCount > totalCompetitors / 2 ? 'text-green-600 dark:text-green-400' : 'text-orange-500 dark:text-orange-400'}
+              />
+            </div>
           </div>
 
           {/* Snapshot + Avg Gap */}

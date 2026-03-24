@@ -15,6 +15,7 @@ export interface RateRecord {
   gmeBaseline: number | null;
   priceGap: number | null;
   status: string;
+  deliveryMethod?: string;
 }
 
 export function parseRates(): RateRecord[] {

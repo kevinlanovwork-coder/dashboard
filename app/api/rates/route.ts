@@ -31,16 +31,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error?.message ?? 'No data' }, { status: 500 });
   }
 
-  // Build GME baseline map
+  // Build GME baseline map (delivery-method-aware for multi-method corridors like China)
   const gmeBaselineMap = new Map<string, number>();
   data.forEach((r: Record<string, unknown>) => {
     if (r.operator === 'GME' && r.total_sending_amount) {
-      gmeBaselineMap.set(`${r.run_hour}`, r.total_sending_amount as number);
+      const dmKey = `${r.run_hour}||${r.delivery_method}`;
+      gmeBaselineMap.set(dmKey, r.total_sending_amount as number);
+      if (!gmeBaselineMap.has(r.run_hour as string)) {
+        gmeBaselineMap.set(r.run_hour as string, r.total_sending_amount as number);
+      }
     }
   });
 
   const records = data.map((r: Record<string, unknown>) => {
-    const gmeBaseline = gmeBaselineMap.get(r.run_hour as string) ?? null;
+    const dmKey = `${r.run_hour}||${r.delivery_method}`;
+    const gmeBaseline = gmeBaselineMap.get(dmKey) ?? gmeBaselineMap.get(r.run_hour as string) ?? null;
     const totalSend = r.total_sending_amount as number;
     const priceGap = r.operator !== 'GME' && gmeBaseline
       ? totalSend - gmeBaseline
@@ -68,6 +73,7 @@ export async function GET(req: NextRequest) {
       gmeBaseline,
       priceGap,
       status,
+      deliveryMethod: (r.delivery_method ?? 'Bank Account') as string,
     };
   });
 

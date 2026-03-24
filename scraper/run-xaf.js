@@ -29,7 +29,8 @@ async function scrapeGme() {
   const total = parseFloat(data.collAmt?.toString().replace(/,/g, '') ?? '');
   if (!total) throw new Error('총 송금액 추출 실패');
   return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
-    send_amount_krw: total, service_fee: 0, total_sending_amount: total };
+    send_amount_krw: total, service_fee: 0, total_sending_amount: total,
+    delivery_method: 'Mobile Wallet' };
 }
 
 // ─── GMoneyTrans (API) ────────────────────────────────────────────────────────
@@ -48,7 +49,8 @@ async function scrapeGmoneytrans() {
   if (!sendAmount) throw new Error(`파싱 실패: ${text.slice(0, 200)}`);
   return { operator: 'GMoneyTrans', receiving_country: COUNTRY, receive_amount: AMOUNT,
     send_amount_krw: sendAmount, service_fee: serviceCharge,
-    total_sending_amount: sendAmount + serviceCharge };
+    total_sending_amount: sendAmount + serviceCharge,
+    delivery_method: 'MTN' };
 }
 function parseField(text, field) {
   const m = text.match(new RegExp(`${field}--td_clm--([\\d.]+)--td_end--`));
@@ -108,6 +110,7 @@ async function main() {
       gme_baseline:         gmeBaseline,
       price_gap:            priceGap,
       status:               status,
+      delivery_method:      r.delivery_method,
     };
   });
 
