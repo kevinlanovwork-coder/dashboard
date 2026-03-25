@@ -320,6 +320,7 @@ function AlertRulesContent() {
       direction: formDirection,
       threshold_krw: Number(formThreshold),
       cooldown_minutes: formCooldown,
+      ...(editingId ? { is_active: true } : {}),
     };
 
     await fetch('/api/alerts', {
