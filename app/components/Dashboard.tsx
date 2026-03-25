@@ -279,6 +279,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [tableTime, setTableTime] = useState('all');
   const [tablePage, setTablePage] = useState(0);
   const [snapshotSortDesc, setSnapshotSortDesc] = useState(true);
+  const [snapshotHiddenOps, setSnapshotHiddenOps] = useState<Set<string>>(new Set());
   const [avgDate, setAvgDate] = useState('');
   const [avgGapSortDesc, setAvgGapSortDesc] = useState(true);
   const [selectedTrendOperator, setSelectedTrendOperator] = useState('');
@@ -450,6 +451,28 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     [snapshot]
   );
 
+  // Build a rate lookup map for Y-axis tick rendering
+  const snapshotRateMap = useMemo(() => {
+    const map: Record<string, number | null> = {};
+    snapshotChartData.forEach(r => { map[r.operator] = r.displayRate; });
+    return map;
+  }, [snapshotChartData]);
+
+  const filteredSnapshotData = useMemo(
+    () => snapshotChartData.filter(r => r.operator === 'GME' || !snapshotHiddenOps.has(r.operator)),
+    [snapshotChartData, snapshotHiddenOps]
+  );
+
+  // Unique operators in the snapshot (for checkbox list)
+  const snapshotOperators = useMemo(() => {
+    const seen = new Set<string>();
+    return snapshotChartData.filter(r => {
+      if (seen.has(r.operator)) return false;
+      seen.add(r.operator);
+      return true;
+    }).map(r => ({ operator: r.operator, status: r.status }));
+  }, [snapshotChartData]);
+
   const avgDates = useMemo(
     () => [...new Set(byCountry.map(r => r.runHour.slice(0, 10)))].sort(),
     [byCountry]
@@ -507,13 +530,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
 
   const effectiveGmeTrendFromDate = gmeTrendDates.includes(gmeTrendFromDate) ? gmeTrendFromDate : '';
 
-  const filteredTrendData = useMemo(
-    () => effectiveGmeTrendFromDate
-      ? trendData.filter(d => d.runHour >= effectiveGmeTrendFromDate)
-      : trendData,
-    [trendData, effectiveGmeTrendFromDate]
-  );
-
   const trendOperators = useMemo(
     () => [...new Set(byCountry.filter(r => r.status !== 'GME').map(r => r.operator))].sort(),
     [byCountry]
@@ -521,7 +537,28 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
 
   const effectiveTrendOperator = trendOperators.includes(selectedTrendOperator)
     ? selectedTrendOperator
-    : trendOperators[0] ?? '';
+    : '';
+
+  // Combined trend: GME baseline + selected operator overlaid
+  const combinedTrendData = useMemo(() => {
+    const opMap: Record<string, number> = {};
+    if (effectiveTrendOperator) {
+      byCountry
+        .filter(r => r.operator === effectiveTrendOperator && r.totalSendingAmount > 0)
+        .forEach(r => { if (!opMap[r.runHour]) opMap[r.runHour] = r.totalSendingAmount; });
+    }
+    return trendData.map(d => ({
+      ...d,
+      operatorAmount: opMap[d.runHour] ?? null,
+    }));
+  }, [trendData, byCountry, effectiveTrendOperator]);
+
+  const filteredTrendData = useMemo(
+    () => effectiveGmeTrendFromDate
+      ? combinedTrendData.filter(d => d.runHour >= effectiveGmeTrendFromDate)
+      : combinedTrendData,
+    [combinedTrendData, effectiveGmeTrendFromDate]
+  );
 
   const operatorTrendData = useMemo(() => {
     if (!effectiveTrendOperator) return [];
@@ -761,13 +798,17 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               <KPICard
                 title={t.cheaperCompetitors}
                 value={`${cheaperCount} / ${totalCompetitors}`}
-                sub={t.basedOnSnapshot}
+                sub={cheaperCount > totalCompetitors / 2
+                  ? (isEn ? 'Majority beating GME' : '과반수가 GME보다 저렴')
+                  : (isEn ? 'GME is competitive' : 'GME 경쟁력 우위')}
                 color={cheaperCount > totalCompetitors / 2 ? 'text-orange-500 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}
               />
               <KPICard
                 title={t.expensiveCompetitors}
                 value={`${expensiveCount} / ${totalCompetitors}`}
-                sub={t.pricierThanGME}
+                sub={expensiveCount > totalCompetitors / 2
+                  ? (isEn ? 'GME is competitive' : 'GME 경쟁력 우위')
+                  : (isEn ? 'Few pricier than GME' : 'GME보다 비싼 경쟁사 적음')}
                 color={expensiveCount > totalCompetitors / 2 ? 'text-green-600 dark:text-green-400' : 'text-orange-500 dark:text-orange-400'}
               />
             </div>
@@ -777,7 +818,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Snapshot */}
             <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <div>
                   <h2 className="text-sm font-semibold">{t.snapshotTitle}</h2>
                   <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.snapshotSub(formatRunHour(targetRunHour))}</p>
@@ -789,9 +830,38 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   {snapshotSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
                 </button>
               </div>
-              {snapshotChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={Math.max(300, snapshotChartData.length * 36)}>
-                  <BarChart data={snapshotChartData} layout="vertical" margin={{ top: 0, right: 75, left: 88, bottom: 0 }}>
+              {/* Operator checkboxes (GME always shown) */}
+              {snapshotOperators.length > 0 && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3 text-xs">
+                  <label className="flex items-center gap-1 cursor-pointer text-slate-500 dark:text-slate-400 font-medium">
+                    <input
+                      type="checkbox"
+                      checked={snapshotHiddenOps.size === 0}
+                      onChange={() => setSnapshotHiddenOps(prev => prev.size === 0 ? new Set(snapshotOperators.filter(o => o.operator !== 'GME').map(o => o.operator)) : new Set())}
+                      className="rounded"
+                    />
+                    All
+                  </label>
+                  {snapshotOperators.filter(o => o.operator !== 'GME').map(({ operator }) => (
+                    <label key={operator} className="flex items-center gap-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!snapshotHiddenOps.has(operator)}
+                        onChange={() => setSnapshotHiddenOps(prev => {
+                          const next = new Set(prev);
+                          if (next.has(operator)) next.delete(operator); else next.add(operator);
+                          return next;
+                        })}
+                        className="rounded"
+                      />
+                      <span className="text-slate-600 dark:text-slate-300">{operator}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {filteredSnapshotData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={Math.max(300, filteredSnapshotData.length * 38)}>
+                  <BarChart data={filteredSnapshotData} layout="vertical" margin={{ top: 0, right: 70, left: 5, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
                     <XAxis
                       type="number"
@@ -806,18 +876,21 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                       dataKey="operator"
                       tick={(props: { x: string | number; y: string | number; payload: { value: string } }) => {
                         const isGME = props.payload.value === 'GME';
+                        const rate = snapshotRateMap[props.payload.value];
+                        const label = isGME ? '★ GME' : props.payload.value;
+                        const rateStr = rate != null ? ` - ${rate.toFixed(2)}` : '';
                         return (
-                          <text x={props.x} y={props.y} dy={4} textAnchor="end" fontSize={12}
+                          <text x={props.x} y={props.y} dy={4} textAnchor="end" fontSize={11}
                             fill={isGME ? '#ef4444' : ct.yLabel}
                             fontWeight={isGME ? 700 : 400}
                           >
-                            {isGME ? '★ GME' : props.payload.value}
+                            {label}{rateStr}
                           </text>
                         );
                       }}
                       axisLine={false}
                       tickLine={false}
-                      width={85}
+                      width={155}
                     />
                     <Tooltip content={(props) => <SnapshotTooltip {...props} t={t} />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
                     {snapshotGMEBaseline && (
@@ -825,18 +898,36 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                         x={snapshotGMEBaseline}
                         stroke="#ef4444"
                         strokeDasharray="5 3"
-                        label={{ value: 'GME', fill: '#ef4444', fontSize: 11, position: 'right' }}
                       />
                     )}
                     <Bar dataKey="totalSendingAmount" radius={[0, 4, 4, 0]}>
-                      {snapshotChartData.map((entry, i) => (
+                      {filteredSnapshotData.map((entry, i) => (
                         <Cell key={i} fill={statusColor(entry.status).hex} />
                       ))}
                       <LabelList
-                        dataKey="displayRate"
-                        position="right"
-                        formatter={(v: unknown) => (typeof v === 'number' ? v.toFixed(2) : '')}
-                        style={{ fill: ct.tick, fontSize: 10 }}
+                        content={(props) => {
+                          const { x, y, width, height, index } = props as { x?: string | number; y?: string | number; width?: string | number; height?: string | number; index?: number };
+                          const nx = Number(x), ny = Number(y), nw = Number(width), nh = Number(height);
+                          if (isNaN(nx) || index == null) return null;
+                          const entry = filteredSnapshotData[index];
+                          if (!entry) return null;
+                          const labelX = nx + nw + 4;
+                          if (entry.status === 'GME') {
+                            return (
+                              <text x={labelX} y={ny + nh / 2} dy={4} fontSize={10} fill="#ef4444" fontWeight={700} textAnchor="start">
+                                GME
+                              </text>
+                            );
+                          }
+                          const gap = entry.priceGap;
+                          if (gap == null || gap === 0) return null;
+                          const label = `${gap > 0 ? '+' : ''}${gap.toLocaleString('ko-KR')}`;
+                          return (
+                            <text x={labelX} y={ny + nh / 2} dy={4} fontSize={10} fill={isDark ? '#f1f5f9' : '#1e293b'} fontWeight={700} textAnchor="start">
+                              {label}
+                            </text>
+                          );
+                        }}
                       />
                     </Bar>
                   </BarChart>
@@ -853,7 +944,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
 
             {/* Avg Gap */}
             <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-3">
                 <div>
                   <h2 className="text-sm font-semibold">{t.avgDiffTitle}</h2>
                   <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(effectiveAvgDate)}</p>
@@ -876,9 +967,11 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   </select>
                 </div>
               </div>
+              {/* Spacer to align chart start with snapshot (matches checkbox row height) */}
+              {snapshotOperators.length > 0 && <div className="mb-3" style={{ height: '24px' }} />}
               {operatorStats.length > 0 ? (
-                <ResponsiveContainer width="100%" height={Math.max(300, operatorStats.length * 36)}>
-                  <BarChart data={operatorStats} layout="vertical" margin={{ top: 0, right: 55, left: 88, bottom: 0 }}>
+                <ResponsiveContainer width="100%" height={Math.max(300, operatorStats.length * 38)}>
+                  <BarChart data={operatorStats} layout="vertical" margin={{ top: 0, right: 70, left: 5, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
                     <XAxis
                       type="number"
@@ -903,7 +996,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                       }}
                       axisLine={false}
                       tickLine={false}
-                      width={85}
+                      width={90}
                     />
                     <Tooltip content={(props) => <GapTooltip {...props} t={t} />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
                     <ReferenceLine x={0} stroke={ct.refLine} strokeWidth={1.5} label={{ value: 'GME', position: 'top', fill: '#ef4444', fontSize: 11, fontWeight: 700 }} />
@@ -911,6 +1004,21 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                       {operatorStats.map((entry, i) => (
                         <Cell key={i} fill={entry.operator === 'GME' ? '#ef4444' : entry.avgGap < 0 ? '#22c55e' : '#f97316'} />
                       ))}
+                      <LabelList
+                        dataKey="avgGap"
+                        content={(props) => {
+                          const { x, y, width, height, value } = props as { x?: string | number; y?: string | number; width?: string | number; height?: string | number; value?: string | number };
+                          const nx = Number(x), ny = Number(y), nw = Number(width), nh = Number(height), nv = Number(value);
+                          if (isNaN(nv) || isNaN(nx)) return null;
+                          const label = `${nv > 0 ? '+' : ''}${nv.toLocaleString('ko-KR')}`;
+                          const labelX = nw >= 0 ? nx + nw + 4 : nx + 4;
+                          return (
+                            <text x={labelX} y={ny + nh / 2} dy={4} fontSize={10} fill={isDark ? '#f1f5f9' : '#1e293b'} fontWeight={700} textAnchor="start">
+                              {label}
+                            </text>
+                          );
+                        }}
+                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -924,24 +1032,34 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             </div>
           </div>
 
-          {/* GME Trend */}
+          {/* GME Trend + Operator Overlay */}
           <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="text-sm font-semibold">{t.trendTitle}</h2>
                 <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.trendSub}</p>
               </div>
-              <select
-                value={effectiveGmeTrendFromDate}
-                onChange={e => setGmeTrendFromDate(e.target.value)}
-                className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
-              >
-                <option value="">{t.allDates}</option>
-                {gmeTrendDates.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+              <div className="flex items-center gap-2 shrink-0">
+                <select
+                  value={effectiveTrendOperator}
+                  onChange={e => setSelectedTrendOperator(e.target.value)}
+                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+                >
+                  <option value="">{isEn ? 'GME Only' : 'GME만'}</option>
+                  {trendOperators.map(op => <option key={op} value={op}>{op}</option>)}
+                </select>
+                <select
+                  value={effectiveGmeTrendFromDate}
+                  onChange={e => setGmeTrendFromDate(e.target.value)}
+                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+                >
+                  <option value="">{t.allDates}</option>
+                  {gmeTrendDates.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
             </div>
             {filteredTrendData.length > 1 ? (
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={filteredTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                   onClick={(e: Record<string, unknown>) => { const p = (e?.activePayload as Array<{ payload: { runHour?: string } }>)?.[0]; if (p?.payload?.runHour) jumpToDetailedData(p.payload.runHour); }}
                   style={{ cursor: 'pointer' }}
@@ -962,83 +1080,53 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     domain={['auto', 'auto']}
                     width={42}
                   />
-                  <Tooltip content={(props) => <TrendTooltip {...props} t={t} />} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      return (
+                        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm shadow-xl">
+                          <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{label}</p>
+                          {payload.map((p, i) => (
+                            <p key={i} className="font-mono" style={{ color: p.color }}>
+                              {p.name === 'gmeBaseline' ? 'GME' : effectiveTrendOperator}: {formatKRW(p.value as number, t)}
+                            </p>
+                          ))}
+                        </div>
+                      );
+                    }}
+                  />
                   <Line
                     type="monotone"
                     dataKey="gmeBaseline"
+                    name="gmeBaseline"
                     stroke="#ef4444"
                     strokeWidth={2}
-                    dot={{ fill: '#ef4444', r: 3, strokeWidth: 0 }}
+                    dot={{ fill: '#ef4444', r: 2, strokeWidth: 0 }}
                     activeDot={{ r: 5, fill: '#f87171', strokeWidth: 0 }}
                   />
+                  {effectiveTrendOperator && (
+                    <Line
+                      type="monotone"
+                      dataKey="operatorAmount"
+                      name="operatorAmount"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      dot={{ fill: '#8b5cf6', r: 2, strokeWidth: 0 }}
+                      activeDot={{ r: 5, fill: '#a78bfa', strokeWidth: 0 }}
+                      connectNulls
+                    />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-48 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.insufficientData}</div>
             )}
-          </div>
-
-          {/* Operator Trend */}
-          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h2 className="text-sm font-semibold">{t.operatorTrendTitle}</h2>
-                <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.operatorTrendSub}</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <select
-                  value={effectiveTrendOperator}
-                  onChange={e => setSelectedTrendOperator(e.target.value)}
-                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 shrink-0"
-                >
-                  {trendOperators.map(op => <option key={op} value={op}>{op}</option>)}
-                </select>
-                <select
-                  value={effectiveOperatorTrendFromDate}
-                  onChange={e => setOperatorTrendFromDate(e.target.value)}
-                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 shrink-0"
-                >
-                  <option value="">{t.allDates}</option>
-                  {operatorTrendDates.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
+            <div className="flex items-center gap-4 mt-2 text-xs text-slate-500 dark:text-slate-500">
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />GME</span>
+              {effectiveTrendOperator && (
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-violet-500 inline-block" />{effectiveTrendOperator}</span>
+              )}
             </div>
-            {filteredOperatorTrendData.length > 1 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={filteredOperatorTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                  onClick={(e: Record<string, unknown>) => { const p = (e?.activePayload as Array<{ payload: { runHour?: string } }>)?.[0]; if (p?.payload?.runHour) jumpToDetailedData(p.payload.runHour, effectiveTrendOperator); }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fill: ct.tick, fontSize: 11 }}
-                    axisLine={{ stroke: ct.axisLine }}
-                    tickLine={false}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    tickFormatter={v => `${(v / 1000).toFixed(0)}K`}
-                    tick={{ fill: ct.tick, fontSize: 11 }}
-                    axisLine={{ stroke: ct.axisLine }}
-                    tickLine={false}
-                    domain={['auto', 'auto']}
-                    width={42}
-                  />
-                  <Tooltip content={(props) => <TrendTooltip {...props} t={t} />} />
-                  <Line
-                    type="monotone"
-                    dataKey="totalSendingAmount"
-                    stroke="#8b5cf6"
-                    strokeWidth={2}
-                    dot={{ fill: '#8b5cf6', r: 3, strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: '#a78bfa', strokeWidth: 0 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-48 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.insufficientData}</div>
-            )}
           </div>
 
           {/* Data Table */}
