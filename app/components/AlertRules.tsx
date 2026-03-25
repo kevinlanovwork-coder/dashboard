@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -176,6 +176,7 @@ function AlertRulesContent() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [emailInput, setEmailInput] = useState('');
+  const formRef = useRef<HTMLDivElement>(null);
   const [emailSaved, setEmailSaved] = useState(false);
   const [sortColumn, setSortColumn] = useState<'receiving_country' | 'operator' | 'delivery_method' | null>(null);
   const [sortAsc, setSortAsc] = useState(true);
@@ -277,6 +278,7 @@ function AlertRulesContent() {
     setFormCooldown(rule.cooldown_minutes);
     setEditingId(rule.id);
     setShowForm(true);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }
 
   function startDuplicate(rule: AlertRule) {
@@ -288,6 +290,7 @@ function AlertRulesContent() {
     setFormCooldown(rule.cooldown_minutes);
     setEditingId(null); // null = create new
     setShowForm(true);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }
 
   function findDuplicateRule(): AlertRule | null {
@@ -485,7 +488,7 @@ function AlertRulesContent() {
 
           {/* Form */}
           {showForm && (
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4">
+            <div ref={formRef} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4">
               <h2 className="text-sm font-semibold">{editingId ? t.editRule : t.addRule}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Country */}
