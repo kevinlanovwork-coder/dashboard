@@ -6,6 +6,7 @@ import {
   LineChart, Line, ResponsiveContainer, ReferenceLine, Cell, LabelList,
 } from 'recharts';
 import type { RateRecord } from '@/app/lib/parseRates';
+import * as XLSX from 'xlsx';
 
 // ─── Translations ─────────────────────────────────────────────────────────────
 
@@ -41,9 +42,10 @@ const EN = {
   records: (n: number) => `${n.toLocaleString()} records`,
   searchOperator: 'Search operator...',
   allStatus: 'All Status',
+  allMethods: 'All Methods',
   allDate: 'All Dates',
   allTime: 'All Times',
-  tableHeaders: ['Time', 'Operator', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Rate', 'Status', ''],
+  tableHeaders: ['Time', 'Operator', 'Method', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Rate', 'Status', ''],
   rightAlignHeaders: ['Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Rate'],
   deleteConfirm: (op: string, time: string) => `Delete record for ${op} at ${time}?`,
   deleting: 'Deleting...',
@@ -97,9 +99,10 @@ const KO = {
   records: (n: number) => `${n.toLocaleString()}건`,
   searchOperator: '운영사 검색...',
   allStatus: '전체 상태',
+  allMethods: '전체 방식',
   allDate: '전체 날짜',
   allTime: '전체 시간',
-  tableHeaders: ['시간대', '운영사', '국가', '수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '환율', '상태', ''],
+  tableHeaders: ['시간대', '운영사', '입금방식', '국가', '수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '환율', '상태', ''],
   rightAlignHeaders: ['수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '환율'],
   deleteConfirm: (op: string, time: string) => `${op} (${time}) 기록을 삭제하시겠습니까?`,
   deleting: '삭제 중...',
@@ -278,6 +281,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [tableDate, setTableDate] = useState('all');
   const [tableTime, setTableTime] = useState('all');
   const [tablePage, setTablePage] = useState(0);
+  const [tableDeliveryMethod, setTableDeliveryMethod] = useState('all');
+  const [pageSize, setPageSize] = useState(20);
   const [snapshotSortDesc, setSnapshotSortDesc] = useState(true);
   const [snapshotHiddenOps, setSnapshotHiddenOps] = useState<Set<string>>(new Set());
   const [avgDate, setAvgDate] = useState('');
@@ -297,7 +302,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [loginLoading, setLoginLoading] = useState(false);
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const detailedDataRef = useRef<HTMLDivElement>(null);
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = pageSize;
 
   const t = isEn ? EN : KO;
 
@@ -607,6 +612,11 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     [runHours, tableDate]
   );
 
+  const tableDeliveryMethods = useMemo(
+    () => [...new Set(byCountry.map(r => r.deliveryMethod).filter(Boolean))].sort(),
+    [byCountry]
+  );
+
   const tableData = useMemo(() => {
     let data = byCountry;
     if (tableSearch) {
@@ -616,6 +626,9 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     if (tableStatus !== 'all') {
       data = data.filter(r => r.status === tableStatus);
     }
+    if (tableDeliveryMethod !== 'all') {
+      data = data.filter(r => r.deliveryMethod === tableDeliveryMethod);
+    }
     if (tableDate !== 'all') {
       data = data.filter(r => r.runHour.slice(0, 10) === tableDate);
     }
@@ -623,7 +636,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
       data = data.filter(r => r.runHour === tableTime);
     }
     return [...data].sort((a, b) => b.runHour.localeCompare(a.runHour));
-  }, [byCountry, tableSearch, tableStatus, tableDate, tableTime]);
+  }, [byCountry, tableSearch, tableStatus, tableDeliveryMethod, tableDate, tableTime]);
 
   const totalPages = Math.ceil(tableData.length / PAGE_SIZE);
 
@@ -637,6 +650,31 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     setTablePage(0);
     setTimeout(() => detailedDataRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
+
+  function handleDownloadXlsx() {
+    const rows = tableData.map(r => ({
+      Time: formatRunHour(r.runHour),
+      Operator: r.operator,
+      Method: r.deliveryMethod ?? 'Bank Account',
+      Country: r.receivingCountry,
+      'Recv. Amount': r.receiveAmount,
+      Currency: CURRENCY_MAP[r.receivingCountry] ?? '',
+      'Send Amt (KRW)': r.sendAmountKRW,
+      Fee: r.serviceFee,
+      'Total Send': r.totalSendingAmount,
+      'GME Baseline': r.gmeBaseline ?? '',
+      Diff: r.priceGap ?? '',
+      Rate: r.sendAmountKRW > 0
+        ? (() => { const exKRW = rateExchangeKRW(r); const raw = r.receiveAmount / exKRW; return parseFloat((raw >= 1 ? raw : exKRW / r.receiveAmount).toFixed(4)); })()
+        : '',
+      Status: r.status,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+    const date = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `GME_${selectedCountry}_${date}.xlsx`);
+  }
 
   return (
     <div className={isDark ? 'dark' : ''}>
@@ -675,7 +713,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                       {filteredCountries.map(c => (
                         <li key={c}>
                           <button
-                            onClick={() => { setSelectedCountry(c); setSelectedRunHour('all'); setTablePage(0); setCountryDropdownOpen(false); }}
+                            onClick={() => { setSelectedCountry(c); setSelectedRunHour('all'); setTablePage(0); setTableSearch(''); setTableStatus('all'); setTableDeliveryMethod('all'); setTableDate('all'); setTableTime('all'); setSnapshotHiddenOps(new Set()); setCountryDropdownOpen(false); }}
                             className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${c === selectedCountry ? 'bg-blue-500 text-white' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
                           >
                             {c}
@@ -1132,9 +1170,20 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           {/* Data Table */}
           <div ref={detailedDataRef} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <div>
-                <h2 className="text-sm font-semibold">{t.detailedData}</h2>
-                <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.records(tableData.length)}</p>
+              <div className="flex items-center gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold">{t.detailedData}</h2>
+                  <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.records(tableData.length)}</p>
+                </div>
+                <button
+                  onClick={handleDownloadXlsx}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  {isEn ? 'Download XLS' : 'XLS 다운로드'}
+                </button>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <input
@@ -1154,6 +1203,16 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   <option value="Cheaper than GME">{t.statusCheaper}</option>
                   <option value="Expensive than GME">{t.statusExpensive}</option>
                 </select>
+                {tableDeliveryMethods.length > 1 && (
+                  <select
+                    value={tableDeliveryMethod}
+                    onChange={e => { setTableDeliveryMethod(e.target.value); setTablePage(0); }}
+                    className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">{t.allMethods}</option>
+                    {tableDeliveryMethods.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                )}
                 <select
                   value={tableDate}
                   onChange={e => { setTableDate(e.target.value); setTableTime('all'); setTablePage(0); }}
@@ -1195,6 +1254,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                       <tr key={r.id} className="border-b border-slate-200 dark:border-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/20 transition-colors">
                         <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-mono text-xs whitespace-nowrap">{formatRunHour(r.runHour)}</td>
                         <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200 whitespace-nowrap">{r.operator}</td>
+                        <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">{r.deliveryMethod ?? 'Bank Account'}</td>
                         <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">{r.receivingCountry}</td>
                         <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-200 font-mono whitespace-nowrap">
                           {r.receiveAmount.toLocaleString()}&nbsp;<span className="text-slate-400 dark:text-slate-500 text-xs">{CURRENCY_MAP[r.receivingCountry] ?? ''}</span>
@@ -1253,6 +1313,15 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   )}
                 </span>
                 <div className="flex items-center gap-1.5">
+                  <select
+                    value={pageSize}
+                    onChange={e => { setPageSize(Number(e.target.value)); setTablePage(0); }}
+                    className="bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs"
+                  >
+                    {[20, 50, 100, 500, 1000, 5000, 10000].map(n => (
+                      <option key={n} value={n}>{n.toLocaleString()} / page</option>
+                    ))}
+                  </select>
                   <button
                     onClick={() => setTablePage(p => Math.max(0, p - 1))}
                     disabled={tablePage === 0}

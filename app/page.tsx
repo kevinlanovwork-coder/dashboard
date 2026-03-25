@@ -27,22 +27,35 @@ export default async function Home() {
   fromDate.setDate(fromDate.getDate() - 30);
   const fromDateStr = fromDate.toISOString().slice(0, 10);
 
-  const { data, error } = await supabase
-    .from('rate_records')
-    .select('*')
-    .eq('receiving_country', DEFAULT_COUNTRY)
-    .is('deleted_at', null)
-    .gte('run_hour', fromDateStr)
-    .order('run_hour', { ascending: false })
-    .limit(50000);
+  // Fetch all records in batches (Supabase caps at 1000 per request)
+  const BATCH = 1000;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let allData: any[] = [];
+  let from = 0;
+  while (true) {
+    const { data: batch, error: batchError } = await supabase
+      .from('rate_records')
+      .select('*')
+      .eq('receiving_country', DEFAULT_COUNTRY)
+      .is('deleted_at', null)
+      .gte('run_hour', fromDateStr)
+      .order('run_hour', { ascending: false })
+      .range(from, from + BATCH - 1);
 
-  if (error || !data) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
-        데이터를 불러올 수 없습니다: {error?.message}
-      </div>
-    );
+    if (batchError) {
+      return (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
+          데이터를 불러올 수 없습니다: {batchError.message}
+        </div>
+      );
+    }
+    if (!batch || batch.length === 0) break;
+    allData = allData.concat(batch);
+    if (batch.length < BATCH) break;
+    from += BATCH;
   }
+
+  const data = allData;
 
   // Build GME baseline map per run_hour (delivery-method-aware for multi-method corridors like China)
   const gmeBaselineMap = new Map<string, number>();
