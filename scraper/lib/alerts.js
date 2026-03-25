@@ -86,7 +86,7 @@ async function processRule(rule, records, runHour, notifyEmails) {
   // Build and send email
   const country = rule.receiving_country;
   const sorted = matching.sort((a, b) => a.price_gap - b.price_gap);
-  const subject = `[GME Alert] ${matching.length} competitor${matching.length > 1 ? 's' : ''} cheaper than GME for ${country}`;
+  const subject = `[Notice] ${matching.length} competitor${matching.length > 1 ? 's' : ''} cheaper than GME for ${country}`;
 
   const rows = sorted.map(r => `
     <tr>
@@ -100,14 +100,14 @@ async function processRule(rule, records, runHour, notifyEmails) {
 
   const html = `
     <div style="font-family:sans-serif;max-width:600px;">
-      <h2 style="color:#1e293b;">GME Price Alert — ${country}</h2>
+      <h2 style="color:#1e293b;">GME Competitors Price Alert - ${country}</h2>
       <p style="color:#64748b;">Run: ${runHour} KST &nbsp;|&nbsp; Threshold: ${rule.threshold_krw?.toLocaleString('ko-KR')} KRW</p>
       <table style="border-collapse:collapse;width:100%;font-size:14px;">
         <thead>
           <tr style="background:#f1f5f9;">
             <th style="padding:6px 12px;border:1px solid #ddd;text-align:left;">Operator</th>
             <th style="padding:6px 12px;border:1px solid #ddd;text-align:left;">Method</th>
-            <th style="padding:6px 12px;border:1px solid #ddd;text-align:right;">Total Send</th>
+            <th style="padding:6px 12px;border:1px solid #ddd;text-align:right;">Competitors Price</th>
             <th style="padding:6px 12px;border:1px solid #ddd;text-align:right;">GME Baseline</th>
             <th style="padding:6px 12px;border:1px solid #ddd;text-align:right;">Price Gap</th>
           </tr>
