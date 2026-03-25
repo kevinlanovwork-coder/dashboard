@@ -115,7 +115,7 @@ async function processRule(rule, records, runHour, notifyEmails) {
         <tbody>${rows}</tbody>
       </table>
       <p style="margin-top:16px;">
-        <a href="https://dashboard-temp.vercel.app" style="color:#2563eb;">Open Dashboard</a>
+        <a href="https://gme-competitors-rate.vercel.app" style="color:#2563eb;">Open Dashboard</a>
       </p>
     </div>
   `;
