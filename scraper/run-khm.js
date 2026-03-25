@@ -10,6 +10,7 @@
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
 import { saveRates } from './lib/supabase.js';
+import { checkAlerts } from './lib/alerts.js';
 
 const COUNTRY = 'Cambodia';
 const AMOUNT  = 1_000;
@@ -248,6 +249,7 @@ async function main() {
   try {
     await saveRates(toSave);
     console.log(`\n✅ ${toSave.length}건 Supabase 저장 완료 (Cambodia USD)`);
+    await checkAlerts(toSave, runHour);
   } catch (err) {
     console.error(`\n❌ Supabase 저장 실패: ${err.message}`);
     process.exit(1);

@@ -606,6 +606,10 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.subtitle}</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Alerts link */}
+              <a href="/alerts" className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                {isEn ? 'Alerts' : '알림'}
+              </a>
               {/* Country searchable dropdown */}
               <div ref={countryDropdownRef} className="relative">
                 <button

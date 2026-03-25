@@ -7,6 +7,7 @@
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
 import { saveRates } from './lib/supabase.js';
+import { checkAlerts } from './lib/alerts.js';
 
 const COUNTRY = 'Philippines';
 const AMOUNT  = 40_000;
@@ -423,6 +424,7 @@ async function main() {
   try {
     await saveRates(toSave);
     console.log(`\n✅ ${toSave.length}건 Supabase 저장 완료 (Philippines PHP)`);
+    await checkAlerts(toSave, runHour);
   } catch (err) {
     console.error(`\n❌ Supabase 저장 실패: ${err.message}`);
     process.exit(1);
