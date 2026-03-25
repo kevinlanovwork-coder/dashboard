@@ -288,6 +288,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginUser, setLoginUser] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const detailedDataRef = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = 20;
@@ -298,6 +304,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   useEffect(() => {
     const saved = localStorage.getItem('dashboard-theme');
     if (saved === 'dark') setIsDark(true);
+    if (sessionStorage.getItem('alerts-auth') === 'true') setIsLoggedIn(true);
   }, []);
   useEffect(() => {
     localStorage.setItem('dashboard-theme', isDark ? 'dark' : 'light');
@@ -606,10 +613,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.subtitle}</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Alerts link */}
-              <a href="/alerts" className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                {isEn ? 'Alerts' : '알림'}
-              </a>
               {/* Country searchable dropdown */}
               <div ref={countryDropdownRef} className="relative">
                 <button
@@ -686,6 +689,28 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 {isDark ? <SunIcon /> : <MoonIcon />}
                 {isDark ? t.light : t.dark}
               </button>
+
+              {/* Auth: Login / Alerts + Logout */}
+              {isLoggedIn ? (
+                <>
+                  <a href="/alerts" className="px-3 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                    {isEn ? 'Alerts' : '알림'}
+                  </a>
+                  <button
+                    onClick={() => { sessionStorage.removeItem('alerts-auth'); setIsLoggedIn(false); }}
+                    className="px-3 py-1.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    {isEn ? 'Logout' : '로그아웃'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => { setLoginUser(''); setLoginPass(''); setLoginError(''); setShowLoginModal(true); }}
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  {isEn ? 'Login' : '로그인'}
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -1156,6 +1181,65 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             )}
           </div>
         </main>
+
+        {/* Login Modal */}
+        {showLoginModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowLoginModal(false)}>
+            <form
+              onClick={e => e.stopPropagation()}
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setLoginError('');
+                setLoginLoading(true);
+                try {
+                  const res = await fetch('/api/alerts/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: loginUser, password: loginPass }),
+                  });
+                  if (res.ok) {
+                    sessionStorage.setItem('alerts-auth', 'true');
+                    setIsLoggedIn(true);
+                    setShowLoginModal(false);
+                  } else {
+                    setLoginError(isEn ? 'Invalid username or password' : '잘못된 사용자명 또는 비밀번호');
+                  }
+                } catch {
+                  setLoginError(isEn ? 'Connection error' : '연결 오류');
+                } finally {
+                  setLoginLoading(false);
+                }
+              }}
+              className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4 mx-4"
+            >
+              <div>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">{isEn ? 'Sign In' : '로그인'}</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{isEn ? 'Sign in to access alert settings' : '알림 설정에 접근하려면 로그인하세요'}</p>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Username' : '사용자명'}</label>
+                <input type="text" value={loginUser} onChange={e => setLoginUser(e.target.value)} autoFocus
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Password' : '비밀번호'}</label>
+                <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200" />
+              </div>
+              {loginError && <p className="text-red-500 text-xs">{loginError}</p>}
+              <div className="flex gap-2">
+                <button type="submit" disabled={loginLoading}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50">
+                  {loginLoading ? (isEn ? 'Signing in...' : '로그인 중...') : (isEn ? 'Sign In' : '로그인')}
+                </button>
+                <button type="button" onClick={() => setShowLoginModal(false)}
+                  className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                  {isEn ? 'Cancel' : '취소'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );

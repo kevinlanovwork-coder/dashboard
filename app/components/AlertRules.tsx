@@ -84,7 +84,7 @@ const COOLDOWN_OPTIONS = [
 const EN = {
   title: 'Alert Rules',
   subtitle: 'Get notified when competitors beat GME pricing',
-  backToDashboard: 'Dashboard',
+  backToDashboard: 'Home',
   addRule: 'Add Rule',
   editRule: 'Edit Rule',
   save: 'Save',
@@ -118,7 +118,7 @@ const EN = {
 const KO = {
   title: '알림 규칙',
   subtitle: '경쟁사가 GME보다 저렴할 때 알림 받기',
-  backToDashboard: '대시보드',
+  backToDashboard: '홈',
   addRule: '규칙 추가',
   editRule: '규칙 수정',
   save: '저장',
@@ -149,77 +149,18 @@ const KO = {
   lightMode: '라이트',
 };
 
-// ─── Login Gate ──────────────────────────────────────────────────────────────
-
-function LoginGate({ onSuccess }: { onSuccess: () => void }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isDark] = useState(() => localStorage.getItem('dashboard-theme') === 'dark');
-
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const res = await fetch('/api/alerts/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-      if (res.ok) {
-        sessionStorage.setItem('alerts-auth', 'true');
-        onSuccess();
-      } else {
-        setError('Invalid username or password');
-      }
-    } catch {
-      setError('Connection error');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className={isDark ? 'dark' : ''}>
-      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
-        <form onSubmit={handleLogin} className="w-full max-w-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
-          <div>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-200">Alert Rules</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Sign in to manage alert rules</p>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Username</label>
-            <input type="text" value={username} onChange={e => setUsername(e.target.value)} autoFocus
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200" />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Password</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200" />
-          </div>
-          {error && <p className="text-red-500 text-xs">{error}</p>}
-          <button type="submit" disabled={loading}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50">
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-          <a href="/" className="block text-center text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-            Back to Dashboard
-          </a>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function AlertRules() {
-  const [authenticated, setAuthenticated] = useState(() => sessionStorage.getItem('alerts-auth') === 'true');
+  // Redirect to dashboard if not authenticated
+  useEffect(() => {
+    if (sessionStorage.getItem('alerts-auth') !== 'true') {
+      window.location.href = '/';
+    }
+  }, []);
 
-  if (!authenticated) {
-    return <LoginGate onSuccess={() => setAuthenticated(true)} />;
+  if (typeof window !== 'undefined' && sessionStorage.getItem('alerts-auth') !== 'true') {
+    return null; // prevent flash while redirecting
   }
 
   return <AlertRulesContent />;
@@ -482,21 +423,9 @@ function AlertRulesContent() {
               <h1 className="text-2xl font-bold">{t.title}</h1>
               <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{t.subtitle}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <a href="/" className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                {t.backToDashboard}
-              </a>
-              <button onClick={() => setIsEn(!isEn)} className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                {t.lang}
-              </button>
-              <button onClick={() => setIsDark(!isDark)} className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                {isDark ? t.lightMode : t.darkMode}
-              </button>
-              <button onClick={() => { sessionStorage.removeItem('alerts-auth'); window.location.reload(); }}
-                className="px-2.5 py-1.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                {isEn ? 'Logout' : '로그아웃'}
-              </button>
-            </div>
+            <a href="/" className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              {t.backToDashboard}
+            </a>
           </div>
 
           {/* Global Email Config */}
