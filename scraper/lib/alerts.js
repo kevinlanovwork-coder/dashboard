@@ -121,10 +121,12 @@ export async function checkAlerts(records, runHour) {
         </tr>`;
     }).join('');
 
-    // GME current info
+    // GME current info with rate
     const gme = gmeRecords[0];
+    const gmeRate = gme && gme.receive_amount > 0 ? (gme.send_amount_krw / gme.receive_amount) : null;
+    const gmeRateStr = gmeRate != null ? gmeRate.toFixed(2) : '-';
     const gmeInfo = gme
-      ? `GME Current: ${gme.total_sending_amount?.toLocaleString('ko-KR')} KRW (Send: ${gme.send_amount_krw?.toLocaleString('ko-KR')} + Fee: ${gme.service_fee?.toLocaleString('ko-KR')})`
+      ? `GME Current: ${gme.total_sending_amount?.toLocaleString('ko-KR')} KRW (Send: ${gme.send_amount_krw?.toLocaleString('ko-KR')} + Fee: ${gme.service_fee?.toLocaleString('ko-KR')}) | Rate: ${gmeRateStr}`
       : '';
 
     const html = `
