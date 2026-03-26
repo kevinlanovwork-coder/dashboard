@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data ?? []);
 }
 
-// PUT /api/settings/fees — update a fee entry
+// PUT /api/settings/fees — update a fee entry (admin edit)
 export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body?.id) {
@@ -43,9 +43,20 @@ export async function PUT(req: NextRequest) {
 
   const supabase = getSupabase();
 
-  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  const updates: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+    manually_edited: true,
+    edited_at: new Date().toISOString(),
+  };
   if (body.fee_krw !== undefined) updates.fee_krw = body.fee_krw;
   if (body.notes !== undefined) updates.notes = body.notes;
+
+  // If resetting, clear the manual edit flag
+  if (body.reset === true) {
+    updates.manually_edited = false;
+    updates.edited_at = null;
+    updates.notes = null;
+  }
 
   const { data, error } = await supabase
     .from('service_fees')
@@ -59,4 +70,36 @@ export async function PUT(req: NextRequest) {
   }
 
   return NextResponse.json(data);
+}
+
+// POST /api/settings/fees/reset — get the latest scraped fee for an operator
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => null);
+  if (!body?.receiving_country || !body?.operator) {
+    return NextResponse.json({ error: 'receiving_country and operator required' }, { status: 400 });
+  }
+
+  const supabase = getSupabase();
+
+  // Get the latest scraped fee from rate_records
+  const query = supabase
+    .from('rate_records')
+    .select('service_fee')
+    .eq('receiving_country', body.receiving_country)
+    .eq('operator', body.operator)
+    .is('deleted_at', null)
+    .order('run_hour', { ascending: false })
+    .limit(1);
+
+  if (body.delivery_method) {
+    query.eq('delivery_method', body.delivery_method);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ scraped_fee: data?.[0]?.service_fee ?? null });
 }

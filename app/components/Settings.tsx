@@ -10,6 +10,8 @@ interface ServiceFee {
   fee_krw: number;
   notes: string | null;
   updated_at: string;
+  manually_edited: boolean;
+  edited_at: string | null;
 }
 
 const COUNTRIES = [
@@ -89,6 +91,34 @@ export default function Settings() {
     fetchFees();
   }
 
+  async function handleReset(fee: ServiceFee) {
+    // Fetch the latest scraped fee from rate_records
+    const res = await fetch('/api/settings/fees', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        receiving_country: fee.receiving_country,
+        operator: fee.operator,
+        delivery_method: fee.delivery_method,
+      }),
+    });
+    const { scraped_fee } = await res.json();
+
+    const label = scraped_fee != null ? scraped_fee.toLocaleString() : 'unknown';
+    if (!confirm(isEn
+      ? `Reset ${fee.operator} fee to scraped value (${label} KRW)?`
+      : `${fee.operator} 수수료를 스크래핑 값 (${label} KRW)으로 되돌리시겠습니까?`)) return;
+
+    if (scraped_fee == null) return;
+
+    await fetch('/api/settings/fees', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: fee.id, fee_krw: scraped_fee, reset: true }),
+    });
+    fetchFees();
+  }
+
   function formatDate(iso: string | null) {
     if (!iso) return '-';
     return new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
@@ -154,7 +184,8 @@ export default function Settings() {
                         <th className="px-4 py-2.5">{isEn ? 'Delivery Method' : '입금 방식'}</th>
                         <th className="px-4 py-2.5 text-right">{isEn ? 'Fee (KRW)' : '수수료 (KRW)'}</th>
                         <th className="px-4 py-2.5">{isEn ? 'Notes' : '메모'}</th>
-                        <th className="px-4 py-2.5">{isEn ? 'Last Updated' : '최종 수정'}</th>
+                        <th className="px-4 py-2.5">{isEn ? 'Status' : '상태'}</th>
+                        <th className="px-4 py-2.5">{isEn ? 'Edited At' : '수정 시간'}</th>
                         <th className="px-4 py-2.5"></th>
                       </tr>
                     </thead>
@@ -182,7 +213,8 @@ export default function Settings() {
                                   className="w-full px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
                                 />
                               </td>
-                              <td className="px-4 py-2.5 text-xs text-slate-400">{formatDate(fee.updated_at)}</td>
+                              <td className="px-4 py-2.5 text-xs text-slate-400">{fee.manually_edited ? (isEn ? 'Edited' : '수정됨') : (isEn ? 'Default' : '기본값')}</td>
+                              <td className="px-4 py-2.5 text-xs text-slate-400">{fee.manually_edited && fee.edited_at ? formatDate(fee.edited_at) : '-'}</td>
                               <td className="px-4 py-2.5">
                                 <div className="flex gap-1">
                                   <button onClick={handleSave} className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors">
@@ -198,11 +230,25 @@ export default function Settings() {
                             <>
                               <td className="px-4 py-2.5 text-right font-mono">{fee.fee_krw.toLocaleString()}</td>
                               <td className="px-4 py-2.5 text-slate-400 text-xs">{fee.notes ?? '-'}</td>
-                              <td className="px-4 py-2.5 text-xs text-slate-400">{formatDate(fee.updated_at)}</td>
+                              <td className="px-4 py-2.5 text-xs">
+                                {fee.manually_edited ? (
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">{isEn ? 'Edited' : '수정됨'}</span>
+                                ) : (
+                                  <span className="text-slate-400">{isEn ? 'Default' : '기본값'}</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5 text-xs text-slate-400">{fee.manually_edited && fee.edited_at ? formatDate(fee.edited_at) : '-'}</td>
                               <td className="px-4 py-2.5">
-                                <button onClick={() => startEdit(fee)} className="px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                                  Edit
-                                </button>
+                                <div className="flex gap-1">
+                                  <button onClick={() => startEdit(fee)} className="px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                                    Edit
+                                  </button>
+                                  {fee.manually_edited && (
+                                    <button onClick={() => handleReset(fee)} className="px-2 py-1 text-xs rounded border border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors">
+                                      Reset
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </>
                           )}
