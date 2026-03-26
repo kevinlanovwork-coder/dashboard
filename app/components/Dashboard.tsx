@@ -32,8 +32,8 @@ const EN = {
   avgDiffSub: (date: string) => `Daily avg. for ${date} (vs GME, KRW)`,
   gmeWins: 'More expensive than GME (GME wins)',
   gmeLoses: 'Cheaper than GME (GME loses)',
-  trendTitle: 'GME Baseline Trend',
-  trendSub: 'GME total send amount over time (KRW)',
+  trendTitle: 'Collection Amount Trend',
+  trendSub: 'GME vs competitor collection amount over time (KRW)',
   operatorTrendTitle: 'Operator Total Send Trend',
   operatorTrendSub: 'Total send amount over time (KRW)',
   allDates: 'All dates',
@@ -45,8 +45,8 @@ const EN = {
   allMethods: 'All Methods',
   allDate: 'All Dates',
   allTime: 'All Times',
-  tableHeaders: ['Time', 'Operator', 'Method', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Rate', 'Status', ''],
-  rightAlignHeaders: ['Recv. Amount', 'Send Amt (KRW)', 'Fee', 'Total Send', 'GME Baseline', 'Diff', 'Rate'],
+  tableHeaders: ['Time', 'Operator', 'Method', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Service Fee', 'Collection Amt (KRW)', 'GME Baseline', 'Diff', 'Rate', 'Status', ''],
+  rightAlignHeaders: ['Recv. Amount', 'Send Amt (KRW)', 'Service Fee', 'Collection Amt (KRW)', 'GME Baseline', 'Diff', 'Rate'],
   deleteConfirm: (op: string, time: string) => `Delete record for ${op} at ${time}?`,
   deleting: 'Deleting...',
   pagination: (start: number, end: number, total: number) =>
@@ -89,8 +89,8 @@ const KO = {
   avgDiffSub: (date: string) => `${date} 일별 평균 (GME 기준, KRW)`,
   gmeWins: 'GME보다 비쌈 (GME 유리)',
   gmeLoses: 'GME보다 저렴 (GME 불리)',
-  trendTitle: 'GME 기준가 추이',
-  trendSub: '시간에 따른 GME 총 송금액 변화 (KRW)',
+  trendTitle: '수금액 추이',
+  trendSub: 'GME vs 경쟁사 수금액 변화 (KRW)',
   operatorTrendTitle: '운영사 총 송금액 추이',
   operatorTrendSub: '시간에 따른 총 송금액 변화 (KRW)',
   allDates: '전체 기간',
@@ -102,8 +102,8 @@ const KO = {
   allMethods: '전체 방식',
   allDate: '전체 날짜',
   allTime: '전체 시간',
-  tableHeaders: ['시간대', '운영사', '입금방식', '국가', '수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '환율', '상태', ''],
-  rightAlignHeaders: ['수령액', '송금액 (KRW)', '수수료', '총 송금액', 'GME 기준가', '차이', '환율'],
+  tableHeaders: ['시간대', '운영사', '입금방식', '국가', '수령액', '송금액 (KRW)', '수수료', '수금액 (KRW)', 'GME 기준가', '차이', '환율', '상태', ''],
+  rightAlignHeaders: ['수령액', '송금액 (KRW)', '수수료', '수금액 (KRW)', 'GME 기준가', '차이', '환율'],
   deleteConfirm: (op: string, time: string) => `${op} (${time}) 기록을 삭제하시겠습니까?`,
   deleting: '삭제 중...',
   pagination: (start: number, end: number, total: number) =>
@@ -396,7 +396,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const deliveryMethods = useMemo(() => {
     const methods = DEPOSIT_METHOD_MAP[selectedCountry];
     if (Array.isArray(methods)) return methods;
-    return [methods ?? 'Bank Account'];
+    return [methods ?? 'Bank Deposit'];
   }, [selectedCountry]);
 
   const hasMultipleMethods = deliveryMethods.length > 1;
@@ -655,13 +655,13 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     const rows = tableData.map(r => ({
       Time: formatRunHour(r.runHour),
       Operator: r.operator,
-      Method: r.deliveryMethod ?? 'Bank Account',
+      Method: r.deliveryMethod ?? 'Bank Deposit',
       Country: r.receivingCountry,
       'Recv. Amount': r.receiveAmount,
       Currency: CURRENCY_MAP[r.receivingCountry] ?? '',
       'Send Amt (KRW)': r.sendAmountKRW,
-      Fee: r.serviceFee,
-      'Total Send': r.totalSendingAmount,
+      'Service Fee': r.serviceFee,
+      'Collection Amt (KRW)': r.totalSendingAmount,
       'GME Baseline': r.gmeBaseline ?? '',
       Diff: r.priceGap ?? '',
       Rate: r.sendAmountKRW > 0
@@ -1257,7 +1257,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                       <tr key={r.id} className="border-b border-slate-200 dark:border-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/20 transition-colors">
                         <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-mono text-xs whitespace-nowrap">{formatRunHour(r.runHour)}</td>
                         <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200 whitespace-nowrap">{r.operator}</td>
-                        <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">{r.deliveryMethod ?? 'Bank Account'}</td>
+                        <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">{r.deliveryMethod ?? 'Bank Deposit'}</td>
                         <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">{r.receivingCountry}</td>
                         <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-200 font-mono whitespace-nowrap">
                           {r.receiveAmount.toLocaleString()}&nbsp;<span className="text-slate-400 dark:text-slate-500 text-xs">{CURRENCY_MAP[r.receivingCountry] ?? ''}</span>
