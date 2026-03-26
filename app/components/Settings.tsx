@@ -525,7 +525,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-left text-xs text-slate-500 dark:text-slate-400">
                   <th className="px-4 py-2.5">{isEn ? 'Operator' : '운영사'}</th>
                   <th className="px-4 py-2.5">{isEn ? 'Delivery Method' : '입금 방식'}</th>
-                  <th className="px-4 py-2.5 text-right">{isEn ? 'Fee (KRW)' : '수수료 (KRW)'}</th>
+                  <th className="px-4 py-2.5 text-right">{isEn ? 'Service Fee (KRW)' : '수수료 (KRW)'}</th>
                   <th className="px-4 py-2.5">{isEn ? 'Notes' : '메모'}</th>
                   <th className="px-4 py-2.5">{isEn ? 'Status' : '상태'}</th>
                   <th className="px-4 py-2.5">{isEn ? 'Edited At' : '수정 시간'}</th>
@@ -536,7 +536,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
                 {countryFees.map(fee => (
                   <tr key={fee.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30">
                     <td className="px-4 py-2.5 font-medium">{fee.operator}</td>
-                    <td className="px-4 py-2.5 text-slate-500">{fee.delivery_method}</td>
+                    <td className="px-4 py-2.5 text-slate-500">{fee.delivery_method === 'Bank Account' ? 'Bank Deposit' : fee.delivery_method}</td>
                     {editingId === fee.id ? (
                       <>
                         <td className="px-4 py-2.5 text-right"><input type="number" value={editFee} onChange={e => setEditFee(e.target.value)} className="w-24 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-right" autoFocus /></td>
