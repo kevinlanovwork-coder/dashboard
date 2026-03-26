@@ -46,12 +46,28 @@ export function applyFeeOverrides(records, feeMap) {
 /**
  * Seed service fees for new operator/corridor combinations only.
  * Does NOT overwrite existing entries (preserving admin edits).
+ * Checks which entries already exist and only inserts truly new ones.
  * Non-fatal — errors are logged but never thrown.
  */
 export async function seedFees(records) {
   try {
-    const rows = records
+    const country = records[0]?.receiving_country;
+    if (!country) return;
+
+    // Fetch existing entries for this country
+    const { data: existing } = await supabase
+      .from('service_fees')
+      .select('operator, delivery_method')
+      .eq('receiving_country', country);
+
+    const existingKeys = new Set(
+      (existing ?? []).map(e => `${e.operator}||${e.delivery_method}`)
+    );
+
+    // Only insert rows that don't already exist
+    const newRows = records
       .filter(r => r.operator && r.receiving_country)
+      .filter(r => !existingKeys.has(`${r.operator}||${r.delivery_method ?? 'Bank Account'}`))
       .map(r => ({
         receiving_country: r.receiving_country,
         operator: r.operator,
@@ -60,16 +76,14 @@ export async function seedFees(records) {
         updated_at: new Date().toISOString(),
       }));
 
-    if (rows.length === 0) return;
+    if (newRows.length === 0) return;
 
     const { error } = await supabase
       .from('service_fees')
-      .upsert(rows, {
-        onConflict: 'receiving_country,operator,delivery_method',
-        ignoreDuplicates: true,  // only insert new, never overwrite existing
-      });
+      .insert(newRows);
 
     if (error) throw error;
+    console.log(`  📋 Seeded ${newRows.length} new fee entries`);
   } catch (err) {
     console.warn(`  ⚠️ Fee seed failed (non-fatal): ${err.message}`);
   }
