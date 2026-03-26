@@ -161,6 +161,8 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   const formRef = useRef<HTMLDivElement>(null);
   const [sortColumn, setSortColumn] = useState<'receiving_country' | 'operator' | 'delivery_method' | null>(null);
   const [sortAsc, setSortAsc] = useState(true);
+  const [historyPage, setHistoryPage] = useState(0);
+  const HISTORY_PAGE_SIZE = 10;
 
   const [formCountry, setFormCountry] = useState('Indonesia');
   const [formOperator, setFormOperator] = useState('');
@@ -369,22 +371,59 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
 
       {/* Alert History */}
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-        <h2 className="text-sm font-semibold mb-3">{isEn ? 'Recent Alerts' : '최근 알림'}</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold">{isEn ? 'Recent Alerts' : '최근 알림'} <span className="text-slate-400 font-normal">({history.length})</span></h2>
+          {history.length > 0 && (
+            <button
+              onClick={async () => {
+                if (!confirm(isEn ? 'Clear all alert history?' : '모든 알림 이력을 삭제하시겠습니까?')) return;
+                await fetch('/api/alerts/history', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clearAll: true }) });
+                fetchHistory(); setHistoryPage(0);
+              }}
+              className="px-2.5 py-1 text-xs rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >
+              {isEn ? 'Clear All' : '전체 삭제'}
+            </button>
+          )}
+        </div>
         {history.length === 0 ? <p className="text-sm text-slate-400">{isEn ? 'No alerts sent yet.' : '발송된 알림이 없습니다.'}</p> : (
-          <div className="space-y-2">
-            {history.slice(0, 20).map(log => (
-              <div key={log.id} className="flex items-center justify-between text-xs py-2 border-b border-slate-100 dark:border-slate-800/50">
-                <div className="flex items-center gap-3">
-                  <span className="text-slate-400">{formatDate(log.notified_at)}</span>
-                  <span className="font-medium">{log.receiving_country}</span>
-                  <span>{log.operator}</span>
+          <>
+            <div className="space-y-1">
+              {history.slice(historyPage * HISTORY_PAGE_SIZE, (historyPage + 1) * HISTORY_PAGE_SIZE).map(log => (
+                <div key={log.id} className="flex items-center justify-between text-xs py-2 border-b border-slate-100 dark:border-slate-800/50">
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-400">{formatDate(log.notified_at)}</span>
+                    <span className="font-medium">{log.receiving_country}</span>
+                    <span>{log.operator}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-mono ${log.price_gap < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                      {log.price_gap > 0 ? '+' : ''}{log.price_gap.toLocaleString()} KRW
+                    </span>
+                    <button
+                      onClick={async () => {
+                        await fetch('/api/alerts/history', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: log.id }) });
+                        fetchHistory();
+                      }}
+                      className="text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 transition-colors"
+                    >
+                      &times;
+                    </button>
+                  </div>
                 </div>
-                <span className={`font-mono ${log.price_gap < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                  {log.price_gap > 0 ? '+' : ''}{log.price_gap.toLocaleString()} KRW
-                </span>
+              ))}
+            </div>
+            {history.length > HISTORY_PAGE_SIZE && (
+              <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
+                <span>{historyPage * HISTORY_PAGE_SIZE + 1}–{Math.min((historyPage + 1) * HISTORY_PAGE_SIZE, history.length)} / {history.length}</span>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => setHistoryPage(p => Math.max(0, p - 1))} disabled={historyPage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
+                  <span className="px-2">{historyPage + 1} / {Math.ceil(history.length / HISTORY_PAGE_SIZE)}</span>
+                  <button onClick={() => setHistoryPage(p => Math.min(Math.ceil(history.length / HISTORY_PAGE_SIZE) - 1, p + 1))} disabled={historyPage >= Math.ceil(history.length / HISTORY_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
+                </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>
