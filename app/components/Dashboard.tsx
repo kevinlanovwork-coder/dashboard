@@ -683,9 +683,14 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
         {/* Header */}
         <header className="sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur">
           <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h1 className="text-lg font-bold tracking-tight">{t.title}</h1>
-              <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.subtitle}</p>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 overflow-hidden shrink-0">
+                <img src="/GME (New Logo - Red).png" alt="GME" className="h-full object-contain object-left" style={{ maxWidth: '200%' }} />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold tracking-tight">{t.title}</h1>
+                <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.subtitle}</p>
+              </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {/* Country searchable dropdown */}
