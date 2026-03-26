@@ -12,7 +12,7 @@ import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
 import { saveRates } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
-import { updateFees } from './lib/fees.js';
+import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 
 const COUNTRY = 'China';
 const AMOUNT  = 10_000;
@@ -448,16 +448,20 @@ async function main() {
     process.exit(1);
   }
 
+  // ── 수수료 오버라이드 적용 ────────────────────────────────────────────
+  const feeMap = await loadFees(COUNTRY);
+  const adjusted = applyFeeOverrides(results, feeMap);
+
   // GME 기준값 — delivery_method 별로 분리
-  const gmeBankRecord   = results.find(r => r.operator === 'GME' && r.delivery_method === 'Bank Account');
-  const gmeAlipayRecord = results.find(r => r.operator === 'GME' && r.delivery_method === 'Alipay');
+  const gmeBankRecord   = adjusted.find(r => r.operator === 'GME' && r.delivery_method === 'Bank Account');
+  const gmeAlipayRecord = adjusted.find(r => r.operator === 'GME' && r.delivery_method === 'Alipay');
   const gmeBankBaseline   = gmeBankRecord?.total_sending_amount ?? null;
   const gmeAlipayBaseline = gmeAlipayRecord?.total_sending_amount ?? null;
 
   if (!gmeBankBaseline) console.warn('\n⚠️  GME Bank Account 기준값 없음 — Bank Account price_gap 계산 불가');
   if (!gmeAlipayBaseline) console.warn('\n⚠️  GME Alipay 기준값 없음 — Alipay price_gap 계산 불가');
 
-  const toSave = results.map(r => {
+  const toSave = adjusted.map(r => {
     const baseline = r.delivery_method === 'Alipay' ? gmeAlipayBaseline : gmeBankBaseline;
     const priceGap = baseline && r.operator !== 'GME'
       ? r.total_sending_amount - baseline : null;
@@ -481,7 +485,7 @@ async function main() {
     await saveRates(toSave);
     console.log(`\n✅ ${toSave.length}건 Supabase 저장 완료 (China CNY)`);
     await checkAlerts(toSave, runHour);
-    await updateFees(toSave);
+    await seedFees(toSave);
   } catch (err) {
     console.error(`\n❌ Supabase 저장 실패: ${err.message}`);
     process.exit(1);

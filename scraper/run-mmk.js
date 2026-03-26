@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
 import { saveRates } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
-import { updateFees } from './lib/fees.js';
+import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 
 const COUNTRY = 'Myanmar';
 const AMOUNT  = 5_000_000;
@@ -193,11 +193,15 @@ async function main() {
     process.exit(1);
   }
 
-  const gmeRecord   = results.find(r => r.operator === 'GME');
+  // ── 수수료 오버라이드 적용 ────────────────────────────────────────────
+  const feeMap = await loadFees(COUNTRY);
+  const adjusted = applyFeeOverrides(results, feeMap);
+
+  const gmeRecord   = adjusted.find(r => r.operator === 'GME');
   const gmeBaseline = gmeRecord?.total_sending_amount ?? null;
   if (!gmeBaseline) console.warn('\n⚠️  GME 기준값 없음 — price_gap 계산 불가');
 
-  const toSave = results.map(r => {
+  const toSave = adjusted.map(r => {
     const priceGap = gmeBaseline && r.operator !== 'GME'
       ? r.total_sending_amount - gmeBaseline : null;
     const status = priceGap === null ? null : priceGap > 0 ? 'GME 유리' : '경쟁사 유리';
@@ -220,7 +224,7 @@ async function main() {
     await saveRates(toSave);
     console.log(`\n✅ ${toSave.length}건 Supabase 저장 완료 (Myanmar MMK)`);
     await checkAlerts(toSave, runHour);
-    await updateFees(toSave);
+    await seedFees(toSave);
   } catch (err) {
     console.error(`\n❌ Supabase 저장 실패: ${err.message}`);
     process.exit(1);

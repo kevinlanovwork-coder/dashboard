@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 import { getRunHour, withRetry } from './lib/browser.js';
 import { saveRates } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
-import { updateFees } from './lib/fees.js';
+import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 
 // ── 스크래퍼 임포트 ──────────────────────────────────────────────────────
 import { scrape as scrapeGme }        from './scrapers/gme.js';
@@ -76,8 +76,12 @@ async function main() {
     process.exit(1);
   }
 
+  // ── 수수료 오버라이드 적용 ────────────────────────────────────────────
+  const feeMap = await loadFees(COUNTRY);
+  const adjusted = applyFeeOverrides(results, feeMap);
+
   // ── GME 기준값 계산 ───────────────────────────────────────────────────
-  const gmeRecord = results.find(r => r.operator === 'GME');
+  const gmeRecord = adjusted.find(r => r.operator === 'GME');
   const gmeBaseline = gmeRecord?.total_sending_amount ?? null;
 
   if (!gmeBaseline) {
@@ -85,7 +89,7 @@ async function main() {
   }
 
   // ── Supabase 저장용 레코드 구성 ───────────────────────────────────────
-  const toSave = results.map(r => {
+  const toSave = adjusted.map(r => {
     const priceGap = gmeBaseline && r.operator !== 'GME'
       ? r.total_sending_amount - gmeBaseline
       : null;
@@ -118,7 +122,7 @@ async function main() {
     await saveRates(toSave);
     console.log(`\n✅ ${toSave.length}건 Supabase 저장 완료`);
     await checkAlerts(toSave, runHour);
-    await updateFees(toSave);
+    await seedFees(toSave);
   } catch (err) {
     console.error(`\n❌ Supabase 저장 실패: ${err.message}`);
     process.exit(1);
