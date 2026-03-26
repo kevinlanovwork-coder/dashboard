@@ -163,6 +163,9 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   const [sortAsc, setSortAsc] = useState(true);
   const [historyPage, setHistoryPage] = useState(0);
   const HISTORY_PAGE_SIZE = 10;
+  const [filterCountry, setFilterCountry] = useState('');
+  const [rulesPage, setRulesPage] = useState(0);
+  const RULES_PAGE_SIZE = 10;
 
   const [formCountry, setFormCountry] = useState('Indonesia');
   const [formOperator, setFormOperator] = useState('');
@@ -273,10 +276,18 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   function handleSort(col: 'receiving_country' | 'operator' | 'delivery_method') {
     if (sortColumn === col) setSortAsc(!sortAsc); else { setSortColumn(col); setSortAsc(true); }
   }
+  const filteredRules = useMemo(() => {
+    if (!filterCountry) return rules;
+    return rules.filter(r => r.receiving_country === filterCountry);
+  }, [rules, filterCountry]);
+
   const sortedRules = useMemo(() => {
-    if (!sortColumn) return rules;
-    return [...rules].sort((a, b) => { const aV = (a[sortColumn] ?? '').toLowerCase(), bV = (b[sortColumn] ?? '').toLowerCase(); return aV < bV ? (sortAsc ? -1 : 1) : aV > bV ? (sortAsc ? 1 : -1) : 0; });
-  }, [rules, sortColumn, sortAsc]);
+    if (!sortColumn) return filteredRules;
+    return [...filteredRules].sort((a, b) => { const aV = (a[sortColumn] ?? '').toLowerCase(), bV = (b[sortColumn] ?? '').toLowerCase(); return aV < bV ? (sortAsc ? -1 : 1) : aV > bV ? (sortAsc ? 1 : -1) : 0; });
+  }, [filteredRules, sortColumn, sortAsc]);
+
+  const totalRulesPages = Math.ceil(sortedRules.length / RULES_PAGE_SIZE);
+  const pagedRules = sortedRules.slice(rulesPage * RULES_PAGE_SIZE, (rulesPage + 1) * RULES_PAGE_SIZE);
   const sortIcon = (col: string) => sortColumn !== col ? ' ↕' : sortAsc ? ' ↑' : ' ↓';
 
   return (
@@ -325,10 +336,17 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
         </div>
       )}
 
-      {/* Rules Table */}
+      {/* Country filter + Rules Table */}
+      <div className="flex items-center gap-3">
+        <select value={filterCountry} onChange={e => { setFilterCountry(e.target.value); setRulesPage(0); }} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-3 py-2 text-sm">
+          <option value="">{isEn ? 'All Countries' : '전체 국가'}</option>
+          {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <span className="text-xs text-slate-400">{sortedRules.length} {isEn ? 'rules' : '규칙'}</span>
+      </div>
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
         {loading ? <div className="p-8 text-center text-slate-400">Loading...</div>
-        : rules.length === 0 ? <div className="p-8 text-center text-slate-400">{isEn ? 'No alert rules configured yet.' : '설정된 알림 규칙이 없습니다.'}</div>
+        : sortedRules.length === 0 ? <div className="p-8 text-center text-slate-400">{isEn ? (filterCountry ? 'No rules for this country.' : 'No alert rules configured yet.') : (filterCountry ? '해당 국가의 규칙이 없습니다.' : '설정된 알림 규칙이 없습니다.')}</div>
         : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -345,7 +363,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
                 </tr>
               </thead>
               <tbody>
-                {sortedRules.map(rule => (
+                {pagedRules.map(rule => (
                   <tr key={rule.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30">
                     <td className="px-4 py-3"><button onClick={() => handleToggle(rule)} className={`w-10 h-5 rounded-full transition-colors relative ${rule.is_active ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${rule.is_active ? 'left-5' : 'left-0.5'}`} /></button></td>
                     <td className="px-4 py-3 font-medium">{rule.receiving_country}</td>
@@ -365,6 +383,16 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {totalRulesPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 text-xs text-slate-500 border-t border-slate-200 dark:border-slate-800">
+            <span>{rulesPage * RULES_PAGE_SIZE + 1}–{Math.min((rulesPage + 1) * RULES_PAGE_SIZE, sortedRules.length)} / {sortedRules.length}</span>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setRulesPage(p => Math.max(0, p - 1))} disabled={rulesPage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
+              <span className="px-2">{rulesPage + 1} / {totalRulesPages}</span>
+              <button onClick={() => setRulesPage(p => Math.min(totalRulesPages - 1, p + 1))} disabled={rulesPage >= totalRulesPages - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
+            </div>
           </div>
         )}
       </div>
