@@ -768,10 +768,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               {/* Auth: Login / Alerts + Logout */}
               {isLoggedIn ? (
                 <>
-                  <a href="/alerts" className="px-3 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                    {isEn ? 'Alerts' : '알림'}
-                  </a>
-                  <a href="/settings" className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                  <a href="/settings" className="px-3 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
                     {isEn ? 'Settings' : '설정'}
                   </a>
                   <button

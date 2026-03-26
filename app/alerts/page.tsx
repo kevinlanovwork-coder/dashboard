@@ -1,7 +1,5 @@
-import AlertRules from '../components/AlertRules';
-
-export const dynamic = 'force-dynamic';
+import { redirect } from 'next/navigation';
 
 export default function AlertsPage() {
-  return <AlertRules />;
+  redirect('/settings');
 }
