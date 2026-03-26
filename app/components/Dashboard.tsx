@@ -11,7 +11,7 @@ import * as XLSX from 'xlsx';
 // ─── Translations ─────────────────────────────────────────────────────────────
 
 const EN = {
-  title: 'Exchange Rate Comparison Dashboard',
+  title: "GME's Competitor Price Comparison Dashboard",
   subtitle: 'Remittance Service Rate Competitiveness Analysis',
   allCountries: 'All Countries',
   latestSnapshot: 'Latest Snapshot',
@@ -22,7 +22,7 @@ const EN = {
   basedOnSnapshot: 'Based on snapshot',
   expensiveCompetitors: 'More Expensive Competitors',
   pricierThanGME: 'Services pricier than GME',
-  snapshotTitle: 'Snapshot Comparison — Total Send Amount',
+  snapshotTitle: 'Collection Amount',
   snapshotSub: (time: string) => `as of ${time} (KRW, lower is better)`,
   noData: 'No data',
   gmeBaselineLegend: 'GME (baseline)',
@@ -68,7 +68,7 @@ const EN = {
 };
 
 const KO = {
-  title: '환율 비교 대시보드',
+  title: 'GME 경쟁사 가격 비교 대시보드',
   subtitle: '해외 송금 서비스 요율 경쟁력 분석',
   allCountries: '전체 국가',
   latestSnapshot: '최신 스냅샷',
@@ -79,7 +79,7 @@ const KO = {
   basedOnSnapshot: '스냅샷 기준',
   expensiveCompetitors: 'GME 우위 경쟁사',
   pricierThanGME: 'GME보다 비싼 서비스',
-  snapshotTitle: '스냅샷 비교 — 총 송금액',
+  snapshotTitle: '수금액',
   snapshotSub: (time: string) => `${time} 기준 (KRW, 낮을수록 유리)`,
   noData: '데이터 없음',
   gmeBaselineLegend: 'GME (기준)',
@@ -159,10 +159,10 @@ const CURRENCY_MAP: Record<string, string> = {
 };
 
 const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
-  Indonesia: 'Bank Account', Thailand: 'Bank Account', Vietnam: 'Bank Account',
-  Nepal: 'Bank Account', Philippines: 'Bank Account', Malaysia: 'Bank Account',
-  Singapore: 'Bank Account', Cambodia: 'Bank Account', Japan: 'Bank Account',
-  China: ['Bank Account', 'Alipay'], Mongolia: 'Bank Account', Myanmar: 'Bank Account',
+  Indonesia: 'Bank Deposit', Thailand: 'Bank Deposit', Vietnam: 'Bank Deposit',
+  Nepal: 'Bank Deposit', Philippines: 'Bank Deposit', Malaysia: 'Bank Deposit',
+  Singapore: 'Bank Deposit', Cambodia: 'Bank Deposit', Japan: 'Bank Deposit',
+  China: ['Bank Deposit', 'Alipay'], Mongolia: 'Bank Deposit', Myanmar: 'Bank Deposit',
   Cameroon: 'Mobile Wallet', Liberia: 'Cash Pickup',
 };
 
