@@ -77,7 +77,7 @@ async function main() {
   }
 
   // ── 수수료 오버라이드 적용 ────────────────────────────────────────────
-  const feeMap = await loadFees(COUNTRY);
+  const feeMap = await loadFees('Indonesia');
   const adjusted = applyFeeOverrides(results, feeMap);
 
   // ── GME 기준값 계산 ───────────────────────────────────────────────────
