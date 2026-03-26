@@ -81,21 +81,41 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabase();
 
-  // Get the latest scraped fee from rate_records
-  const query = supabase
+  // Get the latest non-zero scraped fee from rate_records
+  // (scrapers sometimes return 0 when they fail to read the fee element)
+  let query = supabase
     .from('rate_records')
     .select('service_fee')
     .eq('receiving_country', body.receiving_country)
     .eq('operator', body.operator)
     .is('deleted_at', null)
+    .gt('service_fee', 0)
     .order('run_hour', { ascending: false })
     .limit(1);
 
   if (body.delivery_method) {
-    query.eq('delivery_method', body.delivery_method);
+    query = query.eq('delivery_method', body.delivery_method);
   }
 
-  const { data, error } = await query;
+  let { data, error } = await query;
+
+  // If no non-zero fee found, fall back to the latest record (including 0)
+  if (!error && (!data || data.length === 0)) {
+    let fallback = supabase
+      .from('rate_records')
+      .select('service_fee')
+      .eq('receiving_country', body.receiving_country)
+      .eq('operator', body.operator)
+      .is('deleted_at', null)
+      .order('run_hour', { ascending: false })
+      .limit(1);
+    if (body.delivery_method) {
+      fallback = fallback.eq('delivery_method', body.delivery_method);
+    }
+    const res = await fallback;
+    data = res.data;
+    error = res.error;
+  }
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
