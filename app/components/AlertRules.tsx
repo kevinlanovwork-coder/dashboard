@@ -427,9 +427,14 @@ function AlertRulesContent() {
               <h1 className="text-2xl font-bold">{t.title}</h1>
               <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{t.subtitle}</p>
             </div>
-            <a href="/" className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-              {t.backToDashboard}
-            </a>
+            <div className="flex items-center gap-2">
+              <a href="/" className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                {t.backToDashboard}
+              </a>
+              <a href="/settings" className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                {isEn ? 'Settings' : '설정'}
+              </a>
+            </div>
           </div>
 
           {/* Global Email Config */}

@@ -8,6 +8,7 @@
 import { getRunHour, withRetry } from './lib/browser.js';
 import { saveRates } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
+import { updateFees } from './lib/fees.js';
 
 const COUNTRY = 'Liberia';
 const AMOUNT  = 500;
@@ -117,6 +118,7 @@ async function main() {
     await saveRates(toSave);
     console.log(`\n✅ ${toSave.length}건 Supabase 저장 완료 (Liberia USD)`);
     await checkAlerts(toSave, runHour);
+    await updateFees(toSave);
   } catch (err) {
     console.error(`\n❌ Supabase 저장 실패: ${err.message}`);
     process.exit(1);
