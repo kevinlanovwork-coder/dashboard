@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     .insert({
       receiving_country: body.receiving_country,
       operator: body.operator || null,
-      delivery_method: body.delivery_method || 'Bank Account',
+      delivery_method: body.delivery_method || 'Bank Deposit',
       direction: body.direction || 'cheaper',
       threshold_krw: body.threshold_krw,
       cooldown_minutes: body.cooldown_minutes ?? 120,

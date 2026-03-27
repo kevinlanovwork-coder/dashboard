@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
       gmeBaseline,
       priceGap,
       status,
-      deliveryMethod: (r.delivery_method ?? 'Bank Account') as string,
+      deliveryMethod: (r.delivery_method ?? 'Bank Deposit') as string,
     };
   });
 

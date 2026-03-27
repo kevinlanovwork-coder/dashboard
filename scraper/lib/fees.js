@@ -30,7 +30,7 @@ export async function loadFees(country) {
  */
 export function applyFeeOverrides(records, feeMap) {
   return records.map(r => {
-    const key = `${r.operator}||${r.delivery_method ?? 'Bank Account'}`;
+    const key = `${r.operator}||${r.delivery_method ?? 'Bank Deposit'}`;
     const overrideFee = feeMap.get(key);
     if (overrideFee != null && overrideFee !== r.service_fee) {
       return {
@@ -67,11 +67,11 @@ export async function seedFees(records) {
     // Only insert rows that don't already exist
     const newRows = records
       .filter(r => r.operator && r.receiving_country)
-      .filter(r => !existingKeys.has(`${r.operator}||${r.delivery_method ?? 'Bank Account'}`))
+      .filter(r => !existingKeys.has(`${r.operator}||${r.delivery_method ?? 'Bank Deposit'}`))
       .map(r => ({
         receiving_country: r.receiving_country,
         operator: r.operator,
-        delivery_method: r.delivery_method ?? 'Bank Account',
+        delivery_method: r.delivery_method ?? 'Bank Deposit',
         fee_krw: r.service_fee ?? 0,
         updated_at: new Date().toISOString(),
       }));

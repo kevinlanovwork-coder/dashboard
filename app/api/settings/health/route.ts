@@ -5,16 +5,16 @@ export const dynamic = 'force-dynamic';
 
 // Expected operators per corridor||delivery_method
 const EXPECTED_OPERATORS: Record<string, string[]> = {
-  'Indonesia||Bank Account':   ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'Utransfer', 'SBI', 'Cross', 'Coinshot', 'JRF', 'E9Pay'],
-  'Thailand||Bank Account':    ['GME', 'GMoneyTrans', 'WireBarley', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'Coinshot', 'JRF', 'E9Pay'],
-  'Vietnam||Bank Account':     ['GME', 'Sentbe', 'SBI', 'GMoneyTrans', 'E9Pay', 'Hanpass', 'Cross', 'JRF'],
-  'Nepal||Bank Account':       ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'JRF', 'E9Pay', 'Coinshot'],
-  'Philippines||Bank Account': ['GME', 'GMoneyTrans', 'SBI', 'Coinshot', 'Cross', 'E9Pay', 'JRF', 'Utransfer', 'Hanpass'],
-  'Cambodia||Bank Account':    ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'E9Pay'],
-  'China||Bank Account':       ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'WireBarley', 'Coinshot', 'Utransfer', 'Moin', 'Debunk'],
+  'Indonesia||Bank Deposit':   ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'Utransfer', 'SBI', 'Cross', 'Coinshot', 'JRF', 'E9Pay'],
+  'Thailand||Bank Deposit':    ['GME', 'GMoneyTrans', 'WireBarley', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'Coinshot', 'JRF', 'E9Pay'],
+  'Vietnam||Bank Deposit':     ['GME', 'Sentbe', 'SBI', 'GMoneyTrans', 'E9Pay', 'Hanpass', 'Cross', 'JRF'],
+  'Nepal||Bank Deposit':       ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'JRF', 'E9Pay', 'Coinshot'],
+  'Philippines||Bank Deposit': ['GME', 'GMoneyTrans', 'SBI', 'Coinshot', 'Cross', 'E9Pay', 'JRF', 'Utransfer', 'Hanpass'],
+  'Cambodia||Bank Deposit':    ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'E9Pay'],
+  'China||Bank Deposit':       ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'WireBarley', 'Coinshot', 'Utransfer', 'Moin', 'Debunk'],
   'China||Alipay':             ['GME', 'GMoneyTrans', 'Hanpass', 'E9Pay'],
-  'Mongolia||Bank Account':    ['GME', 'GMoneyTrans', 'Utransfer', 'Cross', 'E9Pay', 'Coinshot', 'Hanpass'],
-  'Myanmar||Bank Account':     ['GME', 'GMoneyTrans', 'Hanpass', 'SBI', 'E9Pay'],
+  'Mongolia||Bank Deposit':    ['GME', 'GMoneyTrans', 'Utransfer', 'Cross', 'E9Pay', 'Coinshot', 'Hanpass'],
+  'Myanmar||Bank Deposit':     ['GME', 'GMoneyTrans', 'Hanpass', 'SBI', 'E9Pay'],
   'Cameroon||Mobile Wallet':   ['GME', 'GMoneyTrans'],
   'Liberia||Cash Pickup':      ['GME', 'GMoneyTrans'],
 };
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
   const runHoursByCorridorMap: Record<string, Set<string>> = {};
 
   for (const r of allData) {
-    const dm = r.delivery_method ?? 'Bank Account';
+    const dm = r.delivery_method ?? 'Bank Deposit';
     existingSet.add(`${r.run_hour}||${r.receiving_country}||${dm}||${r.operator}`);
     const corridorKey = `${r.receiving_country}||${dm}`;
     if (!runHoursByCorridorMap[corridorKey]) runHoursByCorridorMap[corridorKey] = new Set();

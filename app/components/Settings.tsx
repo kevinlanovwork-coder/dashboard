@@ -50,24 +50,24 @@ interface ServiceFee {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const OPERATOR_MAP: Record<string, string[]> = {
-  'Indonesia||Bank Account':   ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'Utransfer', 'SBI', 'Cross', 'Coinshot', 'JRF', 'E9Pay'],
-  'Thailand||Bank Account':    ['GME', 'GMoneyTrans', 'WireBarley', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'Coinshot', 'JRF', 'E9Pay'],
-  'Vietnam||Bank Account':     ['GME', 'Sentbe', 'SBI', 'GMoneyTrans', 'E9Pay', 'Hanpass', 'Cross', 'JRF'],
-  'Nepal||Bank Account':       ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'JRF', 'E9Pay', 'Coinshot'],
-  'Philippines||Bank Account': ['GME', 'GMoneyTrans', 'SBI', 'Coinshot', 'Cross', 'E9Pay', 'JRF', 'Utransfer', 'Hanpass'],
-  'Cambodia||Bank Account':    ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'E9Pay'],
-  'China||Bank Account':       ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'WireBarley', 'Coinshot', 'Utransfer', 'Moin', 'Debunk'],
+  'Indonesia||Bank Deposit':   ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'Utransfer', 'SBI', 'Cross', 'Coinshot', 'JRF', 'E9Pay'],
+  'Thailand||Bank Deposit':    ['GME', 'GMoneyTrans', 'WireBarley', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'Coinshot', 'JRF', 'E9Pay'],
+  'Vietnam||Bank Deposit':     ['GME', 'Sentbe', 'SBI', 'GMoneyTrans', 'E9Pay', 'Hanpass', 'Cross', 'JRF'],
+  'Nepal||Bank Deposit':       ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'JRF', 'E9Pay', 'Coinshot'],
+  'Philippines||Bank Deposit': ['GME', 'GMoneyTrans', 'SBI', 'Coinshot', 'Cross', 'E9Pay', 'JRF', 'Utransfer', 'Hanpass'],
+  'Cambodia||Bank Deposit':    ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'E9Pay'],
+  'China||Bank Deposit':       ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'WireBarley', 'Coinshot', 'Utransfer', 'Moin', 'Debunk'],
   'China||Alipay':             ['GME', 'GMoneyTrans', 'Hanpass', 'E9Pay'],
-  'Mongolia||Bank Account':    ['GME', 'GMoneyTrans', 'Utransfer', 'Cross', 'E9Pay', 'Coinshot', 'Hanpass'],
-  'Myanmar||Bank Account':     ['GME', 'GMoneyTrans', 'Hanpass', 'SBI', 'E9Pay'],
+  'Mongolia||Bank Deposit':    ['GME', 'GMoneyTrans', 'Utransfer', 'Cross', 'E9Pay', 'Coinshot', 'Hanpass'],
+  'Myanmar||Bank Deposit':     ['GME', 'GMoneyTrans', 'Hanpass', 'SBI', 'E9Pay'],
   'Cameroon||Mobile Wallet':   ['GME', 'GMoneyTrans'],
   'Liberia||Cash Pickup':      ['GME', 'GMoneyTrans'],
 };
 
 const DELIVERY_METHOD_MAP: Record<string, string[]> = {
-  Indonesia: ['Bank Account'], Thailand: ['Bank Account'], Vietnam: ['Bank Account'],
-  Nepal: ['Bank Account'], Philippines: ['Bank Account'], Cambodia: ['Bank Account'],
-  China: ['Bank Account', 'Alipay'], Mongolia: ['Bank Account'], Myanmar: ['Bank Account'],
+  Indonesia: ['Bank Deposit'], Thailand: ['Bank Deposit'], Vietnam: ['Bank Deposit'],
+  Nepal: ['Bank Deposit'], Philippines: ['Bank Deposit'], Cambodia: ['Bank Deposit'],
+  China: ['Bank Deposit', 'Alipay'], Mongolia: ['Bank Deposit'], Myanmar: ['Bank Deposit'],
   Cameroon: ['Mobile Wallet'], Liberia: ['Cash Pickup'],
 };
 
@@ -175,15 +175,15 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
 
   const [formCountry, setFormCountry] = useState('Indonesia');
   const [formOperator, setFormOperator] = useState('');
-  const [formDelivery, setFormDelivery] = useState('Bank Account');
+  const [formDelivery, setFormDelivery] = useState('Bank Deposit');
   const [formDirection, setFormDirection] = useState('cheaper');
   const [formThreshold, setFormThreshold] = useState('-2000');
   const [formCooldown, setFormCooldown] = useState(120);
 
-  const deliveryMethods = useMemo(() => DELIVERY_METHOD_MAP[formCountry] ?? ['Bank Account'], [formCountry]);
+  const deliveryMethods = useMemo(() => DELIVERY_METHOD_MAP[formCountry] ?? ['Bank Deposit'], [formCountry]);
   const operators = useMemo(() => OPERATOR_MAP[`${formCountry}||${formDelivery}`] ?? [], [formCountry, formDelivery]);
 
-  useEffect(() => { setFormDelivery((DELIVERY_METHOD_MAP[formCountry] ?? ['Bank Account'])[0]); }, [formCountry]);
+  useEffect(() => { setFormDelivery((DELIVERY_METHOD_MAP[formCountry] ?? ['Bank Deposit'])[0]); }, [formCountry]);
   useEffect(() => { setFormOperator(''); }, [formDelivery]);
 
   const fetchRules = useCallback(async () => {
@@ -214,7 +214,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   useEffect(() => { fetchRules(); fetchConfig(); fetchHistory(); }, [fetchRules, fetchConfig, fetchHistory]);
 
   function resetForm() {
-    setFormCountry('Indonesia'); setFormOperator(''); setFormDelivery('Bank Account');
+    setFormCountry('Indonesia'); setFormOperator(''); setFormDelivery('Bank Deposit');
     setFormDirection('cheaper'); setFormThreshold('-2000'); setFormCooldown(120);
     setEditingId(null); setShowForm(false);
   }
@@ -545,7 +545,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
                 {countryFees.map(fee => (
                   <tr key={fee.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30">
                     <td className="px-4 py-2.5 font-medium">{fee.operator}</td>
-                    <td className="px-4 py-2.5 text-slate-500">{fee.delivery_method === 'Bank Account' ? 'Bank Deposit' : fee.delivery_method}</td>
+                    <td className="px-4 py-2.5 text-slate-500">{fee.delivery_method === 'Bank Deposit' ? 'Bank Deposit' : fee.delivery_method}</td>
                     {editingId === fee.id ? (
                       <>
                         <td className="px-4 py-2.5 text-right"><input type="number" value={editFee} onChange={e => setEditFee(e.target.value)} className="w-24 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-right" autoFocus /></td>
@@ -669,7 +669,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
       {health.corridors.map(corridor => (
         <div key={`${corridor.country}||${corridor.deliveryMethod}`} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <h3 className="text-sm font-semibold">{corridor.country} <span className="text-slate-400 font-normal">— {corridor.deliveryMethod === 'Bank Account' ? 'Bank Deposit' : corridor.deliveryMethod}</span></h3>
+            <h3 className="text-sm font-semibold">{corridor.country} <span className="text-slate-400 font-normal">— {corridor.deliveryMethod === 'Bank Deposit' ? 'Bank Deposit' : corridor.deliveryMethod}</span></h3>
             <span className="text-xs text-slate-400">{corridor.totalRuns} {isEn ? 'runs' : '회'}</span>
           </div>
           <div className="overflow-x-auto">
@@ -713,7 +713,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
                 <span className="text-slate-400">{formatRunHour(f.runHour)}</span>
                 <span className="font-medium">{f.country}</span>
                 <span className="text-red-600 dark:text-red-400">{f.operator}</span>
-                <span className="text-slate-400">{f.deliveryMethod === 'Bank Account' ? 'Bank Deposit' : f.deliveryMethod}</span>
+                <span className="text-slate-400">{f.deliveryMethod === 'Bank Deposit' ? 'Bank Deposit' : f.deliveryMethod}</span>
               </div>
             ))}
           </div>

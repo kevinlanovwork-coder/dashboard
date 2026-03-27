@@ -98,7 +98,7 @@ export default async function Home() {
       gmeBaseline,
       priceGap,
       status,
-      deliveryMethod: r.delivery_method ?? 'Bank Account',
+      deliveryMethod: r.delivery_method ?? 'Bank Deposit',
     };
   });
 

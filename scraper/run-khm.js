@@ -247,7 +247,7 @@ async function main() {
       gme_baseline:         gmeBaseline,
       price_gap:            priceGap,
       status:               status,
-      delivery_method:      'Bank Account',
+      delivery_method:      'Bank Deposit',
     };
   });
 

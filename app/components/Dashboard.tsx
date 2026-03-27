@@ -392,7 +392,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     refLine:  isDark ? '#334155' : '#cbd5e1',
   };
 
-  // Delivery method support for multi-method corridors (e.g. China: Bank Account / Alipay)
+  // Delivery method support for multi-method corridors (e.g. China: Bank Deposit / Alipay)
   const deliveryMethods = useMemo(() => {
     const methods = DEPOSIT_METHOD_MAP[selectedCountry];
     if (Array.isArray(methods)) return methods;
@@ -655,7 +655,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     const rows = tableData.map(r => ({
       Time: formatRunHour(r.runHour),
       Operator: r.operator,
-      Method: (r.deliveryMethod === 'Bank Account' ? 'Bank Deposit' : r.deliveryMethod) ?? 'Bank Deposit',
+      Method: r.deliveryMethod ?? 'Bank Deposit',
       Country: r.receivingCountry,
       'Recv. Amount': r.receiveAmount,
       Currency: CURRENCY_MAP[r.receivingCountry] ?? '',
@@ -1257,7 +1257,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                       <tr key={r.id} className="border-b border-slate-200 dark:border-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/20 transition-colors">
                         <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-mono text-xs whitespace-nowrap">{formatRunHour(r.runHour)}</td>
                         <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200 whitespace-nowrap">{r.operator}</td>
-                        <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">{(r.deliveryMethod === 'Bank Account' ? 'Bank Deposit' : r.deliveryMethod) ?? 'Bank Deposit'}</td>
+                        <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">{r.deliveryMethod ?? 'Bank Deposit'}</td>
                         <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">{r.receivingCountry}</td>
                         <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-200 font-mono whitespace-nowrap">
                           {r.receiveAmount.toLocaleString()}&nbsp;<span className="text-slate-400 dark:text-slate-500 text-xs">{CURRENCY_MAP[r.receivingCountry] ?? ''}</span>
