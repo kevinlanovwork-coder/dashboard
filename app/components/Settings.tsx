@@ -288,8 +288,11 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   }, [rules, filterCountry]);
 
   const sortedRules = useMemo(() => {
-    if (!sortColumn) return filteredRules;
-    return [...filteredRules].sort((a, b) => { const aV = (a[sortColumn] ?? '').toLowerCase(), bV = (b[sortColumn] ?? '').toLowerCase(); return aV < bV ? (sortAsc ? -1 : 1) : aV > bV ? (sortAsc ? 1 : -1) : 0; });
+    const sorted = sortColumn
+      ? [...filteredRules].sort((a, b) => { const aV = (a[sortColumn] ?? '').toLowerCase(), bV = (b[sortColumn] ?? '').toLowerCase(); return aV < bV ? (sortAsc ? -1 : 1) : aV > bV ? (sortAsc ? 1 : -1) : 0; })
+      : [...filteredRules];
+    // Active rules always on top
+    return sorted.sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1));
   }, [filteredRules, sortColumn, sortAsc]);
 
   const totalRulesPages = Math.ceil(sortedRules.length / RULES_PAGE_SIZE);
