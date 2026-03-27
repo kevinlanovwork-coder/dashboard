@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   );
 
   const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - 30);
+  fromDate.setDate(fromDate.getDate() - 14);
   const fromDateStr = fromDate.toISOString().slice(0, 10);
 
   // Fetch all records in batches (Supabase caps at 1000 per request)
