@@ -291,6 +291,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [gmeTrendFromDate, setGmeTrendFromDate] = useState('');
   const [operatorTrendFromDate, setOperatorTrendFromDate] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
+  const [daysRange, setDaysRange] = useState(14);
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState('');
@@ -336,15 +337,15 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     localStorage.setItem('dashboard-country', selectedCountry);
   }, [selectedCountry]);
 
-  // Fetch 30-day data when country changes
+  // Fetch data when country or date range changes
   useEffect(() => {
-    if (selectedCountry === defaultCountry) {
+    if (selectedCountry === defaultCountry && daysRange === 14) {
       setRecords(initialRecords);
       return;
     }
     let cancelled = false;
     setIsLoadingRecords(true);
-    fetch(`/api/rates?country=${encodeURIComponent(selectedCountry)}`)
+    fetch(`/api/rates?country=${encodeURIComponent(selectedCountry)}&days=${daysRange}`)
       .then(res => res.json())
       .then(data => {
         if (!cancelled) setRecords(data);
@@ -352,7 +353,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
       .catch(err => console.error('Failed to fetch rates:', err))
       .finally(() => { if (!cancelled) setIsLoadingRecords(false); });
     return () => { cancelled = true; };
-  }, [selectedCountry, defaultCountry, initialRecords]);
+  }, [selectedCountry, daysRange, defaultCountry, initialRecords]);
 
   async function handleDelete(r: RateRecord) {
     if (!confirm(t.deleteConfirm(r.operator, formatRunHour(r.runHour)))) return;
@@ -740,6 +741,19 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 {[...runHours].reverse().map(rh => (
                   <option key={rh} value={rh}>{formatRunHour(rh)}</option>
                 ))}
+              </select>
+
+              {/* Date range */}
+              <select
+                value={daysRange}
+                onChange={e => setDaysRange(Number(e.target.value))}
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={7}>{isEn ? '7 days' : '7일'}</option>
+                <option value={14}>{isEn ? '14 days' : '14일'}</option>
+                <option value={30}>{isEn ? '30 days' : '30일'}</option>
+                <option value={60}>{isEn ? '60 days' : '60일'}</option>
+                <option value={90}>{isEn ? '90 days' : '90일'}</option>
               </select>
 
               {/* Language toggle */}

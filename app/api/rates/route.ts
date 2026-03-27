@@ -14,8 +14,9 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_ANON_KEY!,
   );
 
+  const days = Number(req.nextUrl.searchParams.get('days') ?? '14');
   const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - 14);
+  fromDate.setDate(fromDate.getDate() - days);
   const fromDateStr = fromDate.toISOString().slice(0, 10);
 
   // Fetch all records in batches (Supabase caps at 1000 per request)
