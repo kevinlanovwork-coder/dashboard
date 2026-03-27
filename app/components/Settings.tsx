@@ -96,7 +96,7 @@ export default function Settings() {
 }
 
 function SettingsContent() {
-  const [activeTab, setActiveTab] = useState<'alerts' | 'fees'>('alerts');
+  const [activeTab, setActiveTab] = useState<'alerts' | 'fees' | 'health'>('alerts');
   const [isDark, setIsDark] = useState(false);
   const [isEn, setIsEn] = useState(true);
 
@@ -137,9 +137,15 @@ function SettingsContent() {
             >
               {isEn ? 'Service Fees' : '수수료 설정'}
             </button>
+            <button
+              onClick={() => setActiveTab('health')}
+              className={`flex-1 px-4 py-2 transition-colors ${activeTab === 'health' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+            >
+              {isEn ? 'Scraper Health' : '스크래퍼 상태'}
+            </button>
           </div>
 
-          {activeTab === 'alerts' ? <AlertRulesTab isEn={isEn} /> : <ServiceFeesTab isEn={isEn} />}
+          {activeTab === 'alerts' ? <AlertRulesTab isEn={isEn} /> : activeTab === 'fees' ? <ServiceFeesTab isEn={isEn} /> : <ScraperHealthTab isEn={isEn} />}
 
         </div>
       </div>
@@ -561,6 +567,155 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── Scraper Health Tab ──────────────────────────────────────────────────────
+
+interface HealthData {
+  days: number;
+  totalRuns: number;
+  overallSuccessRate: number;
+  corridors: {
+    country: string;
+    deliveryMethod: string;
+    totalRuns: number;
+    operators: {
+      operator: string;
+      successes: number;
+      failures: number;
+      successRate: number;
+      lastSuccess: string | null;
+      lastFailure: string | null;
+    }[];
+  }[];
+  recentFailures: { runHour: string; country: string; operator: string; deliveryMethod: string }[];
+}
+
+function ScraperHealthTab({ isEn }: { isEn: boolean }) {
+  const [health, setHealth] = useState<HealthData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(7);
+
+  const fetchHealth = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/settings/health?days=${days}`);
+      const data = await res.json();
+      if (data?.corridors) setHealth(data);
+    } catch (err) { console.error('Failed to fetch health:', err); }
+    finally { setLoading(false); }
+  }, [days]);
+
+  useEffect(() => { fetchHealth(); }, [fetchHealth]);
+
+  function formatRunHour(rh: string | null) {
+    if (!rh) return '-';
+    const [date, time] = rh.split(' ');
+    return `${date.slice(5)} ${time}`;
+  }
+
+  function rateColor(rate: number) {
+    if (rate >= 95) return 'text-green-600 dark:text-green-400';
+    if (rate >= 80) return 'text-amber-600 dark:text-amber-400';
+    return 'text-red-600 dark:text-red-400';
+  }
+
+  function rateBg(rate: number) {
+    if (rate >= 95) return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300';
+    if (rate >= 80) return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300';
+    return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300';
+  }
+
+  if (loading) return <div className="p-8 text-center text-slate-400">Loading...</div>;
+  if (!health) return <div className="p-8 text-center text-slate-400">{isEn ? 'No health data available.' : '상태 데이터가 없습니다.'}</div>;
+
+  const issueCorridors = health.corridors.filter(c => c.operators.some(o => o.successRate < 95));
+
+  return (
+    <div className="space-y-6">
+      {/* Date range */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-slate-500">{isEn ? 'Period:' : '기간:'}</span>
+        {[1, 3, 7].map(d => (
+          <button key={d} onClick={() => setDays(d)}
+            className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${days === d ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
+            {d === 1 ? (isEn ? '24h' : '24시간') : `${d}${isEn ? ' days' : '일'}`}
+          </button>
+        ))}
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+          <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{isEn ? 'Total Scrape Runs' : '총 스크래핑 횟수'}</p>
+          <p className="text-2xl font-bold">{health.totalRuns}</p>
+        </div>
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+          <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{isEn ? 'Overall Success Rate' : '전체 성공률'}</p>
+          <p className={`text-2xl font-bold ${rateColor(health.overallSuccessRate)}`}>{health.overallSuccessRate}%</p>
+        </div>
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+          <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{isEn ? 'Corridors with Issues' : '이슈 발생 복도'}</p>
+          <p className={`text-2xl font-bold ${issueCorridors.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>{issueCorridors.length} / {health.corridors.length}</p>
+        </div>
+      </div>
+
+      {/* Per-corridor tables */}
+      {health.corridors.map(corridor => (
+        <div key={`${corridor.country}||${corridor.deliveryMethod}`} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">{corridor.country} <span className="text-slate-400 font-normal">— {corridor.deliveryMethod === 'Bank Account' ? 'Bank Deposit' : corridor.deliveryMethod}</span></h3>
+            <span className="text-xs text-slate-400">{corridor.totalRuns} {isEn ? 'runs' : '회'}</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-left text-xs text-slate-500 dark:text-slate-400">
+                  <th className="px-4 py-2.5">{isEn ? 'Operator' : '운영사'}</th>
+                  <th className="px-4 py-2.5 text-center">{isEn ? 'Success Rate' : '성공률'}</th>
+                  <th className="px-4 py-2.5 text-right">{isEn ? 'Successes' : '성공'}</th>
+                  <th className="px-4 py-2.5 text-right">{isEn ? 'Failures' : '실패'}</th>
+                  <th className="px-4 py-2.5">{isEn ? 'Last Success' : '최근 성공'}</th>
+                  <th className="px-4 py-2.5">{isEn ? 'Last Failure' : '최근 실패'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {corridor.operators.map(op => (
+                  <tr key={op.operator} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30">
+                    <td className="px-4 py-2.5 font-medium">{op.operator}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${rateBg(op.successRate)}`}>{op.successRate}%</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-green-600 dark:text-green-400">{op.successes}</td>
+                    <td className="px-4 py-2.5 text-right text-red-600 dark:text-red-400">{op.failures > 0 ? op.failures : '-'}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-400">{formatRunHour(op.lastSuccess)}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-400">{op.lastFailure ? formatRunHour(op.lastFailure) : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+
+      {/* Recent failures */}
+      {health.recentFailures.length > 0 && (
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+          <h2 className="text-sm font-semibold mb-3">{isEn ? 'Recent Failures' : '최근 실패'} <span className="text-slate-400 font-normal">({health.recentFailures.length})</span></h2>
+          <div className="space-y-1">
+            {health.recentFailures.map((f, i) => (
+              <div key={i} className="flex items-center gap-3 text-xs py-1.5 border-b border-slate-100 dark:border-slate-800/50">
+                <span className="text-slate-400">{formatRunHour(f.runHour)}</span>
+                <span className="font-medium">{f.country}</span>
+                <span className="text-red-600 dark:text-red-400">{f.operator}</span>
+                <span className="text-slate-400">{f.deliveryMethod === 'Bank Account' ? 'Bank Deposit' : f.deliveryMethod}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
