@@ -190,7 +190,6 @@ Next.js Dashboard (Vercel)
 | Mongolia | MNT | 2,500,000 | GME, GMoneyTrans, Utransfer, Cross, E9Pay, Coinshot, Hanpass |
 | Myanmar | MMK | 5,000,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
 | Cambodia | USD | 1,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay |
-| Cameroon | XAF | 200,000 | GME, GMoneyTrans (Mobile Wallet) |
 | Liberia | USD | 500 | GME, GMoneyTrans (Cash Pickup) |
 
 ## Scraper Libraries
@@ -209,7 +208,7 @@ Next.js Dashboard (Vercel)
 
 **Fee Overrides:** Admin edits in Settings persist across scraper runs. `seedFees()` only inserts new entries, never overwrites. `manually_edited` flag tracks admin changes. Reset button reverts to latest non-zero scraped value.
 
-**Delivery Methods:** Most corridors use Bank Account only. China has dual: Bank Account + Alipay with separate GME baselines. Cameroon uses Mobile Wallet. Liberia uses Cash Pickup.
+**Delivery Methods:** Most corridors use Bank Account only. China has dual: Bank Account + Alipay with separate GME baselines. Liberia uses Cash Pickup.
 
 **Alert Cooldown:** Per-rule cooldown checked against `alert_log`. Prevents email spam when same condition persists across multiple scrape cycles.
 

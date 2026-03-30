@@ -17,6 +17,7 @@ export default async function Home() {
   const { data: countryRows } = await supabase
     .from('rate_records')
     .select('receiving_country')
+    .is('deleted_at', null)
     .order('run_hour', { ascending: false })
     .limit(1000);
 

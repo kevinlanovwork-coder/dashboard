@@ -48,7 +48,6 @@ Competitor websites
 | Cambodia     | USD      | 1,000 USD          | GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay |
 | Myanmar      | MMK      | 5,000,000 MMK      | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
 | Philippines  | PHP      | 40,000 PHP         | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
-| Cameroon     | XAF      | 200,000 XAF        | GME, GMoneyTrans |
 | Liberia      | USD      | 500 USD            | GME, GMoneyTrans |
 
 > \* GMoneyTrans uses **Alipay** for China; all other operators use Bank Account transfer.
@@ -146,7 +145,6 @@ dashboard/
 |   +-- run-khm.js                     # Cambodia USD scraper
 |   +-- run-mmk.js                     # Myanmar MMK scraper
 |   +-- run-php.js                     # Philippines PHP scraper
-|   +-- run-xaf.js                     # Cameroon XAF scraper
 |   +-- run-lbr.js                     # Liberia USD scraper
 |   +-- package.json
 +-- data/
@@ -181,7 +179,6 @@ node --env-file=.env run-cny.js      # China
 node --env-file=.env run-khm.js      # Cambodia
 node --env-file=.env run-mmk.js      # Myanmar
 node --env-file=.env run-php.js      # Philippines
-node --env-file=.env run-xaf.js      # Cameroon
 node --env-file=.env run-lbr.js      # Liberia
 ```
 

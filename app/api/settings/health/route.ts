@@ -15,7 +15,6 @@ const EXPECTED_OPERATORS: Record<string, string[]> = {
   'China||Alipay':             ['GME', 'GMoneyTrans', 'Hanpass', 'E9Pay'],
   'Mongolia||Bank Deposit':    ['GME', 'GMoneyTrans', 'Utransfer', 'Cross', 'E9Pay', 'Coinshot', 'Hanpass'],
   'Myanmar||Bank Deposit':     ['GME', 'GMoneyTrans', 'Hanpass', 'SBI', 'E9Pay'],
-  'Cameroon||Mobile Wallet':   ['GME', 'GMoneyTrans'],
   'Liberia||Cash Pickup':      ['GME', 'GMoneyTrans'],
 };
 

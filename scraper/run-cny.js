@@ -397,7 +397,7 @@ const SCRAPERS = [
   { name: 'GME (Bank Deposit)',         fn: () => scrapeGmeApi('1', 'Bank Deposit'),                    needsBrowser: false },
   { name: 'GME (Alipay)',              fn: () => scrapeGmeApi('2', 'Alipay'),                           needsBrowser: false },
   { name: 'GMoneyTrans (Alipay)',      fn: () => scrapeGmoneytransApi('Alipay', 'Alipay'),              needsBrowser: false },
-  { name: 'GMoneyTrans (Bank Deposit)',fn: () => scrapeGmoneytransApi('Bank Deposit', 'Bank Deposit'),  needsBrowser: false },
+  // { name: 'GMoneyTrans (Bank Deposit)',fn: () => scrapeGmoneytransApi('Bank Deposit', 'Bank Deposit'),  needsBrowser: false }, // 비활성화: GMoneyTrans API가 SOAP XML 응답 반환 중 (2026-03-30)
   { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
   { name: 'Hanpass (Bank Transfer)', fn: () => withRetry(() => scrapeHanpass({ remittanceOption: 'BANK_TRANSFER', mtoServiceCenterCode: 'WUBT-0172', mtoProviderCode: 'WU' }, 'Bank Deposit')), needsBrowser: false },
   { name: 'Hanpass (Alipay)',       fn: () => withRetry(() => scrapeHanpass({ mtoServiceCenterCode: 'ALMW-0001' }, 'Alipay')),                                                                                                    needsBrowser: false },
