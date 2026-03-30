@@ -1,6 +1,13 @@
 import supabase from './supabase.js';
 import { sendAlertEmail } from './email.js';
 
+const CURRENCY_MAP = {
+  Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Nepal: 'NPR',
+  Philippines: 'PHP', Cambodia: 'USD', China: 'CNY', Mongolia: 'MNT',
+  Myanmar: 'MMK', Pakistan: 'PKR', Laos: 'LAK', 'Sri Lanka': 'LKR',
+  India: 'INR', Liberia: 'USD',
+};
+
 /**
  * Check alert rules against the latest scrape results and send one combined
  * email per corridor with all triggered operators, suggested GME rates, and thresholds.
@@ -79,17 +86,18 @@ export async function checkAlerts(records, runHour) {
         const gmeFee = gme?.service_fee ?? 0;
         const receiveAmount = r.receive_amount;
 
-        // Suggested GME total to match this competitor
-        const suggestedGmeTotal = r.total_sending_amount;
-        const suggestedGmeSend = suggestedGmeTotal - gmeFee;
-        // Suggested exchange rate: how much KRW per 1 unit of foreign currency
-        const suggestedRate = receiveAmount > 0 ? (suggestedGmeSend / receiveAmount) : null;
+        // Suggested GME send amount to match this competitor
+        const suggestedGmeSend = r.total_sending_amount - gmeFee;
+        // Suggested exchange rate — flip direction like Dashboard:
+        // raw = receiveAmount / sendKRW; if raw >= 1 → foreign per 1 KRW, else → KRW per 1 foreign
+        const suggestedRate = receiveAmount > 0 && suggestedGmeSend > 0
+          ? (() => { const raw = receiveAmount / suggestedGmeSend; return raw >= 1 ? raw : suggestedGmeSend / receiveAmount; })()
+          : null;
 
         triggered.push({
           ...r,
           threshold: rule.threshold_krw,
           gmeFee,
-          suggestedGmeTotal,
           suggestedGmeSend,
           suggestedRate,
         });
@@ -106,7 +114,7 @@ export async function checkAlerts(records, runHour) {
 
     const rows = triggered.map(r => {
       const gapColor = r.price_gap < 0 ? '#dc2626' : '#16a34a';
-      const rateStr = r.suggestedRate != null ? r.suggestedRate.toFixed(2) : '-';
+      const rateStr = r.suggestedRate != null ? r.suggestedRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
       return `
         <tr>
           <td style="padding:6px 10px;border:1px solid #ddd;">${r.operator}</td>
@@ -116,15 +124,16 @@ export async function checkAlerts(records, runHour) {
           <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;">${r.gme_baseline?.toLocaleString('ko-KR') ?? '-'}</td>
           <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;color:${gapColor};font-weight:bold;">${r.price_gap > 0 ? '+' : ''}${r.price_gap?.toLocaleString('ko-KR')}</td>
           <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;">${r.threshold?.toLocaleString('ko-KR')}</td>
-          <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;color:#2563eb;font-weight:bold;">${r.suggestedGmeTotal?.toLocaleString('ko-KR')}</td>
           <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;color:#2563eb;font-weight:bold;">${rateStr}</td>
         </tr>`;
     }).join('');
 
-    // GME current info with rate
+    // GME current info with rate (same flip logic as Dashboard)
     const gme = gmeRecords[0];
-    const gmeRate = gme && gme.receive_amount > 0 ? (gme.send_amount_krw / gme.receive_amount) : null;
-    const gmeRateStr = gmeRate != null ? gmeRate.toFixed(2) : '-';
+    const gmeRate = gme && gme.receive_amount > 0 && gme.send_amount_krw > 0
+      ? (() => { const raw = gme.receive_amount / gme.send_amount_krw; return raw >= 1 ? raw : gme.send_amount_krw / gme.receive_amount; })()
+      : null;
+    const gmeRateStr = gmeRate != null ? gmeRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
     const gmeInfo = gme
       ? `GME Current: ${gme.total_sending_amount?.toLocaleString('ko-KR')} KRW (Send: ${gme.send_amount_krw?.toLocaleString('ko-KR')} + Fee: ${gme.service_fee?.toLocaleString('ko-KR')}) | Rate: ${gmeRateStr}`
       : '';
@@ -132,7 +141,7 @@ export async function checkAlerts(records, runHour) {
     const html = `
       <div style="font-family:sans-serif;max-width:900px;">
         <h2 style="color:#1e293b;margin-bottom:4px;">GME Competitors Price Alert - ${country}</h2>
-        <p style="color:#64748b;margin-top:0;">Run: ${runHour} KST &nbsp;|&nbsp; Receive: ${gme?.receive_amount?.toLocaleString('ko-KR') ?? '-'} ${country}</p>
+        <p style="color:#64748b;margin-top:0;">Run: ${runHour} KST &nbsp;|&nbsp; Receive Amount: ${gme?.receive_amount?.toLocaleString('ko-KR') ?? '-'} ${CURRENCY_MAP[country] ?? country}</p>
         ${gmeInfo ? `<p style="color:#ef4444;font-weight:bold;margin:8px 0;">${gmeInfo}</p>` : ''}
         <table style="border-collapse:collapse;width:100%;font-size:13px;">
           <thead>
@@ -144,14 +153,13 @@ export async function checkAlerts(records, runHour) {
               <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;">GME Baseline</th>
               <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;">Price Gap</th>
               <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;">Threshold</th>
-              <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;color:#2563eb;">Suggested GME Total</th>
               <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;color:#2563eb;">Suggested Rate</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
         <p style="color:#94a3b8;font-size:12px;margin-top:12px;">
-          * Suggested GME Total = competitor's price (to match). Suggested Rate = (Suggested Total - GME Fee) / Receive Amount.
+          * Suggested Rate = rate GME needs to match the competitor's price (after deducting GME fee).
         </p>
         <p style="margin-top:12px;">
           <a href="https://gme-competitors-rate.vercel.app" style="color:#2563eb;">Open Dashboard</a>
