@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
       operator: body.operator || null,
       delivery_method: body.delivery_method || 'Bank Deposit',
       direction: body.direction || 'cheaper',
+      alert_type: body.alert_type || 'price',
       threshold_krw: body.threshold_krw,
       cooldown_minutes: body.cooldown_minutes ?? 120,
       is_active: body.is_active ?? true,
@@ -95,6 +96,7 @@ export async function PUT(req: NextRequest) {
   if (body.operator !== undefined) updates.operator = body.operator || null;
   if (body.delivery_method !== undefined) updates.delivery_method = body.delivery_method;
   if (body.direction !== undefined) updates.direction = body.direction;
+  if (body.alert_type !== undefined) updates.alert_type = body.alert_type;
   if (body.threshold_krw !== undefined) updates.threshold_krw = body.threshold_krw;
   if (body.cooldown_minutes !== undefined) updates.cooldown_minutes = body.cooldown_minutes;
   if (body.is_active !== undefined) updates.is_active = body.is_active;

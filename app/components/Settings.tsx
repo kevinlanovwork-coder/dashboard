@@ -10,6 +10,7 @@ interface AlertRule {
   operator: string | null;
   delivery_method: string;
   direction: string;
+  alert_type: string;
   threshold_krw: number;
   cooldown_minutes: number;
   is_active: boolean;
@@ -179,6 +180,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   const [formOperator, setFormOperator] = useState('');
   const [formDelivery, setFormDelivery] = useState('Bank Deposit');
   const [formDirection, setFormDirection] = useState('cheaper');
+  const [formAlertType, setFormAlertType] = useState('price');
   const [formThreshold, setFormThreshold] = useState('-2000');
   const [formCooldown, setFormCooldown] = useState(120);
 
@@ -217,14 +219,14 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
 
   function resetForm() {
     setFormCountry('Indonesia'); setFormOperator(''); setFormDelivery('Bank Deposit');
-    setFormDirection('cheaper'); setFormThreshold('-2000'); setFormCooldown(120);
+    setFormDirection('cheaper'); setFormAlertType('price'); setFormThreshold('-2000'); setFormCooldown(120);
     setEditingId(null); setShowForm(false);
   }
 
   function startEdit(rule: AlertRule) {
     setFormCountry(rule.receiving_country); setFormDelivery(rule.delivery_method);
     setFormOperator(rule.operator ?? ''); setFormDirection(rule.direction);
-    setFormThreshold(String(rule.threshold_krw)); setFormCooldown(rule.cooldown_minutes);
+    setFormAlertType(rule.alert_type ?? 'price'); setFormThreshold(String(rule.threshold_krw)); setFormCooldown(rule.cooldown_minutes);
     setEditingId(rule.id); setShowForm(true);
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }
@@ -232,7 +234,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   function startDuplicate(rule: AlertRule) {
     setFormCountry(rule.receiving_country); setFormDelivery(rule.delivery_method);
     setFormOperator(rule.operator ?? ''); setFormDirection(rule.direction);
-    setFormThreshold(String(rule.threshold_krw)); setFormCooldown(rule.cooldown_minutes);
+    setFormAlertType(rule.alert_type ?? 'price'); setFormThreshold(String(rule.threshold_krw)); setFormCooldown(rule.cooldown_minutes);
     setEditingId(null); setShowForm(true);
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }
@@ -251,7 +253,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
     await fetch('/api/alerts', {
       method: editingId ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: editingId, receiving_country: formCountry, operator: formOperator || null, delivery_method: formDelivery, direction: formDirection, threshold_krw: Number(formThreshold), cooldown_minutes: formCooldown, ...(editingId ? { is_active: true } : {}) }),
+      body: JSON.stringify({ id: editingId, receiving_country: formCountry, operator: formOperator || null, delivery_method: formDelivery, direction: formDirection, alert_type: formAlertType, threshold_krw: Number(formThreshold), cooldown_minutes: formCooldown, ...(editingId ? { is_active: true } : {}) }),
     });
     resetForm(); fetchRules();
   }
@@ -337,7 +339,8 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
             <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Delivery Method' : '입금 방식'}</label><select value={formDelivery} onChange={e => setFormDelivery(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm">{deliveryMethods.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
             <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Operator' : '운영사'}</label><select value={formOperator} onChange={e => setFormOperator(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"><option value="">{isEn ? 'Any operator' : '전체 운영사'}</option>{operators.filter(o => o !== 'GME').map(o => <option key={o} value={o}>{o}</option>)}</select></div>
             <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Direction' : '방향'}</label><select value={formDirection} onChange={e => setFormDirection(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"><option value="cheaper">{isEn ? 'Cheaper than GME' : 'GME보다 저렴'}</option><option value="any">{isEn ? 'Any direction' : '모든 방향'}</option></select></div>
-            <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Threshold (KRW)' : '임계값 (KRW)'}</label><input type="number" value={formThreshold} onChange={e => setFormThreshold(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm" /><p className="text-xs text-slate-400 mt-0.5">{isEn ? 'Alert when price gap drops below this value (e.g. -2000)' : '가격 차이가 이 값 이하일 때 알림 (예: -2000)'}</p></div>
+            <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Alert Type' : '알림 유형'}</label><select value={formAlertType} onChange={e => setFormAlertType(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"><option value="price">{isEn ? 'Price' : '가격'}</option><option value="rate">{isEn ? 'Rate' : '환율'}</option></select></div>
+            <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{formAlertType === 'rate' ? (isEn ? 'Threshold (Rate)' : '임계값 (환율)') : (isEn ? 'Threshold (KRW)' : '임계값 (KRW)')}</label><input type="number" step={formAlertType === 'rate' ? '0.01' : '1'} value={formThreshold} onChange={e => setFormThreshold(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm" /><p className="text-xs text-slate-400 mt-0.5">{formAlertType === 'rate' ? (isEn ? 'Alert when rate gap exceeds this value (e.g. 0.5)' : '환율 차이가 이 값을 초과할 때 알림 (예: 0.5)') : (isEn ? 'Alert when price gap drops below this value (e.g. -2000)' : '가격 차이가 이 값 이하일 때 알림 (예: -2000)')}</p></div>
             <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Cooldown' : '재알림 대기'}</label><select value={formCooldown} onChange={e => setFormCooldown(Number(e.target.value))} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm">{COOLDOWN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
           </div>
           <div className="flex gap-2">
@@ -367,6 +370,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
                   <th className="px-4 py-3 cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200 transition-colors" onClick={() => handleSort('receiving_country')}>{isEn ? 'Country' : '국가'}{sortIcon('receiving_country')}</th>
                   <th className="px-4 py-3 cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200 transition-colors" onClick={() => handleSort('delivery_method')}>{isEn ? 'Method' : '방식'}{sortIcon('delivery_method')}</th>
                   <th className="px-4 py-3 cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200 transition-colors" onClick={() => handleSort('operator')}>{isEn ? 'Operator' : '운영사'}{sortIcon('operator')}</th>
+                  <th className="px-4 py-3">{isEn ? 'Type' : '유형'}</th>
                   <th className="px-4 py-3">{isEn ? 'Threshold' : '임계값'}</th>
                   <th className="px-4 py-3">{isEn ? 'Cooldown' : '대기'}</th>
                   <th className="px-4 py-3">{isEn ? 'Last Triggered' : '마지막 알림'}</th>
@@ -380,7 +384,8 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
                     <td className="px-4 py-3 font-medium">{rule.receiving_country}</td>
                     <td className="px-4 py-3">{rule.delivery_method}</td>
                     <td className="px-4 py-3">{rule.operator ?? (isEn ? 'Any operator' : '전체 운영사')}</td>
-                    <td className="px-4 py-3 font-mono text-red-600 dark:text-red-400">{rule.threshold_krw.toLocaleString()}</td>
+                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs ${(rule.alert_type ?? 'price') === 'rate' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>{(rule.alert_type ?? 'price') === 'rate' ? (isEn ? 'Rate' : '환율') : (isEn ? 'Price' : '가격')}</span></td>
+                    <td className="px-4 py-3 font-mono text-red-600 dark:text-red-400">{(rule.alert_type ?? 'price') === 'rate' ? rule.threshold_krw : rule.threshold_krw.toLocaleString()}</td>
                     <td className="px-4 py-3">{COOLDOWN_OPTIONS.find(o => o.value === rule.cooldown_minutes)?.label ?? `${rule.cooldown_minutes}m`}</td>
                     <td className="px-4 py-3 text-xs text-slate-400">{formatDate(rule.lastTriggered)}</td>
                     <td className="px-4 py-3">
