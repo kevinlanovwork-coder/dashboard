@@ -157,7 +157,7 @@ const CURRENCY_MAP: Record<string, string> = {
   Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Nepal: 'NPR',
   Philippines: 'PHP', Malaysia: 'MYR', Singapore: 'SGD', Cambodia: 'USD',
   Japan: 'JPY', China: 'CNY', Mongolia: 'MNT', Myanmar: 'MMK',
-  Liberia: 'USD',
+  Pakistan: 'PKR', Laos: 'LAK', 'Sri Lanka': 'LKR', India: 'INR', Liberia: 'USD',
 };
 
 const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
@@ -165,7 +165,7 @@ const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
   Nepal: 'Bank Deposit', Philippines: 'Bank Deposit', Malaysia: 'Bank Deposit',
   Singapore: 'Bank Deposit', Cambodia: 'Bank Deposit', Japan: 'Bank Deposit',
   China: 'Alipay', Mongolia: 'Bank Deposit', Myanmar: 'Bank Deposit',
-  Liberia: 'Cash Pickup',
+  Pakistan: 'Bank Deposit', Laos: 'Bank Deposit', 'Sri Lanka': 'Bank Deposit', India: 'Bank Deposit', Liberia: 'Cash Pickup',
 };
 
 // GME embeds a service fee inside send_amount_krw for these corridors.

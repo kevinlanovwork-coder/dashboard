@@ -188,6 +188,10 @@ Next.js Dashboard (Vercel)
 | Philippines | PHP | 40,000 | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
 | Mongolia | MNT | 2,500,000 | GME, GMoneyTrans, Utransfer, Cross, E9Pay, Coinshot, Hanpass |
 | Myanmar | MMK | 5,000,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Pakistan | PKR | 100,000 | GME, GMoneyTrans, Sentbe, Hanpass, JRF |
+| Laos | LAK | 15,000,000 | GME, GMoneyTrans, E9Pay, Hanpass |
+| Sri Lanka | LKR | 230,000 | GME, Sentbe, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
+| India | INR | 100,000 | WireBarley, Sentbe, GMoneyTrans, GME, Hanpass |
 | Cambodia | USD | 1,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay |
 | Liberia | USD | 500 | GME, GMoneyTrans (Cash Pickup) |
 

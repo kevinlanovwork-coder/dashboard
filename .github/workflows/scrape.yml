@@ -34,6 +34,14 @@ jobs:
             script: run-mmk.js
           - name: Philippines PHP
             script: run-php.js
+          - name: Pakistan PKR
+            script: run-pkr.js
+          - name: Laos LAK
+            script: run-lak.js
+          - name: Sri Lanka LKR
+            script: run-lkr.js
+          - name: India INR
+            script: run-inr.js
           - name: Liberia USD
             script: run-lbr.js
 

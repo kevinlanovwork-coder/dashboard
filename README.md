@@ -47,6 +47,10 @@ Competitor websites
 | China        | CNY      | 10,000 CNY         | GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk |
 | Cambodia     | USD      | 1,000 USD          | GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay |
 | Myanmar      | MMK      | 5,000,000 MMK      | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Pakistan     | PKR      | 100,000 PKR        | GME, GMoneyTrans, Sentbe, Hanpass, JRF |
+| Laos         | LAK      | 15,000,000 LAK     | GME, GMoneyTrans, E9Pay, Hanpass |
+| Sri Lanka    | LKR      | 230,000 LKR        | GME, Sentbe, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
+| India        | INR      | 100,000 INR        | WireBarley, Sentbe, GMoneyTrans, GME, Hanpass |
 | Philippines  | PHP      | 40,000 PHP         | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
 | Liberia      | USD      | 500 USD            | GME, GMoneyTrans |
 
@@ -144,6 +148,10 @@ dashboard/
 |   +-- run-cny.js                     # China CNY scraper
 |   +-- run-khm.js                     # Cambodia USD scraper
 |   +-- run-mmk.js                     # Myanmar MMK scraper
+|   +-- run-pkr.js                     # Pakistan PKR scraper
+|   +-- run-lak.js                     # Laos LAK scraper
+|   +-- run-lkr.js                     # Sri Lanka LKR scraper
+|   +-- run-inr.js                     # India INR scraper
 |   +-- run-php.js                     # Philippines PHP scraper
 |   +-- run-lbr.js                     # Liberia USD scraper
 |   +-- package.json
@@ -178,6 +186,10 @@ node --env-file=.env run-npr.js      # Nepal
 node --env-file=.env run-cny.js      # China
 node --env-file=.env run-khm.js      # Cambodia
 node --env-file=.env run-mmk.js      # Myanmar
+node --env-file=.env run-pkr.js      # Pakistan
+node --env-file=.env run-lak.js      # Laos
+node --env-file=.env run-lkr.js      # Sri Lanka
+node --env-file=.env run-inr.js      # India
 node --env-file=.env run-php.js      # Philippines
 node --env-file=.env run-lbr.js      # Liberia
 ```

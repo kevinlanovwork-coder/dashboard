@@ -59,6 +59,10 @@ const OPERATOR_MAP: Record<string, string[]> = {
   'China||Alipay':             ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'WireBarley', 'Coinshot', 'E9Pay', 'Utransfer', 'Moin', 'Debunk'],
   'Mongolia||Bank Deposit':    ['GME', 'GMoneyTrans', 'Utransfer', 'Cross', 'E9Pay', 'Coinshot', 'Hanpass'],
   'Myanmar||Bank Deposit':     ['GME', 'GMoneyTrans', 'Hanpass', 'SBI', 'E9Pay'],
+  'Pakistan||Bank Deposit':    ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'JRF'],
+  'Laos||Bank Deposit':        ['GME', 'GMoneyTrans', 'E9Pay', 'Hanpass'],
+  'Sri Lanka||Bank Deposit':   ['GME', 'Sentbe', 'E9Pay', 'GMoneyTrans', 'Coinshot', 'JRF', 'Hanpass'],
+  'India||Bank Deposit':       ['WireBarley', 'Sentbe', 'GMoneyTrans', 'GME', 'Hanpass'],
   'Liberia||Cash Pickup':      ['GME', 'GMoneyTrans'],
 };
 
@@ -66,7 +70,7 @@ const DELIVERY_METHOD_MAP: Record<string, string[]> = {
   Indonesia: ['Bank Deposit'], Thailand: ['Bank Deposit'], Vietnam: ['Bank Deposit'],
   Nepal: ['Bank Deposit'], Philippines: ['Bank Deposit'], Cambodia: ['Bank Deposit'],
   China: ['Alipay'], Mongolia: ['Bank Deposit'], Myanmar: ['Bank Deposit'],
-  Liberia: ['Cash Pickup'],
+  Pakistan: ['Bank Deposit'], Laos: ['Bank Deposit'], 'Sri Lanka': ['Bank Deposit'], India: ['Bank Deposit'], Liberia: ['Cash Pickup'],
 };
 
 const COUNTRIES = Object.keys(DELIVERY_METHOD_MAP);
