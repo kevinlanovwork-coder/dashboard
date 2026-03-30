@@ -44,13 +44,13 @@ Competitor websites
 | Vietnam      | VND      | 20,000,000 VND     | GME, GMoneyTrans, Sentbe, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
 | Mongolia     | MNT      | 2,500,000 MNT      | GME, GMoneyTrans, Sentbe, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
 | Nepal        | NPR      | 100,000 NPR        | GME, GMoneyTrans, Sentbe, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
-| China        | CNY      | 10,000 CNY         | GME, GMoneyTrans*, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer |
+| China        | CNY      | 10,000 CNY         | GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk |
 | Cambodia     | USD      | 1,000 USD          | GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay |
 | Myanmar      | MMK      | 5,000,000 MMK      | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
 | Philippines  | PHP      | 40,000 PHP         | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
 | Liberia      | USD      | 500 USD            | GME, GMoneyTrans |
 
-> \* GMoneyTrans uses **Alipay** for China; all other operators use Bank Account transfer.
+> All China operators use **Alipay** as the delivery method.
 
 ---
 

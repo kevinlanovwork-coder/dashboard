@@ -28,6 +28,7 @@ const EN = {
   gmeBaselineLegend: 'GME (baseline)',
   moreExpensiveLegend: 'More expensive than GME',
   cheaperLegend: 'Cheaper than GME',
+  rateLegend: (curr: string, perKRW: boolean) => perKRW ? `( ) = Exchange rate (${curr} per 1 KRW)` : `( ) = Exchange rate (KRW per 1 ${curr})`,
   avgDiffTitle: 'Avg. Price Difference by Operator',
   avgDiffSub: (date: string) => `Daily avg. for ${date} (vs GME, KRW)`,
   gmeWins: 'More expensive than GME (GME wins)',
@@ -85,6 +86,7 @@ const KO = {
   gmeBaselineLegend: 'GME (기준)',
   moreExpensiveLegend: 'GME보다 비쌈',
   cheaperLegend: 'GME보다 저렴',
+  rateLegend: (curr: string, perKRW: boolean) => perKRW ? `( ) = 환율 (1 KRW 기준 ${curr})` : `( ) = 환율 (1 ${curr} 기준 KRW)`,
   avgDiffTitle: '운영사별 평균 가격 차이',
   avgDiffSub: (date: string) => `${date} 일별 평균 (GME 기준, KRW)`,
   gmeWins: 'GME보다 비쌈 (GME 유리)',
@@ -162,7 +164,7 @@ const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
   Indonesia: 'Bank Deposit', Thailand: 'Bank Deposit', Vietnam: 'Bank Deposit',
   Nepal: 'Bank Deposit', Philippines: 'Bank Deposit', Malaysia: 'Bank Deposit',
   Singapore: 'Bank Deposit', Cambodia: 'Bank Deposit', Japan: 'Bank Deposit',
-  China: ['Bank Deposit', 'Alipay'], Mongolia: 'Bank Deposit', Myanmar: 'Bank Deposit',
+  China: 'Alipay', Mongolia: 'Bank Deposit', Myanmar: 'Bank Deposit',
   Liberia: 'Cash Pickup',
 };
 
@@ -393,7 +395,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     refLine:  isDark ? '#334155' : '#cbd5e1',
   };
 
-  // Delivery method support for multi-method corridors (e.g. China: Bank Deposit / Alipay)
+  // Delivery method support for corridors with non-default methods (e.g. China: Alipay)
   const deliveryMethods = useMemo(() => {
     const methods = DEPOSIT_METHOD_MAP[selectedCountry];
     if (Array.isArray(methods)) return methods;
@@ -453,6 +455,9 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
       displayRate: r.sendAmountKRW > 0
         ? (() => { const exKRW = rateExchangeKRW(r); const raw = r.receiveAmount / exKRW; return parseFloat((raw >= 1 ? raw : exKRW / r.receiveAmount).toFixed(2)); })()
         : null,
+      rateIsPerKRW: r.sendAmountKRW > 0
+        ? (() => { const exKRW = rateExchangeKRW(r); return r.receiveAmount / exKRW >= 1; })()
+        : false,
     })),
     [snapshot]
   );
@@ -933,7 +938,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                         const isGME = props.payload.value === 'GME';
                         const rate = snapshotRateMap[props.payload.value];
                         const label = isGME ? '★ GME' : props.payload.value;
-                        const rateStr = rate != null ? ` - ${rate.toFixed(2)}` : '';
+                        const rateStr = rate != null ? ` (${rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : '';
                         return (
                           <text x={props.x} y={props.y} dy={4} textAnchor="end" fontSize={11}
                             fill={isGME ? '#ef4444' : ct.yLabel}
@@ -990,10 +995,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               ) : (
                 <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.noData}</div>
               )}
-              <div className="flex items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
+              <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />{t.gmeBaselineLegend}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.moreExpensiveLegend}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.cheaperLegend}</span>
+                <span className="text-slate-400 dark:text-slate-600">|</span>
+                <span>{t.rateLegend(CURRENCY_MAP[selectedCountry] ?? '', snapshotChartData[0]?.rateIsPerKRW ?? false)}</span>
               </div>
             </div>
 

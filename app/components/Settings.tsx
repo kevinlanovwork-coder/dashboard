@@ -56,8 +56,7 @@ const OPERATOR_MAP: Record<string, string[]> = {
   'Nepal||Bank Deposit':       ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'JRF', 'E9Pay', 'Coinshot'],
   'Philippines||Bank Deposit': ['GME', 'GMoneyTrans', 'SBI', 'Coinshot', 'Cross', 'E9Pay', 'JRF', 'Utransfer', 'Hanpass'],
   'Cambodia||Bank Deposit':    ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'E9Pay'],
-  'China||Bank Deposit':       ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'WireBarley', 'Coinshot', 'Utransfer', 'Moin', 'Debunk'],
-  'China||Alipay':             ['GME', 'GMoneyTrans', 'Hanpass', 'E9Pay'],
+  'China||Alipay':             ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'WireBarley', 'Coinshot', 'E9Pay', 'Utransfer', 'Moin', 'Debunk'],
   'Mongolia||Bank Deposit':    ['GME', 'GMoneyTrans', 'Utransfer', 'Cross', 'E9Pay', 'Coinshot', 'Hanpass'],
   'Myanmar||Bank Deposit':     ['GME', 'GMoneyTrans', 'Hanpass', 'SBI', 'E9Pay'],
   'Liberia||Cash Pickup':      ['GME', 'GMoneyTrans'],
@@ -66,7 +65,7 @@ const OPERATOR_MAP: Record<string, string[]> = {
 const DELIVERY_METHOD_MAP: Record<string, string[]> = {
   Indonesia: ['Bank Deposit'], Thailand: ['Bank Deposit'], Vietnam: ['Bank Deposit'],
   Nepal: ['Bank Deposit'], Philippines: ['Bank Deposit'], Cambodia: ['Bank Deposit'],
-  China: ['Bank Deposit', 'Alipay'], Mongolia: ['Bank Deposit'], Myanmar: ['Bank Deposit'],
+  China: ['Alipay'], Mongolia: ['Bank Deposit'], Myanmar: ['Bank Deposit'],
   Liberia: ['Cash Pickup'],
 };
 

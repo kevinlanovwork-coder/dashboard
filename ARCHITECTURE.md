@@ -183,8 +183,7 @@ Next.js Dashboard (Vercel)
 | Indonesia | IDR | 13,000,000 | GME, GMoneyTrans, Sentbe, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
 | Thailand | THB | 26,000 | GME, GMoneyTrans, WireBarley, Sentbe, Hanpass, SBI, Cross, Coinshot, JRF, E9Pay |
 | Vietnam | VND | 20,000,000 | GME, Sentbe, SBI, GMoneyTrans, E9Pay, Hanpass, Cross, JRF |
-| China (Bank) | CNY | 10,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, Utransfer, Moin, Debunk |
-| China (Alipay) | CNY | 10,000 | GME, GMoneyTrans, Hanpass, E9Pay |
+| China (Alipay) | CNY | 10,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk |
 | Nepal | NPR | 100,000 | GME, GMoneyTrans, Sentbe, Hanpass, JRF, E9Pay, Coinshot |
 | Philippines | PHP | 40,000 | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
 | Mongolia | MNT | 2,500,000 | GME, GMoneyTrans, Utransfer, Cross, E9Pay, Coinshot, Hanpass |
@@ -208,7 +207,7 @@ Next.js Dashboard (Vercel)
 
 **Fee Overrides:** Admin edits in Settings persist across scraper runs. `seedFees()` only inserts new entries, never overwrites. `manually_edited` flag tracks admin changes. Reset button reverts to latest non-zero scraped value.
 
-**Delivery Methods:** Most corridors use Bank Account only. China has dual: Bank Account + Alipay with separate GME baselines. Liberia uses Cash Pickup.
+**Delivery Methods:** Most corridors use Bank Deposit. China uses Alipay. Liberia uses Cash Pickup.
 
 **Alert Cooldown:** Per-rule cooldown checked against `alert_log`. Prevents email spam when same condition persists across multiple scrape cycles.
 

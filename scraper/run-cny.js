@@ -3,7 +3,7 @@
  * 실행: node --env-file=.env run-cny.js
  *
  * 지원 사업자: GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk
- * 수령 방식: GME/GMoneyTrans = Bank Deposit + Alipay (이중 스크래핑), 나머지 = Bank Deposit
+ * 수령 방식: 전체 Alipay
  *
  * 수수료 (하드코딩):
  *   E9Pay=7,000  GMoneyTrans=4,000  Sentbe=0  SBI=5,000  Hanpass=0  Coinshot=10,000
@@ -17,8 +17,7 @@ import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 const COUNTRY = 'China';
 const AMOUNT  = 10_000;
 
-// ─── GME (API — Bank Deposit / Alipay) ──────────────────────────────────────
-// deliveryMethod: 1 = Bank Deposit, 2 = Alipay
+// ─── GME (API — Alipay) ─────────────────────────────────────────────────────
 async function scrapeGmeApi(deliveryMethodCode, deliveryMethodName) {
   const body = new URLSearchParams({
     method: 'GetExRate', pCurr: 'CNY', pCountryName: 'China',
@@ -41,8 +40,7 @@ async function scrapeGmeApi(deliveryMethodCode, deliveryMethodName) {
     delivery_method: deliveryMethodName };
 }
 
-// ─── GMoneyTrans (API — Bank Deposit / Alipay) ──────────────────────────────
-// payment_type: 'Alipay' or 'Bank Deposit'
+// ─── GMoneyTrans (API — Alipay) ─────────────────────────────────────────────
 async function scrapeGmoneytransApi(paymentType, deliveryMethodName) {
   const url = 'https://mapi.gmoneytrans.net/exratenew1/ajx_calcRate.asp'
     + `?receive_amount=${AMOUNT}`
@@ -95,14 +93,12 @@ async function scrapeSentbe(browser) {
     const fee = 0; // hardcoded
     return { operator: 'Sentbe', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee,
-      delivery_method: 'Bank Deposit' };
+      delivery_method: 'Alipay' };
   } finally { await page.close(); await context.close(); }
 }
 
-// ─── Hanpass (API — Bank Transfer / Alipay) ──────────────────────────────────
-// Bank Transfer requires: remittanceOption='BANK_TRANSFER' + mtoServiceCenterCode (bank) + mtoProviderCode
-// Alipay requires: mtoServiceCenterCode='ALMW-0001'
-// Both have fee 0 with correct parameters.
+// ─── Hanpass (API — Alipay) ──────────────────────────────────────────────────
+// Alipay requires: mtoServiceCenterCode='ALMW-0001', fee 0.
 async function scrapeHanpass(extraParams, deliveryMethodLabel) {
   const body = {
     inputAmount: String(AMOUNT), inputCurrencyCode: 'CNY',
@@ -153,7 +149,7 @@ async function scrapeSbi(browser) {
     const fee = 5000; // hardcoded
     return { operator: 'SBI', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee,
-      delivery_method: 'Bank Deposit' };
+      delivery_method: 'Alipay' };
   } finally { await page.close(); await context.close(); }
 }
 
@@ -179,10 +175,10 @@ async function scrapeCross(browser) {
       if (total && total !== 1_000_000) break;
     }
     if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    const fee = 5000;
+    const fee = 0;
     return { operator: 'Cross', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee,
-      delivery_method: 'Bank Deposit' };
+      delivery_method: 'Alipay' };
   } finally { await page.close(); }
 }
 
@@ -227,7 +223,7 @@ async function scrapeWirebarley(browser) {
     const fee = extractNumber(feeRaw) ?? 0;
     return { operator: 'WireBarley', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total,
-      delivery_method: 'Bank Deposit' };
+      delivery_method: 'Alipay' };
   } finally { await page.close(); await context.close(); }
 }
 
@@ -256,7 +252,7 @@ async function scrapeCoinshot(browser) {
     const fee = 10000; // hardcoded
     return { operator: 'Coinshot', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee,
-      delivery_method: 'Bank Deposit' };
+      delivery_method: 'Alipay' };
   } finally { await page.close(); }
 }
 
@@ -327,7 +323,7 @@ async function scrapeUtransfer(browser) {
     const fee = extractNumber(feeRaw) ?? 5000;
     return { operator: 'Utransfer', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee,
-      delivery_method: 'Bank Deposit' };
+      delivery_method: 'Alipay' };
   } finally { await page.close(); }
 }
 
@@ -363,7 +359,7 @@ async function scrapeMoin(browser) {
     if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     return { operator: 'Moin', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: 0, total_sending_amount: total,
-      delivery_method: 'Bank Deposit' };
+      delivery_method: 'Alipay' };
   } finally { await page.close(); }
 }
 
@@ -385,22 +381,19 @@ async function scrapeDebunk(browser) {
     const raw = await page.$eval('#sendCurrency', el => el.value).catch(() => null);
     const sendAmt = extractNumber(raw);
     if (!sendAmt) throw new Error('총 송금액 추출 실패');
-    const fee = 5000; // hardcoded (shown on page)
+    const fee = 0;
     return { operator: 'Debunk', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee,
-      delivery_method: 'Bank Deposit' };
+      delivery_method: 'Alipay' };
   } finally { await page.close(); }
 }
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
-  { name: 'GME (Bank Deposit)',         fn: () => scrapeGmeApi('1', 'Bank Deposit'),                    needsBrowser: false },
-  { name: 'GME (Alipay)',              fn: () => scrapeGmeApi('2', 'Alipay'),                           needsBrowser: false },
-  { name: 'GMoneyTrans (Alipay)',      fn: () => scrapeGmoneytransApi('Alipay', 'Alipay'),              needsBrowser: false },
-  // { name: 'GMoneyTrans (Bank Deposit)',fn: () => scrapeGmoneytransApi('Bank Deposit', 'Bank Deposit'),  needsBrowser: false }, // 비활성화: GMoneyTrans API가 SOAP XML 응답 반환 중 (2026-03-30)
+  { name: 'GME',                       fn: () => scrapeGmeApi('2', 'Alipay'),                           needsBrowser: false },
+  { name: 'GMoneyTrans',              fn: () => scrapeGmoneytransApi('Alipay', 'Alipay'),              needsBrowser: false },
   { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
-  { name: 'Hanpass (Bank Transfer)', fn: () => withRetry(() => scrapeHanpass({ remittanceOption: 'BANK_TRANSFER', mtoServiceCenterCode: 'WUBT-0172', mtoProviderCode: 'WU' }, 'Bank Deposit')), needsBrowser: false },
-  { name: 'Hanpass (Alipay)',       fn: () => withRetry(() => scrapeHanpass({ mtoServiceCenterCode: 'ALMW-0001' }, 'Alipay')),                                                                                                    needsBrowser: false },
+  { name: 'Hanpass',           fn: () => withRetry(() => scrapeHanpass({ mtoServiceCenterCode: 'ALMW-0001' }, 'Alipay')),  needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },
   { name: 'WireBarley',  fn: (b) => withRetry(() => scrapeWirebarley(b)), needsBrowser: true  },
@@ -452,17 +445,14 @@ async function main() {
   const feeMap = await loadFees(COUNTRY);
   const adjusted = applyFeeOverrides(results, feeMap);
 
-  // GME 기준값 — delivery_method 별로 분리
-  const gmeBankRecord   = adjusted.find(r => r.operator === 'GME' && r.delivery_method === 'Bank Deposit');
-  const gmeAlipayRecord = adjusted.find(r => r.operator === 'GME' && r.delivery_method === 'Alipay');
-  const gmeBankBaseline   = gmeBankRecord?.total_sending_amount ?? null;
-  const gmeAlipayBaseline = gmeAlipayRecord?.total_sending_amount ?? null;
+  // GME 기준값
+  const gmeRecord   = adjusted.find(r => r.operator === 'GME');
+  const gmeBaseline = gmeRecord?.total_sending_amount ?? null;
 
-  if (!gmeBankBaseline) console.warn('\n⚠️  GME Bank Deposit 기준값 없음 — Bank Deposit price_gap 계산 불가');
-  if (!gmeAlipayBaseline) console.warn('\n⚠️  GME Alipay 기준값 없음 — Alipay price_gap 계산 불가');
+  if (!gmeBaseline) console.warn('\n⚠️  GME 기준값 없음 — price_gap 계산 불가');
 
   const toSave = adjusted.map(r => {
-    const baseline = r.delivery_method === 'Alipay' ? gmeAlipayBaseline : gmeBankBaseline;
+    const baseline = gmeBaseline;
     const priceGap = baseline && r.operator !== 'GME'
       ? r.total_sending_amount - baseline : null;
     const status = priceGap === null ? null : priceGap > 0 ? 'GME 유리' : '경쟁사 유리';
