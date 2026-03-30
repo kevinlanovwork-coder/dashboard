@@ -119,7 +119,7 @@ async function scrapeHanpass() {
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
   { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
-  { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
+  // { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false }, // 비활성화: API가 SOAP XML 응답 반환 중 (2026-03-30)
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
 ];
