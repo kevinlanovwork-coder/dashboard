@@ -300,8 +300,27 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
     return sorted.sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1));
   }, [filteredRules, sortColumn, sortAsc]);
 
-  const totalRulesPages = Math.ceil(sortedRules.length / RULES_PAGE_SIZE);
-  const pagedRules = sortedRules.slice(rulesPage * RULES_PAGE_SIZE, (rulesPage + 1) * RULES_PAGE_SIZE);
+  // Group rules with same settings but different operators into a single row
+  const groupedRules = useMemo(() => {
+    const groups: { key: string; rules: AlertRule[]; operators: string[]; is_active: boolean }[] = [];
+    const map = new Map<string, typeof groups[0]>();
+    for (const rule of sortedRules) {
+      const k = `${rule.receiving_country}||${rule.delivery_method}||${rule.direction}||${rule.alert_type ?? 'price'}||${rule.threshold_krw}||${rule.cooldown_minutes}||${rule.is_active}`;
+      const existing = map.get(k);
+      if (existing) {
+        existing.rules.push(rule);
+        existing.operators.push(rule.operator ?? (isEn ? 'Any' : '전체'));
+      } else {
+        const g = { key: k, rules: [rule], operators: [rule.operator ?? (isEn ? 'Any' : '전체')], is_active: rule.is_active };
+        groups.push(g);
+        map.set(k, g);
+      }
+    }
+    return groups;
+  }, [sortedRules, isEn]);
+
+  const totalRulesPages = Math.ceil(groupedRules.length / RULES_PAGE_SIZE);
+  const pagedGroups = groupedRules.slice(rulesPage * RULES_PAGE_SIZE, (rulesPage + 1) * RULES_PAGE_SIZE);
   const sortIcon = (col: string) => sortColumn !== col ? ' ↕' : sortAsc ? ' ↑' : ' ↓';
 
   return (
@@ -364,7 +383,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
           <option value="">{isEn ? 'All Countries' : '전체 국가'}</option>
           {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
-        <span className="text-xs text-slate-400">{sortedRules.length} {isEn ? 'rules' : '규칙'}</span>
+        <span className="text-xs text-slate-400">{groupedRules.length} {isEn ? 'groups' : '그룹'} ({sortedRules.length} {isEn ? 'rules' : '규칙'})</span>
       </div>
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
         {loading ? <div className="p-8 text-center text-slate-400">Loading...</div>
@@ -386,32 +405,36 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
                 </tr>
               </thead>
               <tbody>
-                {pagedRules.map(rule => (
-                  <tr key={rule.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30">
-                    <td className="px-4 py-3"><button onClick={() => handleToggle(rule)} className={`w-10 h-5 rounded-full transition-colors relative ${rule.is_active ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${rule.is_active ? 'left-5' : 'left-0.5'}`} /></button></td>
+                {pagedGroups.map(group => {
+                  const rule = group.rules[0];
+                  const allIds = group.rules.map(r => r.id);
+                  return (
+                  <tr key={group.key} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30">
+                    <td className="px-4 py-3"><button onClick={async () => { await Promise.all(group.rules.map(r => fetch('/api/alerts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id, is_active: !group.is_active }) }))); fetchRules(); }} className={`w-10 h-5 rounded-full transition-colors relative ${group.is_active ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${group.is_active ? 'left-5' : 'left-0.5'}`} /></button></td>
                     <td className="px-4 py-3 font-medium">{rule.receiving_country}</td>
                     <td className="px-4 py-3">{rule.delivery_method}</td>
-                    <td className="px-4 py-3">{rule.operator ?? (isEn ? 'Any operator' : '전체 운영사')}</td>
+                    <td className="px-4 py-3"><div className="flex flex-wrap gap-1">{group.operators.map((op, i) => <span key={i} className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">{op}</span>)}</div></td>
                     <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs ${(rule.alert_type ?? 'price') === 'rate' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>{(rule.alert_type ?? 'price') === 'rate' ? (isEn ? 'Rate' : '환율') : (isEn ? 'Price' : '가격')}</span></td>
                     <td className="px-4 py-3 font-mono text-red-600 dark:text-red-400">{(rule.alert_type ?? 'price') === 'rate' ? rule.threshold_krw : rule.threshold_krw.toLocaleString()}</td>
                     <td className="px-4 py-3">{COOLDOWN_OPTIONS.find(o => o.value === rule.cooldown_minutes)?.label ?? `${rule.cooldown_minutes}m`}</td>
-                    <td className="px-4 py-3 text-xs text-slate-400">{formatDate(rule.lastTriggered)}</td>
+                    <td className="px-4 py-3 text-xs text-slate-400">{formatDate(group.rules.reduce((latest, r) => r.lastTriggered && (!latest || r.lastTriggered > latest) ? r.lastTriggered : latest, null as string | null))}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
                         <button onClick={() => startDuplicate(rule)} className="px-2 py-1 text-xs rounded border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">{isEn ? 'Duplicate' : '복제'}</button>
                         <button onClick={() => startEdit(rule)} className="px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Edit</button>
-                        <button onClick={() => handleDelete(rule.id)} className="px-2 py-1 text-xs rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">{isEn ? 'Delete' : '삭제'}</button>
+                        <button onClick={async () => { if (!confirm(isEn ? `Delete ${allIds.length} rule(s)?` : `${allIds.length}개 규칙을 삭제하시겠습니까?`)) return; await Promise.all(allIds.map(id => fetch('/api/alerts', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))); fetchRules(); }} className="px-2 py-1 text-xs rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">{isEn ? 'Delete' : '삭제'}</button>
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
         {totalRulesPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 text-xs text-slate-500 border-t border-slate-200 dark:border-slate-800">
-            <span>{rulesPage * RULES_PAGE_SIZE + 1}–{Math.min((rulesPage + 1) * RULES_PAGE_SIZE, sortedRules.length)} / {sortedRules.length}</span>
+            <span>{rulesPage * RULES_PAGE_SIZE + 1}–{Math.min((rulesPage + 1) * RULES_PAGE_SIZE, groupedRules.length)} / {groupedRules.length}</span>
             <div className="flex items-center gap-1.5">
               <button onClick={() => setRulesPage(p => Math.max(0, p - 1))} disabled={rulesPage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
               <span className="px-2">{rulesPage + 1} / {totalRulesPages}</span>
