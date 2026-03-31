@@ -23,7 +23,7 @@ const EN = {
   expensiveCompetitors: 'More Expensive Competitors',
   pricierThanGME: 'Services pricier than GME',
   snapshotTitle: 'Collection Amount',
-  snapshotSub: (time: string) => `as of ${time} (KRW, lower is better)`,
+  snapshotSub: (time: string) => `as of ${time} (vs GME, KRW)`,
   noData: 'No data',
   gmeBaselineLegend: 'GME (baseline)',
   moreExpensiveLegend: 'More expensive than GME',
@@ -81,7 +81,7 @@ const KO = {
   expensiveCompetitors: 'GME 우위 경쟁사',
   pricierThanGME: 'GME보다 비싼 서비스',
   snapshotTitle: '수금액',
-  snapshotSub: (time: string) => `${time} 기준 (KRW, 낮을수록 유리)`,
+  snapshotSub: (time: string) => `${time} 기준 (GME 대비, KRW)`,
   noData: '데이터 없음',
   gmeBaselineLegend: 'GME (기준)',
   moreExpensiveLegend: 'GME보다 비쌈',
@@ -470,7 +470,9 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   }, [snapshotChartData]);
 
   const filteredSnapshotData = useMemo(
-    () => snapshotChartData.filter(r => r.operator === 'GME' || !snapshotHiddenOps.has(r.operator)),
+    () => snapshotChartData
+      .filter(r => r.operator === 'GME' || !snapshotHiddenOps.has(r.operator))
+      .map(r => ({ ...r, priceGap: r.status === 'GME' ? 0 : (r.priceGap ?? 0) })),
     [snapshotChartData, snapshotHiddenOps]
   );
 
@@ -925,8 +927,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
                     <XAxis
                       type="number"
-                      domain={['auto', 'auto']}
-                      tickFormatter={v => `${(v / 1000).toFixed(0)}K`}
+                      tickFormatter={v => `${v > 0 ? '+' : ''}${(v / 1000).toFixed(1)}K`}
                       tick={{ fill: ct.tick, fontSize: 11 }}
                       axisLine={{ stroke: ct.axisLine }}
                       tickLine={false}
@@ -953,14 +954,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                       width={155}
                     />
                     <Tooltip content={(props) => <SnapshotTooltip {...props} t={t} />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
-                    {snapshotGMEBaseline && (
-                      <ReferenceLine
-                        x={snapshotGMEBaseline}
-                        stroke="#ef4444"
-                        strokeDasharray="5 3"
-                      />
-                    )}
-                    <Bar dataKey="totalSendingAmount" radius={[0, 4, 4, 0]}>
+                    <ReferenceLine x={0} stroke={ct.refLine} strokeWidth={1.5} label={{ value: 'GME', position: 'top', fill: '#ef4444', fontSize: 11, fontWeight: 700 }} />
+                    <Bar dataKey="priceGap" radius={[0, 4, 4, 0]}>
                       {filteredSnapshotData.map((entry, i) => (
                         <Cell key={i} fill={statusColor(entry.status).hex} />
                       ))}
@@ -971,19 +966,13 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                           if (isNaN(nx) || index == null) return null;
                           const entry = filteredSnapshotData[index];
                           if (!entry) return null;
-                          const labelX = nx + nw + 4;
-                          if (entry.status === 'GME') {
-                            return (
-                              <text x={labelX} y={ny + nh / 2} dy={4} fontSize={10} fill="#ef4444" fontWeight={700} textAnchor="start">
-                                GME
-                              </text>
-                            );
-                          }
+                          if (entry.status === 'GME') return null; // GME is at zero, label handled by ReferenceLine
                           const gap = entry.priceGap;
                           if (gap == null || gap === 0) return null;
                           const label = `${gap > 0 ? '+' : ''}${gap.toLocaleString('ko-KR')}`;
+                          const labelX = gap >= 0 ? nx + nw + 4 : nx + nw - 4;
                           return (
-                            <text x={labelX} y={ny + nh / 2} dy={4} fontSize={10} fill={isDark ? '#f1f5f9' : '#1e293b'} fontWeight={700} textAnchor="start">
+                            <text x={labelX} y={ny + nh / 2} dy={4} fontSize={10} fill={isDark ? '#f1f5f9' : '#1e293b'} fontWeight={700} textAnchor={gap >= 0 ? 'start' : 'end'}>
                               {label}
                             </text>
                           );
