@@ -187,7 +187,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   const operators = useMemo(() => OPERATOR_MAP[`${formCountry}||${formDelivery}`] ?? [], [formCountry, formDelivery]);
 
   useEffect(() => { setFormDelivery((DELIVERY_METHOD_MAP[formCountry] ?? ['Bank Deposit'])[0]); }, [formCountry]);
-  useEffect(() => { setFormOperator(''); }, [formDelivery]);
+  useEffect(() => { setFormOperators(new Set()); }, [formDelivery]);
 
   const fetchRules = useCallback(async () => {
     try {
