@@ -52,7 +52,6 @@ Competitor websites
 | Sri Lanka    | LKR      | 230,000 LKR        | GME, Sentbe, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
 | India        | INR      | 100,000 INR        | WireBarley, Sentbe, GMoneyTrans, GME, Hanpass |
 | Philippines  | PHP      | 40,000 PHP         | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
-| Liberia      | USD      | 500 USD            | GME, GMoneyTrans |
 
 > All China operators use **Alipay** as the delivery method.
 
@@ -153,7 +152,6 @@ dashboard/
 |   +-- run-lkr.js                     # Sri Lanka LKR scraper
 |   +-- run-inr.js                     # India INR scraper
 |   +-- run-php.js                     # Philippines PHP scraper
-|   +-- run-lbr.js                     # Liberia USD scraper
 |   +-- package.json
 +-- data/
 |   +-- rates.csv                      # Historical rates data (backup/seed)
@@ -191,7 +189,6 @@ node --env-file=.env run-lak.js      # Laos
 node --env-file=.env run-lkr.js      # Sri Lanka
 node --env-file=.env run-inr.js      # India
 node --env-file=.env run-php.js      # Philippines
-node --env-file=.env run-lbr.js      # Liberia
 ```
 
 ---

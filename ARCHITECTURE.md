@@ -193,7 +193,6 @@ Next.js Dashboard (Vercel)
 | Sri Lanka | LKR | 230,000 | GME, Sentbe, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
 | India | INR | 100,000 | WireBarley, Sentbe, GMoneyTrans, GME, Hanpass |
 | Cambodia | USD | 1,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay |
-| Liberia | USD | 500 | GME, GMoneyTrans (Cash Pickup) |
 
 ## Scraper Libraries
 
@@ -211,7 +210,7 @@ Next.js Dashboard (Vercel)
 
 **Fee Overrides:** Admin edits in Settings persist across scraper runs. `seedFees()` only inserts new entries, never overwrites. `manually_edited` flag tracks admin changes. Reset button reverts to latest non-zero scraped value.
 
-**Delivery Methods:** Most corridors use Bank Deposit. China uses Alipay. Liberia uses Cash Pickup.
+**Delivery Methods:** Most corridors use Bank Deposit. China uses Alipay.
 
 **Alert Cooldown:** Per-rule cooldown checked against `alert_log`. Prevents email spam when same condition persists across multiple scrape cycles.
 

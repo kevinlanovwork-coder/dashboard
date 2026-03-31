@@ -18,7 +18,6 @@ const EXPECTED_OPERATORS: Record<string, string[]> = {
   'Laos||Bank Deposit':        ['GME', 'GMoneyTrans', 'E9Pay', 'Hanpass'],
   'Sri Lanka||Bank Deposit':   ['GME', 'Sentbe', 'E9Pay', 'GMoneyTrans', 'Coinshot', 'JRF', 'Hanpass'],
   'India||Bank Deposit':       ['WireBarley', 'Sentbe', 'GMoneyTrans', 'GME', 'Hanpass'],
-  'Liberia||Cash Pickup':      ['GME', 'GMoneyTrans'],
 };
 
 export async function GET(req: NextRequest) {
