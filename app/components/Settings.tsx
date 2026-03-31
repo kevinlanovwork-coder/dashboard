@@ -176,7 +176,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   const RULES_PAGE_SIZE = 10;
 
   const [formCountry, setFormCountry] = useState('Indonesia');
-  const [formOperator, setFormOperator] = useState('');
+  const [formOperators, setFormOperators] = useState<Set<string>>(new Set());
   const [formDelivery, setFormDelivery] = useState('Bank Deposit');
   const [formDirection, setFormDirection] = useState('cheaper');
   const [formAlertType, setFormAlertType] = useState('price');
@@ -217,14 +217,14 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   useEffect(() => { fetchRules(); fetchConfig(); fetchHistory(); }, [fetchRules, fetchConfig, fetchHistory]);
 
   function resetForm() {
-    setFormCountry('Indonesia'); setFormOperator(''); setFormDelivery('Bank Deposit');
+    setFormCountry('Indonesia'); setFormOperators(new Set()); setFormDelivery('Bank Deposit');
     setFormDirection('cheaper'); setFormAlertType('price'); setFormThreshold('-2000'); setFormCooldown(120);
     setEditingId(null); setShowForm(false);
   }
 
   function startEdit(rule: AlertRule) {
     setFormCountry(rule.receiving_country); setFormDelivery(rule.delivery_method);
-    setFormOperator(rule.operator ?? ''); setFormDirection(rule.direction);
+    setFormOperators(rule.operator ? new Set([rule.operator]) : new Set()); setFormDirection(rule.direction);
     setFormAlertType(rule.alert_type ?? 'price'); setFormThreshold(String(rule.threshold_krw)); setFormCooldown(rule.cooldown_minutes);
     setEditingId(rule.id); setShowForm(true);
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -232,28 +232,30 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
 
   function startDuplicate(rule: AlertRule) {
     setFormCountry(rule.receiving_country); setFormDelivery(rule.delivery_method);
-    setFormOperator(rule.operator ?? ''); setFormDirection(rule.direction);
+    setFormOperators(rule.operator ? new Set([rule.operator]) : new Set()); setFormDirection(rule.direction);
     setFormAlertType(rule.alert_type ?? 'price'); setFormThreshold(String(rule.threshold_krw)); setFormCooldown(rule.cooldown_minutes);
     setEditingId(null); setShowForm(true);
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }
 
-  function findDuplicateRule(): AlertRule | null {
-    const op = formOperator || null;
-    return rules.find(r => r.receiving_country === formCountry && r.delivery_method === formDelivery && (r.operator ?? null) === op && r.id !== editingId) ?? null;
-  }
-
   async function handleSave() {
-    const duplicate = findDuplicateRule();
-    if (duplicate) {
-      if (confirm(isEn ? 'A rule with the same country, delivery method and operator already exists. Do you want to edit the existing rule?' : '동일한 국가, 입금 방식, 운영사 조합의 규칙이 이미 존재합니다. 기존 규칙을 수정하시겠습니까?')) startEdit(duplicate);
-      return;
+    const base = { receiving_country: formCountry, delivery_method: formDelivery, direction: formDirection, alert_type: formAlertType, threshold_krw: Number(formThreshold), cooldown_minutes: formCooldown };
+    if (editingId) {
+      // Editing — update the single rule (operator stays as-is or use first selected)
+      const op = formOperators.size > 0 ? [...formOperators][0] : null;
+      await fetch('/api/alerts', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingId, ...base, operator: op, is_active: true }) });
+    } else if (formOperators.size === 0) {
+      // "Any operator" — single rule with null
+      await fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...base, operator: null }) });
+    } else {
+      // Multiple operators — one rule per operator
+      await Promise.all([...formOperators].map(op =>
+        fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...base, operator: op }) })
+      ));
     }
-    await fetch('/api/alerts', {
-      method: editingId ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: editingId, receiving_country: formCountry, operator: formOperator || null, delivery_method: formDelivery, direction: formDirection, alert_type: formAlertType, threshold_krw: Number(formThreshold), cooldown_minutes: formCooldown, ...(editingId ? { is_active: true } : {}) }),
-    });
     resetForm(); fetchRules();
   }
 
@@ -336,7 +338,14 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Country' : '국가'}</label><select value={formCountry} onChange={e => setFormCountry(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm">{COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
             <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Delivery Method' : '입금 방식'}</label><select value={formDelivery} onChange={e => setFormDelivery(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm">{deliveryMethods.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-            <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Operator' : '운영사'}</label><select value={formOperator} onChange={e => setFormOperator(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"><option value="">{isEn ? 'Any operator' : '전체 운영사'}</option>{operators.filter(o => o !== 'GME').map(o => <option key={o} value={o}>{o}</option>)}</select></div>
+            <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Operators' : '운영사'}</label>
+              <div className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm max-h-36 overflow-y-auto space-y-1">
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={formOperators.size === 0} onChange={() => setFormOperators(new Set())} className="rounded" /><span className="text-slate-500">{isEn ? 'Any operator' : '전체 운영사'}</span></label>
+                {operators.filter(o => o !== 'GME').map(o => (
+                  <label key={o} className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={formOperators.has(o)} onChange={() => { const next = new Set(formOperators); if (next.has(o)) next.delete(o); else next.add(o); setFormOperators(next); }} className="rounded" />{o}</label>
+                ))}
+              </div>
+            </div>
             <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Direction' : '방향'}</label><select value={formDirection} onChange={e => setFormDirection(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"><option value="cheaper">{isEn ? 'Cheaper than GME' : 'GME보다 저렴'}</option><option value="any">{isEn ? 'Any direction' : '모든 방향'}</option></select></div>
             <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Alert Type' : '알림 유형'}</label><select value={formAlertType} onChange={e => setFormAlertType(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"><option value="price">{isEn ? 'Price' : '가격'}</option><option value="rate">{isEn ? 'Rate' : '환율'}</option></select></div>
             <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{formAlertType === 'rate' ? (isEn ? 'Threshold (Rate)' : '임계값 (환율)') : (isEn ? 'Threshold (KRW)' : '임계값 (KRW)')}</label><input type="number" step={formAlertType === 'rate' ? '0.01' : '1'} value={formThreshold} onChange={e => setFormThreshold(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm" /><p className="text-xs text-slate-400 mt-0.5">{formAlertType === 'rate' ? (isEn ? 'Alert when rate gap exceeds this value (e.g. 0.5)' : '환율 차이가 이 값을 초과할 때 알림 (예: 0.5)') : (isEn ? 'Alert when price gap drops below this value (e.g. -2000)' : '가격 차이가 이 값 이하일 때 알림 (예: -2000)')}</p></div>
