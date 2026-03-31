@@ -8,15 +8,27 @@ export async function loadFees(country) {
   try {
     const { data, error } = await supabase
       .from('service_fees')
-      .select('operator, delivery_method, fee_krw')
+      .select('id, operator, delivery_method, fee_krw, manually_edited, effective_until')
       .eq('receiving_country', country);
 
     if (error || !data) return new Map();
 
+    const now = new Date();
     const map = new Map();
-    data.forEach(r => {
+
+    for (const r of data) {
+      // Auto-revert expired fee overrides back to default
+      if (r.manually_edited && r.effective_until && new Date(r.effective_until) < now) {
+        await supabase.from('service_fees').update({
+          manually_edited: false, edited_at: null, effective_until: null, notes: null,
+          updated_at: now.toISOString(),
+        }).eq('id', r.id);
+        console.log(`  ⏰ Fee expired for ${r.operator}||${r.delivery_method} — reverted to default`);
+        // Skip this override — scraper will use its own scraped fee
+        continue;
+      }
       map.set(`${r.operator}||${r.delivery_method}`, r.fee_krw);
-    });
+    }
     return map;
   } catch {
     return new Map();

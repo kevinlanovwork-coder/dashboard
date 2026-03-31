@@ -50,12 +50,14 @@ export async function PUT(req: NextRequest) {
   };
   if (body.fee_krw !== undefined) updates.fee_krw = body.fee_krw;
   if (body.notes !== undefined) updates.notes = body.notes;
+  if (body.effective_until !== undefined) updates.effective_until = body.effective_until;
 
   // If resetting, clear the manual edit flag
   if (body.reset === true) {
     updates.manually_edited = false;
     updates.edited_at = null;
     updates.notes = null;
+    updates.effective_until = null;
   }
 
   const { data, error } = await supabase

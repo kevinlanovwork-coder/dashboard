@@ -46,6 +46,7 @@ interface ServiceFee {
   updated_at: string;
   manually_edited: boolean;
   edited_at: string | null;
+  effective_until: string | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -531,6 +532,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editFee, setEditFee] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [editEffectiveUntil, setEditEffectiveUntil] = useState('');
 
   const fetchFees = useCallback(async () => {
     try {
@@ -550,11 +552,11 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
     return map;
   }, [fees]);
 
-  function startEdit(fee: ServiceFee) { setEditingId(fee.id); setEditFee(String(fee.fee_krw)); setEditNotes(fee.notes ?? ''); }
+  function startEdit(fee: ServiceFee) { setEditingId(fee.id); setEditFee(String(fee.fee_krw)); setEditNotes(fee.notes ?? ''); setEditEffectiveUntil(fee.effective_until ? new Date(fee.effective_until).toISOString().slice(0, 16) : ''); }
 
   async function handleSave() {
     if (editingId === null) return;
-    await fetch('/api/settings/fees', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingId, fee_krw: Number(editFee), notes: editNotes || null }) });
+    await fetch('/api/settings/fees', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingId, fee_krw: Number(editFee), notes: editNotes || null, effective_until: editEffectiveUntil ? new Date(editEffectiveUntil).toISOString() : null }) });
     setEditingId(null); fetchFees();
   }
 
@@ -593,6 +595,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
                   <th className="px-4 py-2.5">{isEn ? 'Notes' : '메모'}</th>
                   <th className="px-4 py-2.5">{isEn ? 'Status' : '상태'}</th>
                   <th className="px-4 py-2.5">{isEn ? 'Edited At' : '수정 시간'}</th>
+                  <th className="px-4 py-2.5">{isEn ? 'Effective Until' : '유효 기간'}</th>
                   <th className="px-4 py-2.5"></th>
                 </tr>
               </thead>
@@ -607,6 +610,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
                         <td className="px-4 py-2.5"><input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder={isEn ? 'Add note...' : '메모 추가...'} className="w-full px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm" /></td>
                         <td className="px-4 py-2.5 text-xs text-slate-400">{fee.manually_edited ? (isEn ? 'Edited' : '수정됨') : (isEn ? 'Default' : '기본값')}</td>
                         <td className="px-4 py-2.5 text-xs text-slate-400">{fee.manually_edited && fee.edited_at ? formatDate(fee.edited_at) : '-'}</td>
+                        <td className="px-4 py-2.5"><input type="datetime-local" value={editEffectiveUntil} onChange={e => setEditEffectiveUntil(e.target.value)} className="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs" /></td>
                         <td className="px-4 py-2.5"><div className="flex gap-1"><button onClick={handleSave} className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors">{isEn ? 'Save' : '저장'}</button><button onClick={() => setEditingId(null)} className="px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Cancel' : '취소'}</button></div></td>
                       </>
                     ) : (
@@ -615,6 +619,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
                         <td className="px-4 py-2.5 text-slate-400 text-xs">{fee.notes ?? '-'}</td>
                         <td className="px-4 py-2.5 text-xs">{fee.manually_edited ? <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">{isEn ? 'Edited' : '수정됨'}</span> : <span className="text-slate-400">{isEn ? 'Default' : '기본값'}</span>}</td>
                         <td className="px-4 py-2.5 text-xs text-slate-400">{fee.manually_edited && fee.edited_at ? formatDate(fee.edited_at) : '-'}</td>
+                        <td className="px-4 py-2.5 text-xs">{fee.effective_until ? (new Date(fee.effective_until) < new Date() ? <span className="text-red-500">{isEn ? 'Expired' : '만료'}</span> : <span className="text-blue-600 dark:text-blue-400">{formatDate(fee.effective_until)}</span>) : <span className="text-slate-400">-</span>}</td>
                         <td className="px-4 py-2.5"><div className="flex gap-1"><button onClick={() => startEdit(fee)} className="px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Edit</button>{fee.manually_edited && <button onClick={() => handleReset(fee)} className="px-2 py-1 text-xs rounded border border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors">Reset</button>}</div></td>
                       </>
                     )}
