@@ -164,7 +164,10 @@ export async function checkAlerts(records, runHour) {
         const compRate = calcRate(r.receive_amount, r.send_amount_krw);
         if (compRate === null || gmeRate === null) return false;
         const rateGap = Math.abs(compRate - gmeRate);
-        return rateGap >= Math.abs(rule.threshold_krw);
+        if (rateGap < Math.abs(rule.threshold_krw)) return false;
+        // For 'cheaper' direction, only include competitors that are actually cheaper than GME
+        if (rule.direction === 'cheaper') return r.price_gap !== null && r.price_gap < 0;
+        return true; // 'any' direction — include all
       });
       if (matching.length === 0) continue;
       rateRuleIds.push(rule.id);
