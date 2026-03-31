@@ -182,12 +182,13 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   const [formAlertType, setFormAlertType] = useState('price');
   const [formThreshold, setFormThreshold] = useState('-2000');
   const [formCooldown, setFormCooldown] = useState(120);
+  const skipOperatorResetRef = useRef(false);
 
   const deliveryMethods = useMemo(() => DELIVERY_METHOD_MAP[formCountry] ?? ['Bank Deposit'], [formCountry]);
   const operators = useMemo(() => OPERATOR_MAP[`${formCountry}||${formDelivery}`] ?? [], [formCountry, formDelivery]);
 
   useEffect(() => { setFormDelivery((DELIVERY_METHOD_MAP[formCountry] ?? ['Bank Deposit'])[0]); }, [formCountry]);
-  useEffect(() => { setFormOperators(new Set()); }, [formDelivery]);
+  useEffect(() => { if (skipOperatorResetRef.current) { skipOperatorResetRef.current = false; return; } setFormOperators(new Set()); }, [formDelivery]);
 
   const fetchRules = useCallback(async () => {
     try {
@@ -222,17 +223,21 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
     setEditingId(null); setShowForm(false);
   }
 
-  function startEdit(rule: AlertRule) {
+  function startEdit(rule: AlertRule, groupRules?: AlertRule[]) {
+    skipOperatorResetRef.current = true;
+    const ops = groupRules ? groupRules.map(r => r.operator).filter(Boolean) as string[] : (rule.operator ? [rule.operator] : []);
     setFormCountry(rule.receiving_country); setFormDelivery(rule.delivery_method);
-    setFormOperators(rule.operator ? new Set([rule.operator]) : new Set()); setFormDirection(rule.direction);
+    setFormOperators(new Set(ops)); setFormDirection(rule.direction);
     setFormAlertType(rule.alert_type ?? 'price'); setFormThreshold(String(rule.threshold_krw)); setFormCooldown(rule.cooldown_minutes);
     setEditingId(rule.id); setShowForm(true);
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }
 
-  function startDuplicate(rule: AlertRule) {
+  function startDuplicate(rule: AlertRule, groupRules?: AlertRule[]) {
+    skipOperatorResetRef.current = true;
+    const ops = groupRules ? groupRules.map(r => r.operator).filter(Boolean) as string[] : (rule.operator ? [rule.operator] : []);
     setFormCountry(rule.receiving_country); setFormDelivery(rule.delivery_method);
-    setFormOperators(rule.operator ? new Set([rule.operator]) : new Set()); setFormDirection(rule.direction);
+    setFormOperators(new Set(ops)); setFormDirection(rule.direction);
     setFormAlertType(rule.alert_type ?? 'price'); setFormThreshold(String(rule.threshold_krw)); setFormCooldown(rule.cooldown_minutes);
     setEditingId(null); setShowForm(true);
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -241,10 +246,22 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   async function handleSave() {
     const base = { receiving_country: formCountry, delivery_method: formDelivery, direction: formDirection, alert_type: formAlertType, threshold_krw: Number(formThreshold), cooldown_minutes: formCooldown };
     if (editingId) {
-      // Editing — update the single rule (operator stays as-is or use first selected)
-      const op = formOperators.size > 0 ? [...formOperators][0] : null;
-      await fetch('/api/alerts', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editingId, ...base, operator: op, is_active: true }) });
+      // Find the group this rule belongs to
+      const group = groupedRules.find(g => g.rules.some(r => r.id === editingId));
+      const existingRules = group?.rules ?? [];
+      const newOps = formOperators.size > 0 ? [...formOperators] : [null];
+      // Delete rules whose operators were unchecked
+      const toDelete = existingRules.filter(r => !newOps.includes(r.operator));
+      // Update rules whose operators still exist
+      const toUpdate = existingRules.filter(r => newOps.includes(r.operator));
+      // Create rules for newly checked operators
+      const existingOps = existingRules.map(r => r.operator);
+      const toCreate = newOps.filter(op => !existingOps.includes(op));
+      await Promise.all([
+        ...toDelete.map(r => fetch('/api/alerts', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id }) })),
+        ...toUpdate.map(r => fetch('/api/alerts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id, ...base, operator: r.operator, is_active: true }) })),
+        ...toCreate.map(op => fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...base, operator: op }) })),
+      ]);
     } else if (formOperators.size === 0) {
       // "Any operator" — single rule with null
       await fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -420,8 +437,8 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
                     <td className="px-4 py-3 text-xs text-slate-400">{formatDate(group.rules.reduce((latest, r) => r.lastTriggered && (!latest || r.lastTriggered > latest) ? r.lastTriggered : latest, null as string | null))}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
-                        <button onClick={() => startDuplicate(rule)} className="px-2 py-1 text-xs rounded border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">{isEn ? 'Duplicate' : '복제'}</button>
-                        <button onClick={() => startEdit(rule)} className="px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Edit</button>
+                        <button onClick={() => startDuplicate(rule, group.rules)} className="px-2 py-1 text-xs rounded border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">{isEn ? 'Duplicate' : '복제'}</button>
+                        <button onClick={() => startEdit(rule, group.rules)} className="px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Edit</button>
                         <button onClick={async () => { if (!confirm(isEn ? `Delete ${allIds.length} rule(s)?` : `${allIds.length}개 규칙을 삭제하시겠습니까?`)) return; await Promise.all(allIds.map(id => fetch('/api/alerts', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))); fetchRules(); }} className="px-2 py-1 text-xs rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">{isEn ? 'Delete' : '삭제'}</button>
                       </div>
                     </td>
