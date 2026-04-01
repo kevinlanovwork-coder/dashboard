@@ -250,7 +250,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
       // Find the group this rule belongs to
       const group = groupedRules.find(g => g.rules.some(r => r.id === editingId));
       const existingRules = group?.rules ?? [];
-      const newOps = formOperators.size > 0 ? [...formOperators] : [null];
+      const newOps: (string | null)[] = formOperators.size > 0 ? [...formOperators] : [null];
       // Delete rules whose operators were unchecked
       const toDelete = existingRules.filter(r => !newOps.includes(r.operator));
       // Update rules whose operators still exist
