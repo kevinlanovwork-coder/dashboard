@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabase();
 
-  const { data, error } = await supabase
+  const { data: rows, error } = await supabase
     .from('alert_rules')
     .insert({
       receiving_country: body.receiving_country,
@@ -72,8 +72,9 @@ export async function POST(req: NextRequest) {
       cooldown_minutes: body.cooldown_minutes ?? 120,
       is_active: body.is_active ?? true,
     })
-    .select()
-    .single();
+    .select();
+
+  const data = rows?.[0] ?? null;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -101,13 +102,13 @@ export async function PUT(req: NextRequest) {
   if (body.cooldown_minutes !== undefined) updates.cooldown_minutes = body.cooldown_minutes;
   if (body.is_active !== undefined) updates.is_active = body.is_active;
 
-  const { data, error } = await supabase
+  const { data: rows, error } = await supabase
     .from('alert_rules')
     .update(updates)
     .eq('id', body.id)
-    .select()
-    .single();
+    .select();
 
+  const data = rows?.[0] ?? null;
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

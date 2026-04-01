@@ -134,12 +134,14 @@ export async function checkAlerts(records, runHour) {
         <p style="margin-top:12px;"><a href="https://gme-competitors-rate.vercel.app" style="color:#2563eb;">Open Dashboard</a></p>
       </div>`;
       await sendAlertEmail({ to: notifyEmails, subject, html });
-      const logEntries = priceTriggered.map(r => ({
-        alert_rule_id: priceRuleIds[0], run_hour: runHour, operator: r.operator,
-        receiving_country: country, price_gap: r.price_gap,
-        total_sending_amount: r.total_sending_amount, gme_baseline: r.gme_baseline, email_sent_to: notifyEmails,
-      }));
-      await supabase.from('alert_log').insert(logEntries);
+      if (priceRuleIds.length > 0) {
+        const logEntries = priceTriggered.map(r => ({
+          alert_rule_id: priceRuleIds[0], run_hour: runHour, operator: r.operator,
+          receiving_country: country, price_gap: r.price_gap,
+          total_sending_amount: r.total_sending_amount, gme_baseline: r.gme_baseline, email_sent_to: notifyEmails,
+        }));
+        await supabase.from('alert_log').insert(logEntries);
+      }
       console.log(`  📧 Price alert sent for ${country}: ${priceTriggered.length} operator(s) → ${notifyEmails.join(', ')}`);
     }
 
@@ -211,12 +213,14 @@ export async function checkAlerts(records, runHour) {
         <p style="margin-top:12px;"><a href="https://gme-competitors-rate.vercel.app" style="color:#2563eb;">Open Dashboard</a></p>
       </div>`;
       await sendAlertEmail({ to: notifyEmails, subject, html });
-      const logEntries = rateTriggered.map(r => ({
-        alert_rule_id: rateRuleIds[0], run_hour: runHour, operator: r.operator,
-        receiving_country: country, price_gap: r.rateGap,
-        total_sending_amount: r.total_sending_amount, gme_baseline: r.gme_baseline, email_sent_to: notifyEmails,
-      }));
-      await supabase.from('alert_log').insert(logEntries);
+      if (rateRuleIds.length > 0) {
+        const logEntries = rateTriggered.map(r => ({
+          alert_rule_id: rateRuleIds[0], run_hour: runHour, operator: r.operator,
+          receiving_country: country, price_gap: r.rateGap,
+          total_sending_amount: r.total_sending_amount, gme_baseline: r.gme_baseline, email_sent_to: notifyEmails,
+        }));
+        await supabase.from('alert_log').insert(logEntries);
+      }
       console.log(`  📧 Rate alert sent for ${country}: ${rateTriggered.length} operator(s) → ${notifyEmails.join(', ')}`);
     }
   } catch (err) {

@@ -194,6 +194,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   const fetchRules = useCallback(async () => {
     try {
       const res = await fetch('/api/alerts');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (Array.isArray(data)) setRules(data);
     } catch (err) { console.error('Failed to fetch alert rules:', err); }
@@ -279,12 +280,12 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
 
   async function handleDelete(id: number) {
     if (!confirm('Delete this alert rule?')) return;
-    await fetch('/api/alerts', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    try { await fetch('/api/alerts', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); } catch { /* ignore */ }
     fetchRules();
   }
 
   async function handleToggle(rule: AlertRule) {
-    await fetch('/api/alerts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: rule.id, is_active: !rule.is_active }) });
+    try { await fetch('/api/alerts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: rule.id, is_active: !rule.is_active }) }); } catch { /* ignore */ }
     fetchRules();
   }
 
@@ -296,8 +297,11 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
     const invalid = newEmails.filter(e => !isValidEmail(e));
     if (invalid.length > 0) { alert(isEn ? `Invalid email format: ${invalid.join(', ')}` : `잘못된 이메일 형식: ${invalid.join(', ')}`); return; }
     const merged = [...(config?.notify_emails ?? []), ...newEmails.filter(e => !(config?.notify_emails ?? []).includes(e))];
-    await fetch('/api/alerts/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: config?.id ?? 1, notify_emails: merged }) });
-    setEmailInput(''); setEmailSaved(true); setTimeout(() => setEmailSaved(false), 2000); fetchConfig();
+    try {
+      await fetch('/api/alerts/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: config?.id ?? 1, notify_emails: merged }) });
+      setEmailInput(''); setEmailSaved(true); setTimeout(() => setEmailSaved(false), 2000);
+    } catch { /* ignore */ }
+    fetchConfig();
   }
 
   function formatDate(iso: string | null) { if (!iso) return isEn ? 'Never' : '없음'; return new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }); }
