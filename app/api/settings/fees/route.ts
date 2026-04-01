@@ -76,18 +76,20 @@ export async function PUT(req: NextRequest) {
 
   // Log the edit
   if (before && data) {
-    await supabase.from('fee_edit_log').insert({
-      service_fee_id: body.id,
-      receiving_country: before.receiving_country,
-      operator: before.operator,
-      delivery_method: before.delivery_method,
-      old_fee: before.fee_krw,
-      new_fee: data.fee_krw,
-      action: body.reset ? 'reset' : 'edit',
-      notes: body.notes ?? null,
-      effective_until: body.effective_until ?? null,
-      edited_at: new Date().toISOString(),
-    }).catch(() => null); // non-fatal
+    try {
+      await supabase.from('fee_edit_log').insert({
+        service_fee_id: body.id,
+        receiving_country: before.receiving_country,
+        operator: before.operator,
+        delivery_method: before.delivery_method,
+        old_fee: before.fee_krw,
+        new_fee: data.fee_krw,
+        action: body.reset ? 'reset' : 'edit',
+        notes: body.notes ?? null,
+        effective_until: body.effective_until ?? null,
+        edited_at: new Date().toISOString(),
+      });
+    } catch { /* non-fatal */ }
   }
 
   return NextResponse.json(data);
