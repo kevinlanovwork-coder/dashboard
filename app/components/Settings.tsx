@@ -258,21 +258,21 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
       // Create rules for newly checked operators
       const existingOps = existingRules.map(r => r.operator);
       const toCreate = newOps.filter(op => !existingOps.includes(op));
-      await Promise.all([
+      try { await Promise.all([
         ...toDelete.map(r => fetch('/api/alerts', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id }) })),
         ...toUpdate.map(r => fetch('/api/alerts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id, ...base, operator: r.operator, is_active: true }) })),
         ...toCreate.map(op => fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...base, operator: op }) })),
-      ]);
+      ]); } catch { /* partial failure — fetchRules will refresh */ }
     } else if (formOperators.size === 0) {
       // "Any operator" — single rule with null
       await fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...base, operator: null }) });
     } else {
       // Multiple operators — one rule per operator
-      await Promise.all([...formOperators].map(op =>
+      try { await Promise.all([...formOperators].map(op =>
         fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...base, operator: op }) })
-      ));
+      )); } catch { /* partial failure — fetchRules will refresh */ }
     }
     resetForm(); fetchRules();
   }
@@ -428,7 +428,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
                   const allIds = group.rules.map(r => r.id);
                   return (
                   <tr key={group.key} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30">
-                    <td className="px-4 py-3"><button onClick={async () => { await Promise.all(group.rules.map(r => fetch('/api/alerts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id, is_active: !group.is_active }) }))); fetchRules(); }} className={`w-10 h-5 rounded-full transition-colors relative ${group.is_active ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${group.is_active ? 'left-5' : 'left-0.5'}`} /></button></td>
+                    <td className="px-4 py-3"><button onClick={async () => { try { await Promise.all(group.rules.map(r => fetch('/api/alerts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id, is_active: !group.is_active }) }))); } catch { /* ignore */ } fetchRules(); }} className={`w-10 h-5 rounded-full transition-colors relative ${group.is_active ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${group.is_active ? 'left-5' : 'left-0.5'}`} /></button></td>
                     <td className="px-4 py-3 font-medium">{rule.receiving_country}</td>
                     <td className="px-4 py-3">{rule.delivery_method}</td>
                     <td className="px-4 py-3"><div className="flex flex-wrap gap-1">{group.operators.map((op, i) => <span key={i} className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-xs">{op}</span>)}</div></td>
@@ -440,7 +440,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
                       <div className="flex gap-1">
                         <button onClick={() => startDuplicate(rule, group.rules)} className="px-2 py-1 text-xs rounded border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">{isEn ? 'Duplicate' : '복제'}</button>
                         <button onClick={() => startEdit(rule, group.rules)} className="px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Edit</button>
-                        <button onClick={async () => { if (!confirm(isEn ? `Delete ${allIds.length} rule(s)?` : `${allIds.length}개 규칙을 삭제하시겠습니까?`)) return; await Promise.all(allIds.map(id => fetch('/api/alerts', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))); fetchRules(); }} className="px-2 py-1 text-xs rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">{isEn ? 'Delete' : '삭제'}</button>
+                        <button onClick={async () => { if (!confirm(isEn ? `Delete ${allIds.length} rule(s)?` : `${allIds.length}개 규칙을 삭제하시겠습니까?`)) return; try { await Promise.all(allIds.map(id => fetch('/api/alerts', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }))); } catch { /* ignore */ } fetchRules(); }} className="px-2 py-1 text-xs rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">{isEn ? 'Delete' : '삭제'}</button>
                       </div>
                     </td>
                   </tr>
