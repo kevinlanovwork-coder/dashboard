@@ -30,7 +30,7 @@ const EN = {
   cheaperLegend: 'Cheaper than GME',
   rateLegend: (curr: string, perKRW: boolean) => perKRW ? `( ) = Exchange rate (${curr} per 1 KRW)` : `( ) = Exchange rate (KRW per 1 ${curr})`,
   avgDiffTitle: 'Avg. Price Difference by Operator',
-  avgDiffSub: (date: string) => `Daily avg. for ${date} (vs GME, KRW)`,
+  avgDiffSub: (from: string, to: string) => from && to && from !== to ? `Avg. for ${from} ~ ${to} (vs GME, KRW)` : `Daily avg. for ${to || from} (vs GME, KRW)`,
   gmeWins: 'More expensive than GME (GME wins)',
   gmeLoses: 'Cheaper than GME (GME loses)',
   trendTitle: 'Collection Amount Trend',
@@ -88,7 +88,7 @@ const KO = {
   cheaperLegend: 'GME보다 저렴',
   rateLegend: (curr: string, perKRW: boolean) => perKRW ? `( ) = 환율 (1 KRW 기준 ${curr})` : `( ) = 환율 (1 ${curr} 기준 KRW)`,
   avgDiffTitle: '운영사별 평균 가격 차이',
-  avgDiffSub: (date: string) => `${date} 일별 평균 (GME 기준, KRW)`,
+  avgDiffSub: (from: string, to: string) => from && to && from !== to ? `${from} ~ ${to} 평균 (GME 기준, KRW)` : `${to || from} 일별 평균 (GME 기준, KRW)`,
   gmeWins: 'GME보다 비쌈 (GME 유리)',
   gmeLoses: 'GME보다 저렴 (GME 불리)',
   trendTitle: '수금액 추이',
@@ -287,7 +287,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [pageSize, setPageSize] = useState(20);
   const [snapshotSortDesc, setSnapshotSortDesc] = useState(true);
   const [snapshotHiddenOps, setSnapshotHiddenOps] = useState<Set<string>>(new Set());
-  const [avgDate, setAvgDate] = useState('');
+  const [avgFromDate, setAvgFromDate] = useState('');
+  const [avgToDate, setAvgToDate] = useState('');
   const [avgGapSortDesc, setAvgGapSortDesc] = useState(true);
   const [selectedTrendOperator, setSelectedTrendOperator] = useState('');
   const [gmeTrendFromDate, setGmeTrendFromDate] = useState('');
@@ -490,19 +491,19 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     [byCountry]
   );
 
-  const effectiveAvgDate = avgDate && avgDates.includes(avgDate)
-    ? avgDate
-    : avgDates[avgDates.length - 1] ?? '';
+  const effectiveAvgFromDate = avgFromDate && avgDates.includes(avgFromDate) ? avgFromDate : '';
+  const effectiveAvgToDate = avgToDate && avgDates.includes(avgToDate) ? avgToDate : avgDates[avgDates.length - 1] ?? '';
 
   const operatorStats = useMemo(() => {
     const map: Record<string, { gaps: number[]; count: number }> = {};
     byCountry
-      .filter(r =>
-        r.status !== 'GME' &&
-        r.priceGap !== null &&
-        r.totalSendingAmount >= 700_000 &&
-        r.runHour.slice(0, 10) === effectiveAvgDate
-      )
+      .filter(r => {
+        if (r.status === 'GME' || r.priceGap === null || r.totalSendingAmount < 700_000) return false;
+        const d = r.runHour.slice(0, 10);
+        if (effectiveAvgFromDate && d < effectiveAvgFromDate) return false;
+        if (effectiveAvgToDate && d > effectiveAvgToDate) return false;
+        return true;
+      })
       .forEach(r => {
         if (!map[r.operator]) map[r.operator] = { gaps: [], count: 0 };
         map[r.operator].gaps.push(r.priceGap!);
@@ -521,7 +522,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     return stats.sort((a, b) => avgGapSortDesc
       ? b.avgGap - a.avgGap
       : a.avgGap - b.avgGap);
-  }, [byCountry, effectiveAvgDate, avgGapSortDesc]);
+  }, [byCountry, effectiveAvgFromDate, effectiveAvgToDate, avgGapSortDesc]);
 
   const trendData = useMemo(() => {
     const map: Record<string, number> = {};
@@ -1013,7 +1014,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h2 className="text-sm font-semibold">{t.avgDiffTitle}</h2>
-                  <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(effectiveAvgDate)}</p>
+                  <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(effectiveAvgFromDate, effectiveAvgToDate)}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
@@ -1022,15 +1023,17 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   >
                     {avgGapSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
                   </button>
-                  <select
-                    value={effectiveAvgDate}
-                    onChange={e => setAvgDate(e.target.value)}
-                    className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
-                  >
-                    {[...avgDates].reverse().map(d => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-1 text-xs">
+                    <select value={avgFromDate} onChange={e => setAvgFromDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">{isEn ? 'From' : '시작'}</option>
+                      {[...avgDates].reverse().map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <span className="text-slate-400">~</span>
+                    <select value={avgToDate} onChange={e => setAvgToDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">{isEn ? 'To' : '종료'}</option>
+                      {[...avgDates].reverse().map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
               {/* Spacer to align chart start with snapshot (matches checkbox row height) */}
