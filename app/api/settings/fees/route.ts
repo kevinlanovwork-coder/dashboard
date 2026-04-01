@@ -74,8 +74,8 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Log the edit
-  if (before && data) {
+  // Log the edit (skip if fee didn't change)
+  if (before && data && (before.fee_krw !== data.fee_krw || body.reset)) {
     try {
       await supabase.from('fee_edit_log').insert({
         service_fee_id: body.id,
