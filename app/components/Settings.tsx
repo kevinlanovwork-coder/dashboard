@@ -548,6 +548,7 @@ interface FeeEditLog {
   new_fee: number;
   action: string;
   notes: string | null;
+  effective_until: string | null;
   edited_at: string;
 }
 
@@ -703,12 +704,14 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
                     <span className="text-slate-400">{formatDate(log.edited_at)}</span>
                     <span className="font-medium">{log.receiving_country}</span>
                     <span>{log.operator}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-xs ${log.action === 'reset' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'}`}>{log.action === 'reset' ? 'Reset' : 'Edit'}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-xs ${log.action === 'expired' ? 'bg-red-100 dark:bg-red-900/30 text-red-600' : log.action === 'reset' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'}`}>{log.action === 'expired' ? 'Expired' : log.action === 'reset' ? 'Reset' : 'Edit'}</span>
+                    {log.notes && <span className="text-slate-400 italic">{log.notes}</span>}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-slate-500">{log.old_fee.toLocaleString()}</span>
                     <span className="text-slate-400">→</span>
                     <span className="font-mono font-semibold">{log.new_fee.toLocaleString()}</span>
+                    {log.effective_until && <span className="text-xs text-blue-500 dark:text-blue-400">{isEn ? 'until' : '~'} {formatDate(log.effective_until)}</span>}
                     <button
                       onClick={async () => {
                         await fetch('/api/settings/fees/history', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: log.id }) });
