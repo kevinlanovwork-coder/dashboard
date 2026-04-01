@@ -925,8 +925,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
                     <XAxis
                       type="number"
-                      domain={['auto', 'auto']}
-                      tickFormatter={v => `${(v / 1000).toFixed(0)}K`}
+                      domain={[(min: number) => Math.floor((min * 0.998) / 1000) * 1000, (max: number) => Math.ceil((max * 1.002) / 1000) * 1000]}
+                      tickFormatter={v => `${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}K`}
                       tick={{ fill: ct.tick, fontSize: 11 }}
                       axisLine={{ stroke: ct.axisLine }}
                       tickLine={false}
