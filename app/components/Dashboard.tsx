@@ -1115,9 +1115,15 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   {trendOperators.map(op => <option key={op} value={op}>{op}</option>)}
                 </select>
                 <div className="flex items-center gap-1 text-xs">
-                  <input type="date" value={gmeTrendFromDate} onChange={e => setGmeTrendFromDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <select value={gmeTrendFromDate} onChange={e => setGmeTrendFromDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">{isEn ? 'From' : '시작'}</option>
+                    {gmeTrendDates.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
                   <span className="text-slate-400">~</span>
-                  <input type="date" value={gmeTrendToDate} onChange={e => setGmeTrendToDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <select value={gmeTrendToDate} onChange={e => setGmeTrendToDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">{isEn ? 'To' : '종료'}</option>
+                    {gmeTrendDates.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
