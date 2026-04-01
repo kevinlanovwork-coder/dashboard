@@ -26,12 +26,22 @@ export async function loadFees(country) {
           .is('deleted_at', null).gt('service_fee', 0)
           .order('run_hour', { ascending: false }).limit(1);
         const restoredFee = latest?.[0]?.service_fee ?? r.fee_krw;
+        const oldFee = r.fee_krw;
         await supabase.from('service_fees').update({
           fee_krw: restoredFee,
           manually_edited: false, edited_at: null, effective_until: null, notes: null,
           updated_at: now.toISOString(),
         }).eq('id', r.id);
-        console.log(`  ⏰ Fee expired for ${r.operator}||${r.delivery_method} — reverted to ${restoredFee}`);
+        // Log the expiry to fee_edit_log
+        try {
+          await supabase.from('fee_edit_log').insert({
+            service_fee_id: r.id, receiving_country: country, operator: r.operator,
+            delivery_method: r.delivery_method, old_fee: oldFee, new_fee: restoredFee,
+            action: 'expired', notes: 'Auto-reverted after effective_until expired',
+            edited_at: now.toISOString(),
+          });
+        } catch { /* non-fatal */ }
+        console.log(`  ⏰ Fee expired for ${r.operator}||${r.delivery_method} — reverted ${oldFee} → ${restoredFee}`);
         // Skip this override — scraper will use its own scraped fee
         continue;
       }
