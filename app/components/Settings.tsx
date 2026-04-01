@@ -159,6 +159,7 @@ function SettingsContent() {
 // ─── Alert Rules Tab ─────────────────────────────────────────────────────────
 
 function AlertRulesTab({ isEn }: { isEn: boolean }) {
+  const [subTab, setSubTab] = useState<'rules' | 'history'>('rules');
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [history, setHistory] = useState<AlertLog[]>([]);
   const [config, setConfig] = useState<AlertConfig | null>(null);
@@ -347,6 +348,13 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
 
   return (
     <div className="space-y-6">
+      {/* Sub-tab switcher */}
+      <div className="flex gap-2 text-sm">
+        <button onClick={() => setSubTab('rules')} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'rules' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Rules' : '규칙'}</button>
+        <button onClick={() => setSubTab('history')} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'history' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Recent Alerts' : '최근 알림'} {history.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-xs">{history.length}</span>}</button>
+      </div>
+
+      {subTab === 'rules' ? <>
       {/* Email Config */}
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
         <h2 className="text-sm font-semibold mb-2">{isEn ? 'Email Recipients' : '이메일 수신자'}</h2>
@@ -466,6 +474,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
         )}
       </div>
 
+      </> : <>
       {/* Alert History */}
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
@@ -523,6 +532,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
           </>
         )}
       </div>
+      </>}
     </div>
   );
 }
@@ -542,6 +552,7 @@ interface FeeEditLog {
 }
 
 function ServiceFeesTab({ isEn }: { isEn: boolean }) {
+  const [subTab, setSubTab] = useState<'fees' | 'history'>('fees');
   const [fees, setFees] = useState<ServiceFee[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCountry, setSelectedCountry] = useState('');
@@ -602,6 +613,13 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
 
   return (
     <div className="space-y-6">
+      {/* Sub-tab switcher */}
+      <div className="flex gap-2 text-sm">
+        <button onClick={() => setSubTab('fees')} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'fees' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Fees' : '수수료'}</button>
+        <button onClick={() => setSubTab('history')} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'history' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Edit History' : '수정 이력'} {feeHistory.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-xs">{feeHistory.length}</span>}</button>
+      </div>
+
+      {subTab === 'fees' ? <>
       {/* Country filter */}
       <select value={selectedCountry} onChange={e => setSelectedCountry(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-3 py-2 text-sm">
         <option value="">{isEn ? 'All Countries' : '전체 국가'}</option>
@@ -658,7 +676,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
           </div>
         </div>
       ))}
-
+      </> : <>
       {/* Fee Edit History */}
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
@@ -717,6 +735,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
           </>
         )}
       </div>
+      </>}
     </div>
   );
 }
@@ -745,6 +764,7 @@ interface HealthData {
 }
 
 function ScraperHealthTab({ isEn }: { isEn: boolean }) {
+  const [subTab, setSubTab] = useState<'health' | 'failures' | 'outliers'>('health');
   const [health, setHealth] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
@@ -789,6 +809,14 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
 
   return (
     <div className="space-y-6">
+      {/* Sub-tab switcher */}
+      <div className="flex gap-2 text-sm">
+        <button onClick={() => setSubTab('health')} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'health' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Health' : '상태'}</button>
+        <button onClick={() => setSubTab('failures')} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'failures' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Recent Failures' : '최근 실패'} {health.recentFailures.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs">{health.recentFailures.length}</span>}</button>
+        <button onClick={() => setSubTab('outliers')} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'outliers' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Outliers' : '이상치'} {health.recentOutliers?.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs">{health.recentOutliers.length}</span>}</button>
+      </div>
+
+      {subTab === 'health' ? <>
       {/* Date range */}
       <div className="flex items-center gap-2">
         <span className="text-sm text-slate-500">{isEn ? 'Period:' : '기간:'}</span>
@@ -853,7 +881,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
           </div>
         </div>
       ))}
-
+      </> : subTab === 'failures' ? <>
       {/* Recent failures */}
       {health.recentFailures.length > 0 && (
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
@@ -884,7 +912,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
           </>
         </div>
       )}
-
+      </> : <>
       {/* Outliers Skipped */}
       {health.recentOutliers && health.recentOutliers.length > 0 && (
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
@@ -922,6 +950,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
           </>
         </div>
       )}
+      </>}
     </div>
   );
 }
