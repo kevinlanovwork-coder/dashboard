@@ -15,10 +15,15 @@ const transporter = nodemailer.createTransport({
  * @param {{ to: string[], subject: string, html: string }} opts
  */
 export async function sendAlertEmail({ to, subject, html }) {
-  await transporter.sendMail({
-    from: process.env.NOTIFY_EMAIL,
-    to: Array.isArray(to) ? to.join(', ') : to,
-    subject,
-    html,
-  });
+  try {
+    await transporter.sendMail({
+      from: process.env.NOTIFY_EMAIL,
+      to: Array.isArray(to) ? to.join(', ') : to,
+      subject,
+      html,
+    });
+  } catch (err) {
+    console.error(`  ❌ Email send failed: ${err.message}`);
+    throw err;
+  }
 }
