@@ -525,6 +525,18 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
 
 // ─── Service Fees Tab ────────────────────────────────────────────────────────
 
+interface FeeEditLog {
+  id: number;
+  receiving_country: string;
+  operator: string;
+  delivery_method: string;
+  old_fee: number;
+  new_fee: number;
+  action: string;
+  notes: string | null;
+  edited_at: string;
+}
+
 function ServiceFeesTab({ isEn }: { isEn: boolean }) {
   const [fees, setFees] = useState<ServiceFee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -533,6 +545,9 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
   const [editFee, setEditFee] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [editEffectiveUntil, setEditEffectiveUntil] = useState('');
+  const [feeHistory, setFeeHistory] = useState<FeeEditLog[]>([]);
+  const [feeHistoryPage, setFeeHistoryPage] = useState(0);
+  const FEE_HISTORY_PAGE_SIZE = 10;
 
   const fetchFees = useCallback(async () => {
     try {
@@ -544,7 +559,16 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
     finally { setLoading(false); }
   }, [selectedCountry]);
 
+  const fetchFeeHistory = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings/fees/history');
+      const data = await res.json();
+      if (Array.isArray(data)) setFeeHistory(data);
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => { setLoading(true); fetchFees(); }, [fetchFees]);
+  useEffect(() => { fetchFeeHistory(); }, [fetchFeeHistory]);
 
   const grouped = useMemo(() => {
     const map: Record<string, ServiceFee[]> = {};
@@ -557,7 +581,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
   async function handleSave() {
     if (editingId === null) return;
     await fetch('/api/settings/fees', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingId, fee_krw: Number(editFee), notes: editNotes || null, effective_until: editEffectiveUntil ? new Date(editEffectiveUntil).toISOString() : null }) });
-    setEditingId(null); fetchFees();
+    setEditingId(null); fetchFees(); fetchFeeHistory();
   }
 
   async function handleReset(fee: ServiceFee) {
@@ -567,7 +591,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
     if (!confirm(isEn ? `Reset ${fee.operator} fee to scraped value (${label} KRW)?` : `${fee.operator} 수수료를 스크래핑 값 (${label} KRW)으로 되돌리시겠습니까?`)) return;
     if (scraped_fee == null) return;
     await fetch('/api/settings/fees', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: fee.id, fee_krw: scraped_fee, reset: true }) });
-    fetchFees();
+    fetchFees(); fetchFeeHistory();
   }
 
   function formatDate(iso: string | null) { if (!iso) return '-'; return new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }); }
@@ -630,6 +654,65 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
           </div>
         </div>
       ))}
+
+      {/* Fee Edit History */}
+      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold">{isEn ? 'Edit History' : '수정 이력'} <span className="text-slate-400 font-normal">({feeHistory.length})</span></h2>
+          {feeHistory.length > 0 && (
+            <button
+              onClick={async () => {
+                if (!confirm(isEn ? 'Clear all fee edit history?' : '모든 수수료 수정 이력을 삭제하시겠습니까?')) return;
+                await fetch('/api/settings/fees/history', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clearAll: true }) });
+                fetchFeeHistory(); setFeeHistoryPage(0);
+              }}
+              className="px-2.5 py-1 text-xs rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >
+              {isEn ? 'Clear All' : '전체 삭제'}
+            </button>
+          )}
+        </div>
+        {feeHistory.length === 0 ? <p className="text-sm text-slate-400">{isEn ? 'No edits yet.' : '수정 이력이 없습니다.'}</p> : (
+          <>
+            <div className="space-y-1">
+              {feeHistory.slice(feeHistoryPage * FEE_HISTORY_PAGE_SIZE, (feeHistoryPage + 1) * FEE_HISTORY_PAGE_SIZE).map(log => (
+                <div key={log.id} className="flex items-center justify-between text-xs py-2 border-b border-slate-100 dark:border-slate-800/50">
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-400">{formatDate(log.edited_at)}</span>
+                    <span className="font-medium">{log.receiving_country}</span>
+                    <span>{log.operator}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-xs ${log.action === 'reset' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'}`}>{log.action === 'reset' ? 'Reset' : 'Edit'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-slate-500">{log.old_fee.toLocaleString()}</span>
+                    <span className="text-slate-400">→</span>
+                    <span className="font-mono font-semibold">{log.new_fee.toLocaleString()}</span>
+                    <button
+                      onClick={async () => {
+                        await fetch('/api/settings/fees/history', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: log.id }) });
+                        fetchFeeHistory();
+                      }}
+                      className="text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 transition-colors"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {feeHistory.length > FEE_HISTORY_PAGE_SIZE && (
+              <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
+                <span>{feeHistoryPage * FEE_HISTORY_PAGE_SIZE + 1}–{Math.min((feeHistoryPage + 1) * FEE_HISTORY_PAGE_SIZE, feeHistory.length)} / {feeHistory.length}</span>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => setFeeHistoryPage(p => Math.max(0, p - 1))} disabled={feeHistoryPage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
+                  <span className="px-2">{feeHistoryPage + 1} / {Math.ceil(feeHistory.length / FEE_HISTORY_PAGE_SIZE)}</span>
+                  <button onClick={() => setFeeHistoryPage(p => Math.min(Math.ceil(feeHistory.length / FEE_HISTORY_PAGE_SIZE) - 1, p + 1))} disabled={feeHistoryPage >= Math.ceil(feeHistory.length / FEE_HISTORY_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -660,6 +743,8 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
+  const [failurePage, setFailurePage] = useState(0);
+  const FAILURE_PAGE_SIZE = 10;
 
   const fetchHealth = useCallback(async () => {
     setLoading(true);
@@ -766,17 +851,31 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
       {/* Recent failures */}
       {health.recentFailures.length > 0 && (
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-          <h2 className="text-sm font-semibold mb-3">{isEn ? 'Recent Failures' : '최근 실패'} <span className="text-slate-400 font-normal">({health.recentFailures.length})</span></h2>
-          <div className="space-y-1">
-            {health.recentFailures.map((f, i) => (
-              <div key={i} className="flex items-center gap-3 text-xs py-1.5 border-b border-slate-100 dark:border-slate-800/50">
-                <span className="text-slate-400">{formatRunHour(f.runHour)}</span>
-                <span className="font-medium">{f.country}</span>
-                <span className="text-red-600 dark:text-red-400">{f.operator}</span>
-                <span className="text-slate-400">{f.deliveryMethod === 'Bank Deposit' ? 'Bank Deposit' : f.deliveryMethod}</span>
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold">{isEn ? 'Recent Failures' : '최근 실패'} <span className="text-slate-400 font-normal">({health.recentFailures.length})</span></h2>
           </div>
+          <>
+            <div className="space-y-1">
+              {health.recentFailures.slice(failurePage * FAILURE_PAGE_SIZE, (failurePage + 1) * FAILURE_PAGE_SIZE).map((f, i) => (
+                <div key={i} className="flex items-center gap-3 text-xs py-2 border-b border-slate-100 dark:border-slate-800/50">
+                  <span className="text-slate-400">{formatRunHour(f.runHour)}</span>
+                  <span className="font-medium">{f.country}</span>
+                  <span className="text-red-600 dark:text-red-400">{f.operator}</span>
+                  <span className="text-slate-400">{f.deliveryMethod === 'Bank Deposit' ? 'Bank Deposit' : f.deliveryMethod}</span>
+                </div>
+              ))}
+            </div>
+            {health.recentFailures.length > FAILURE_PAGE_SIZE && (
+              <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
+                <span>{failurePage * FAILURE_PAGE_SIZE + 1}–{Math.min((failurePage + 1) * FAILURE_PAGE_SIZE, health.recentFailures.length)} / {health.recentFailures.length}</span>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => setFailurePage(p => Math.max(0, p - 1))} disabled={failurePage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
+                  <span className="px-2">{failurePage + 1} / {Math.ceil(health.recentFailures.length / FAILURE_PAGE_SIZE)}</span>
+                  <button onClick={() => setFailurePage(p => Math.min(Math.ceil(health.recentFailures.length / FAILURE_PAGE_SIZE) - 1, p + 1))} disabled={failurePage >= Math.ceil(health.recentFailures.length / FAILURE_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
+                </div>
+              </div>
+            )}
+          </>
         </div>
       )}
     </div>

@@ -60,6 +60,9 @@ export async function PUT(req: NextRequest) {
     updates.effective_until = null;
   }
 
+  // Fetch current fee before update for logging
+  const { data: before } = await supabase.from('service_fees').select('*').eq('id', body.id).single();
+
   const { data, error } = await supabase
     .from('service_fees')
     .update(updates)
@@ -69,6 +72,22 @@ export async function PUT(req: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Log the edit
+  if (before && data) {
+    await supabase.from('fee_edit_log').insert({
+      service_fee_id: body.id,
+      receiving_country: before.receiving_country,
+      operator: before.operator,
+      delivery_method: before.delivery_method,
+      old_fee: before.fee_krw,
+      new_fee: data.fee_krw,
+      action: body.reset ? 'reset' : 'edit',
+      notes: body.notes ?? null,
+      effective_until: body.effective_until ?? null,
+      edited_at: new Date().toISOString(),
+    }).catch(() => null); // non-fatal
   }
 
   return NextResponse.json(data);
