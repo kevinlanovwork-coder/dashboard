@@ -737,6 +737,7 @@ interface HealthData {
     }[];
   }[];
   recentFailures: { runHour: string; country: string; operator: string; deliveryMethod: string }[];
+  recentOutliers: { runHour: string; country: string; operator: string; deliveryMethod: string; scrapedValue: number; medianValue: number; deviationPct: number }[];
 }
 
 function ScraperHealthTab({ isEn }: { isEn: boolean }) {
@@ -744,6 +745,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
   const [failurePage, setFailurePage] = useState(0);
+  const [outlierPage, setOutlierPage] = useState(0);
   const FAILURE_PAGE_SIZE = 10;
 
   const fetchHealth = useCallback(async () => {
@@ -872,6 +874,44 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
                   <button onClick={() => setFailurePage(p => Math.max(0, p - 1))} disabled={failurePage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
                   <span className="px-2">{failurePage + 1} / {Math.ceil(health.recentFailures.length / FAILURE_PAGE_SIZE)}</span>
                   <button onClick={() => setFailurePage(p => Math.min(Math.ceil(health.recentFailures.length / FAILURE_PAGE_SIZE) - 1, p + 1))} disabled={failurePage >= Math.ceil(health.recentFailures.length / FAILURE_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
+                </div>
+              </div>
+            )}
+          </>
+        </div>
+      )}
+
+      {/* Outliers Skipped */}
+      {health.recentOutliers && health.recentOutliers.length > 0 && (
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold">{isEn ? 'Outliers Skipped' : '이상치 스킵'} <span className="text-slate-400 font-normal">({health.recentOutliers.length})</span></h2>
+          </div>
+          <>
+            <div className="space-y-1">
+              {health.recentOutliers.slice(outlierPage * FAILURE_PAGE_SIZE, (outlierPage + 1) * FAILURE_PAGE_SIZE).map((o, i) => (
+                <div key={i} className="flex items-center justify-between text-xs py-2 border-b border-slate-100 dark:border-slate-800/50">
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-400">{formatRunHour(o.runHour)}</span>
+                    <span className="font-medium">{o.country}</span>
+                    <span className="text-orange-600 dark:text-orange-400">{o.operator}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-red-600 dark:text-red-400">{o.scrapedValue?.toLocaleString()}</span>
+                    <span className="text-slate-400">vs</span>
+                    <span className="font-mono text-slate-600 dark:text-slate-300">{o.medianValue?.toLocaleString()}</span>
+                    <span className="px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs">{o.deviationPct}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {health.recentOutliers.length > FAILURE_PAGE_SIZE && (
+              <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
+                <span>{outlierPage * FAILURE_PAGE_SIZE + 1}–{Math.min((outlierPage + 1) * FAILURE_PAGE_SIZE, health.recentOutliers.length)} / {health.recentOutliers.length}</span>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => setOutlierPage(p => Math.max(0, p - 1))} disabled={outlierPage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
+                  <span className="px-2">{outlierPage + 1} / {Math.ceil(health.recentOutliers.length / FAILURE_PAGE_SIZE)}</span>
+                  <button onClick={() => setOutlierPage(p => Math.min(Math.ceil(health.recentOutliers.length / FAILURE_PAGE_SIZE) - 1, p + 1))} disabled={outlierPage >= Math.ceil(health.recentOutliers.length / FAILURE_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
                 </div>
               </div>
             )}

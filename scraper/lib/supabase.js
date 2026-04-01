@@ -32,6 +32,13 @@ export async function saveRates(records) {
           const deviation = Math.abs(r.total_sending_amount - median) / median;
           if (deviation > 0.5) {
             console.warn(`  ⚠️ Outlier skipped: ${r.operator} ${r.receiving_country} — ${r.total_sending_amount?.toLocaleString()} (median: ${median.toLocaleString()}, deviation: ${(deviation * 100).toFixed(0)}%)`);
+            try {
+              await supabase.from('outlier_log').insert({
+                run_hour: r.run_hour, operator: r.operator, receiving_country: r.receiving_country,
+                delivery_method: r.delivery_method, scraped_value: r.total_sending_amount,
+                median_value: median, deviation_pct: Math.round(deviation * 100),
+              });
+            } catch { /* non-fatal */ }
             continue;
           }
         }

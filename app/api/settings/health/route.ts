@@ -130,11 +130,29 @@ export async function GET(req: NextRequest) {
   // Sort recent failures by run_hour descending, take last 30
   recentFailures.sort((a, b) => b.runHour.localeCompare(a.runHour));
 
+  // Fetch recent outliers
+  const { data: outlierRows } = await supabase
+    .from('outlier_log')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  const recentOutliers = (outlierRows ?? []).map(o => ({
+    runHour: o.run_hour,
+    country: o.receiving_country,
+    operator: o.operator,
+    deliveryMethod: o.delivery_method,
+    scrapedValue: o.scraped_value,
+    medianValue: o.median_value,
+    deviationPct: o.deviation_pct,
+  }));
+
   return NextResponse.json({
     days,
     totalRuns,
     overallSuccessRate: totalExpected > 0 ? Math.round((totalSuccesses / totalExpected) * 100) : 0,
     corridors,
     recentFailures: recentFailures.slice(0, 30),
+    recentOutliers,
   });
 }
