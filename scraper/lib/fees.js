@@ -17,13 +17,21 @@ export async function loadFees(country) {
     const map = new Map();
 
     for (const r of data) {
-      // Auto-revert expired fee overrides back to default
+      // Auto-revert expired fee overrides back to default scraped value
       if (r.manually_edited && r.effective_until && new Date(r.effective_until) < now) {
+        // Fetch latest scraped fee to restore the correct default
+        const { data: latest } = await supabase.from('rate_records')
+          .select('service_fee').eq('operator', r.operator)
+          .eq('receiving_country', country).eq('delivery_method', r.delivery_method)
+          .is('deleted_at', null).gt('service_fee', 0)
+          .order('run_hour', { ascending: false }).limit(1);
+        const restoredFee = latest?.[0]?.service_fee ?? r.fee_krw;
         await supabase.from('service_fees').update({
+          fee_krw: restoredFee,
           manually_edited: false, edited_at: null, effective_until: null, notes: null,
           updated_at: now.toISOString(),
         }).eq('id', r.id);
-        console.log(`  ⏰ Fee expired for ${r.operator}||${r.delivery_method} — reverted to default`);
+        console.log(`  ⏰ Fee expired for ${r.operator}||${r.delivery_method} — reverted to ${restoredFee}`);
         // Skip this override — scraper will use its own scraped fee
         continue;
       }
