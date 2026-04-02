@@ -264,7 +264,7 @@ async function scrapeJrf(browser) {
       if (sendAmt) break;
     }
     if (!sendAmt) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    const fee = 4000;
+    const fee = 5000;
     return { operator: 'JRF', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
   } finally { await page.close(); await context.close(); }
@@ -342,7 +342,7 @@ async function scrapeSentbe(browser) {
       if (total) break;
     }
     if (!total) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    const fee = 0;
+    const fee = 5000;
     return { operator: 'Sentbe', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
   } finally { await page.close(); await context.close(); }
