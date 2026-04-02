@@ -572,7 +572,7 @@ async function main() {
       gme_baseline:         baseline,
       price_gap:            priceGap,
       status:               status,
-      delivery_method:      'Bank Deposit',
+      delivery_method:      r.delivery_method ?? 'Bank Deposit',
     };
   });
 
