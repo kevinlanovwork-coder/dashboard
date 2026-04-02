@@ -60,8 +60,18 @@ export async function PUT(req: NextRequest) {
     updates.effective_until = null;
   }
 
-  // Fetch current fee before update for logging
+  // Fetch current fee before update for logging + save original_fee
   const { data: before } = await supabase.from('service_fees').select('*').eq('id', body.id).single();
+
+  // When manually editing, save the original fee so we can restore it on expiry
+  if (!body.reset && before && !before.manually_edited) {
+    updates.original_fee = before.fee_krw;
+  }
+
+  // When resetting, also clear original_fee
+  if (body.reset === true) {
+    updates.original_fee = null;
+  }
 
   const { data, error } = await supabase
     .from('service_fees')

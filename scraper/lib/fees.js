@@ -8,7 +8,7 @@ export async function loadFees(country) {
   try {
     const { data, error } = await supabase
       .from('service_fees')
-      .select('id, operator, delivery_method, fee_krw, manually_edited, effective_until')
+      .select('id, operator, delivery_method, fee_krw, manually_edited, effective_until, original_fee')
       .eq('receiving_country', country);
 
     if (error || !data) return new Map();
@@ -19,16 +19,11 @@ export async function loadFees(country) {
     for (const r of data) {
       // Auto-revert expired fee overrides back to default scraped value
       if (r.manually_edited && r.effective_until && new Date(r.effective_until) < now) {
-        // Fetch latest scraped fee to restore the correct default
-        const { data: latest } = await supabase.from('rate_records')
-          .select('service_fee').eq('operator', r.operator)
-          .eq('receiving_country', country).eq('delivery_method', r.delivery_method)
-          .is('deleted_at', null).gt('service_fee', 0)
-          .order('run_hour', { ascending: false }).limit(1);
-        const restoredFee = latest?.[0]?.service_fee ?? r.fee_krw;
+        // Restore from original_fee (saved when the edit was made)
+        const restoredFee = r.original_fee ?? r.fee_krw;
         const oldFee = r.fee_krw;
         await supabase.from('service_fees').update({
-          fee_krw: restoredFee,
+          fee_krw: restoredFee, original_fee: null,
           manually_edited: false, edited_at: null, effective_until: null, notes: null,
           updated_at: now.toISOString(),
         }).eq('id', r.id);
