@@ -155,7 +155,7 @@ function statusColor(status: string) {
 
 const CURRENCY_MAP: Record<string, string> = {
   Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Nepal: 'NPR',
-  Philippines: 'PHP', Malaysia: 'MYR', Singapore: 'SGD', Cambodia: 'USD',
+  Philippines: 'PHP',  Malaysia: 'MYR', Singapore: 'SGD', Cambodia: 'USD',
   Japan: 'JPY', China: 'CNY', Mongolia: 'MNT', Myanmar: 'MMK',
   Pakistan: 'PKR', Laos: 'LAK', 'Sri Lanka': 'LKR', India: 'INR',
   'Timor Leste': 'USD',
@@ -163,7 +163,7 @@ const CURRENCY_MAP: Record<string, string> = {
 
 const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
   Indonesia: 'Bank Deposit', Thailand: 'Bank Deposit', Vietnam: 'Bank Deposit',
-  Nepal: 'Bank Deposit', Philippines: 'Bank Deposit', Malaysia: 'Bank Deposit',
+  Nepal: 'Bank Deposit', Philippines: ['Bank Deposit', 'Cash Pickup'], Malaysia: 'Bank Deposit',
   Singapore: 'Bank Deposit', Cambodia: 'Bank Deposit', Japan: 'Bank Deposit',
   China: 'Alipay', Mongolia: 'Bank Deposit', Myanmar: 'Bank Deposit',
   Pakistan: 'Bank Deposit', Laos: 'Bank Deposit', 'Sri Lanka': 'Bank Deposit', India: 'Bank Deposit',

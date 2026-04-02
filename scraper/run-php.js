@@ -348,8 +348,145 @@ async function scrapeSentbe(browser) {
   } finally { await page.close(); await context.close(); }
 }
 
+// ─── Cash Pickup Scrapers ──────────────────────────────────────────────────────
+
+// GME Cash Pickup (API deliveryMethod=2)
+async function scrapeGmeCashPickup() {
+  const body = new URLSearchParams({
+    method: 'GetExRate', pCurr: 'PHP', pCountryName: 'Philippines',
+    collCurr: 'KRW', deliveryMethod: '2', cAmt: '', pAmt: String(AMOUNT),
+    cardOnline: 'false', calBy: 'P',
+  }).toString();
+  const res = await fetch('https://online.gmeremit.com/Default.aspx', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body, signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.errorCode !== '0') throw new Error(`GME API 오류: ${data.msg}`);
+  const total = parseFloat(data.collAmt?.toString().replace(/,/g, '') ?? '');
+  const fee   = parseFloat(data.scCharge?.toString().replace(/,/g, '') ?? '0');
+  if (!total) throw new Error('총 송금액 추출 실패');
+  return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total,
+    delivery_method: 'Cash Pickup' };
+}
+
+// GMoneyTrans Cash Pickup (API)
+async function scrapeGmoneytransCashPickup() {
+  const url = 'https://mapi.gmoneytrans.net/exratenew1/ajx_calcRate.asp'
+    + `?receive_amount=${AMOUNT}&payout_country=Philippines&total_collected=0&payment_type=Cash+Pickup&currencyType=PHP`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  const serviceCharge = parseField(text, 'serviceCharge') ?? 5000;
+  const sendAmount = parseField(text, 'sendAmount');
+  if (!sendAmount) throw new Error(`파싱 실패: ${text.slice(0, 200)}`);
+  return { operator: 'GMoneyTrans', receiving_country: COUNTRY, receive_amount: AMOUNT,
+    send_amount_krw: sendAmount, service_fee: serviceCharge,
+    total_sending_amount: sendAmount + serviceCharge,
+    delivery_method: 'Cash Pickup' };
+}
+
+// Hanpass Cash Pickup (API)
+async function scrapeHanpassCashPickup() {
+  const res = await fetch('https://app.hanpass.com/app/v1/remittance/get-cost', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inputAmount: String(AMOUNT), inputCurrencyCode: 'PHP',
+      fromCurrencyCode: 'KRW', toCurrencyCode: 'PHP', toCountryCode: 'PH',
+      remittanceOption: 'CASH_PICKUP', memberSeq: '1', lang: 'en' }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.resultCode !== '0') throw new Error(`Hanpass API 오류: ${data.resultMessage}`);
+  const total = data.depositAmountIncludingFee;
+  const fee   = data.transferFee ?? 0;
+  if (!total) throw new Error('총 송금액 추출 실패');
+  return { operator: 'Hanpass', receiving_country: COUNTRY, receive_amount: AMOUNT,
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total,
+    delivery_method: 'Cash Pickup' };
+}
+
+// E9Pay Cash Pickup (Browser — 캐시픽업 PHP)
+async function scrapeE9payCashPickup(browser) {
+  const page = await browser.newPage();
+  try {
+    await page.goto('https://www.e9pay.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(3000);
+    await page.waitForSelector('#PH_PHP', { state: 'attached', timeout: 10000 });
+    await page.evaluate(() => {
+      const radio = document.querySelector('#PH_PHP');
+      radio.checked = true;
+      radio.dispatchEvent(new Event('change', { bubbles: true }));
+      radio.dispatchEvent(new Event('click', { bubbles: true }));
+    });
+    await page.waitForTimeout(1000);
+    await page.click('#select-method'); await page.waitForTimeout(500);
+    await page.evaluate(() => {
+      const items = document.querySelectorAll('#remit-methods li a');
+      for (const a of items) { if (a.textContent.trim().includes('캐시픽업')) { a.click(); break; } }
+    });
+    await page.waitForTimeout(1000);
+    await page.click('#reverse'); await page.waitForTimeout(500);
+    await page.waitForSelector('#receive-money', { timeout: 5000 });
+    await page.click('#receive-money', { clickCount: 3 });
+    await page.fill('#receive-money', String(AMOUNT));
+    await page.dispatchEvent('#receive-money', 'blur');
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.$eval('#send-money', el => el.value).catch(() => null);
+      total = extractNumber(raw);
+      if (total && total !== 1_000_000) break;
+    }
+    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과');
+    const feeRaw = await page.$eval('#remit-fee', el => el.textContent || el.value).catch(() => null);
+    const fee = extractNumber(feeRaw) ?? 5000;
+    return { operator: 'E9Pay', receiving_country: COUNTRY, receive_amount: AMOUNT,
+      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee,
+      delivery_method: 'Cash Pickup' };
+  } finally { await page.close(); }
+}
+
+// JRF Cash Pay (Browser)
+async function scrapeJrfCashPickup(browser) {
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  const page = await context.newPage();
+  try {
+    await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(3000);
+    await page.click('#div_curr', { force: true });
+    await page.waitForSelector('li#PHP', { state: 'visible', timeout: 10000 });
+    await page.click('li#PHP'); await page.waitForTimeout(1500);
+    // Select Cash Pay from delivery method dropdown
+    await page.evaluate(() => {
+      const sel = document.querySelector('#banner_form_ddl_category');
+      sel.value = 'Cash Pay';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await page.waitForTimeout(2000);
+    await page.click('#rec_money', { clickCount: 3 });
+    await page.fill('#rec_money', String(AMOUNT));
+    await page.dispatchEvent('#rec_money', 'keyup');
+    let sendAmt = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.inputValue('#send_money');
+      sendAmt = extractNumber(raw);
+      if (sendAmt) break;
+    }
+    if (!sendAmt) throw new Error('총 송금액 계산 대기 초과');
+    const fee = 5000;
+    return { operator: 'JRF', receiving_country: COUNTRY, receive_amount: AMOUNT,
+      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee,
+      delivery_method: 'Cash Pickup' };
+  } finally { await page.close(); await context.close(); }
+}
+
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
+  // Bank Deposit
   { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
@@ -360,6 +497,12 @@ const SCRAPERS = [
   { name: 'Utransfer',   fn: (b) => withRetry(() => scrapeUtransfer(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
   { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
+  // Cash Pickup
+  { name: 'GME (Cash Pickup)',         fn: () => withRetry(scrapeGmeCashPickup), needsBrowser: false },
+  { name: 'GMoneyTrans (Cash Pickup)', fn: scrapeGmoneytransCashPickup, needsBrowser: false },
+  { name: 'Hanpass (Cash Pickup)',     fn: () => withRetry(scrapeHanpassCashPickup), needsBrowser: false },
+  { name: 'E9Pay (Cash Pickup)',       fn: (b) => withRetry(() => scrapeE9payCashPickup(b)), needsBrowser: true },
+  { name: 'JRF (Cash Pickup)',         fn: (b) => withRetry(() => scrapeJrfCashPickup(b)), needsBrowser: true },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
@@ -404,13 +547,19 @@ async function main() {
   const feeMap = await loadFees(COUNTRY);
   const adjusted = applyFeeOverrides(results, feeMap);
 
-  const gmeRecord   = adjusted.find(r => r.operator === 'GME');
-  const gmeBaseline = gmeRecord?.total_sending_amount ?? null;
-  if (!gmeBaseline) console.warn('\n⚠️  GME 기준값 없음 — price_gap 계산 불가');
+  // GME 기준값 — delivery_method 별로 분리
+  const gmeBankRecord   = adjusted.find(r => r.operator === 'GME' && (r.delivery_method ?? 'Bank Deposit') === 'Bank Deposit');
+  const gmeCashRecord   = adjusted.find(r => r.operator === 'GME' && r.delivery_method === 'Cash Pickup');
+  const gmeBankBaseline = gmeBankRecord?.total_sending_amount ?? null;
+  const gmeCashBaseline = gmeCashRecord?.total_sending_amount ?? null;
+
+  if (!gmeBankBaseline) console.warn('\n⚠️  GME Bank Deposit 기준값 없음');
+  if (!gmeCashBaseline) console.warn('\n⚠️  GME Cash Pickup 기준값 없음');
 
   const toSave = adjusted.map(r => {
-    const priceGap = gmeBaseline && r.operator !== 'GME'
-      ? r.total_sending_amount - gmeBaseline : null;
+    const baseline = r.delivery_method === 'Cash Pickup' ? gmeCashBaseline : gmeBankBaseline;
+    const priceGap = baseline && r.operator !== 'GME'
+      ? r.total_sending_amount - baseline : null;
     const status = priceGap === null ? null : priceGap > 0 ? 'GME 유리' : '경쟁사 유리';
     return {
       run_hour:             runHour,
@@ -420,7 +569,7 @@ async function main() {
       send_amount_krw:      r.send_amount_krw,
       service_fee:          r.service_fee ?? 0,
       total_sending_amount: r.total_sending_amount,
-      gme_baseline:         gmeBaseline,
+      gme_baseline:         baseline,
       price_gap:            priceGap,
       status:               status,
       delivery_method:      'Bank Deposit',

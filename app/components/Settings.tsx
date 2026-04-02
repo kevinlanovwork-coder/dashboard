@@ -56,7 +56,8 @@ const OPERATOR_MAP: Record<string, string[]> = {
   'Thailand||Bank Deposit':    ['GME', 'GMoneyTrans', 'WireBarley', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'Coinshot', 'JRF', 'E9Pay'],
   'Vietnam||Bank Deposit':     ['GME', 'Sentbe', 'SBI', 'GMoneyTrans', 'E9Pay', 'Hanpass', 'Cross', 'JRF'],
   'Nepal||Bank Deposit':       ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'JRF', 'E9Pay', 'Coinshot'],
-  'Philippines||Bank Deposit': ['GME', 'GMoneyTrans', 'SBI', 'Coinshot', 'Cross', 'E9Pay', 'JRF', 'Utransfer', 'Hanpass'],
+  'Philippines||Bank Deposit': ['GME', 'GMoneyTrans', 'SBI', 'Coinshot', 'Cross', 'E9Pay', 'JRF', 'Utransfer', 'Hanpass', 'Sentbe'],
+  'Philippines||Cash Pickup':  ['GME', 'GMoneyTrans', 'Hanpass', 'E9Pay', 'JRF'],
   'Cambodia||Bank Deposit':    ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'E9Pay'],
   'China||Alipay':             ['GME', 'GMoneyTrans', 'Sentbe', 'Hanpass', 'SBI', 'Cross', 'WireBarley', 'Coinshot', 'E9Pay', 'Utransfer', 'Moin', 'Debunk'],
   'Mongolia||Bank Deposit':    ['GME', 'GMoneyTrans', 'Utransfer', 'Cross', 'E9Pay', 'Coinshot', 'Hanpass'],
@@ -71,7 +72,7 @@ const OPERATOR_MAP: Record<string, string[]> = {
 
 const DELIVERY_METHOD_MAP: Record<string, string[]> = {
   Indonesia: ['Bank Deposit'], Thailand: ['Bank Deposit'], Vietnam: ['Bank Deposit'],
-  Nepal: ['Bank Deposit'], Philippines: ['Bank Deposit'], Cambodia: ['Bank Deposit'],
+  Nepal: ['Bank Deposit'], Philippines: ['Bank Deposit', 'Cash Pickup'], Cambodia: ['Bank Deposit'],
   China: ['Alipay'], Mongolia: ['Bank Deposit'], Myanmar: ['Bank Deposit'],
   Pakistan: ['Bank Deposit'], Laos: ['Bank Deposit'], 'Sri Lanka': ['Bank Deposit'], India: ['Bank Deposit'],
   'Timor Leste': ['Bank Deposit', 'Cash Pickup (MoneyGram)'],
