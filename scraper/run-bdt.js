@@ -51,7 +51,7 @@ async function scrapeGmoneytrans() {
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const text = await res.text();
-  const serviceCharge = parseField(text, 'serviceCharge') ?? 2500;
+  const serviceCharge = parseField(text, 'serviceCharge') ?? 5000;
   const sendAmount    = parseField(text, 'sendAmount');
   if (!sendAmount) throw new Error(`파싱 실패: ${text.slice(0, 200)}`);
   return { operator: 'GMoneyTrans', receiving_country: COUNTRY, receive_amount: AMOUNT,
