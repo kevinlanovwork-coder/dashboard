@@ -44,6 +44,8 @@ jobs:
             script: run-inr.js
           - name: Timor Leste USD
             script: run-tls.js
+          - name: Bangladesh BDT
+            script: run-bdt.js
 
     defaults:
       run:
