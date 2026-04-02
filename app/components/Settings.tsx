@@ -65,6 +65,8 @@ const OPERATOR_MAP: Record<string, string[]> = {
   'Laos||Bank Deposit':        ['GME', 'GMoneyTrans', 'E9Pay', 'Hanpass'],
   'Sri Lanka||Bank Deposit':   ['GME', 'Sentbe', 'E9Pay', 'GMoneyTrans', 'Coinshot', 'JRF', 'Hanpass'],
   'India||Bank Deposit':       ['WireBarley', 'Sentbe', 'GMoneyTrans', 'GME', 'Hanpass'],
+  'Timor Leste||Bank Deposit':          ['GMoneyTrans', 'Hanpass'],
+  'Timor Leste||Cash Pickup (MoneyGram)': ['GMoneyTrans', 'Hanpass'],
 };
 
 const DELIVERY_METHOD_MAP: Record<string, string[]> = {
@@ -72,6 +74,7 @@ const DELIVERY_METHOD_MAP: Record<string, string[]> = {
   Nepal: ['Bank Deposit'], Philippines: ['Bank Deposit'], Cambodia: ['Bank Deposit'],
   China: ['Alipay'], Mongolia: ['Bank Deposit'], Myanmar: ['Bank Deposit'],
   Pakistan: ['Bank Deposit'], Laos: ['Bank Deposit'], 'Sri Lanka': ['Bank Deposit'], India: ['Bank Deposit'],
+  'Timor Leste': ['Bank Deposit', 'Cash Pickup (MoneyGram)'],
 };
 
 const COUNTRIES = Object.keys(DELIVERY_METHOD_MAP);

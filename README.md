@@ -51,6 +51,7 @@ Competitor websites
 | Laos         | LAK      | 15,000,000 LAK     | GME, GMoneyTrans, E9Pay, Hanpass |
 | Sri Lanka    | LKR      | 230,000 LKR        | GME, Sentbe, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
 | India        | INR      | 100,000 INR        | WireBarley, Sentbe, GMoneyTrans, GME, Hanpass |
+| Timor Leste  | USD      | 1,000 USD          | GMoneyTrans, Hanpass (Bank Deposit + Cash Pickup MoneyGram) |
 | Philippines  | PHP      | 40,000 PHP         | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
 
 > All China operators use **Alipay** as the delivery method.
@@ -151,6 +152,7 @@ dashboard/
 |   +-- run-lak.js                     # Laos LAK scraper
 |   +-- run-lkr.js                     # Sri Lanka LKR scraper
 |   +-- run-inr.js                     # India INR scraper
+|   +-- run-tls.js                     # Timor Leste USD scraper
 |   +-- run-php.js                     # Philippines PHP scraper
 |   +-- package.json
 +-- data/
@@ -188,6 +190,7 @@ node --env-file=.env run-pkr.js      # Pakistan
 node --env-file=.env run-lak.js      # Laos
 node --env-file=.env run-lkr.js      # Sri Lanka
 node --env-file=.env run-inr.js      # India
+node --env-file=.env run-tls.js      # Timor Leste
 node --env-file=.env run-php.js      # Philippines
 ```
 

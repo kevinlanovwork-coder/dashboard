@@ -158,6 +158,7 @@ const CURRENCY_MAP: Record<string, string> = {
   Philippines: 'PHP', Malaysia: 'MYR', Singapore: 'SGD', Cambodia: 'USD',
   Japan: 'JPY', China: 'CNY', Mongolia: 'MNT', Myanmar: 'MMK',
   Pakistan: 'PKR', Laos: 'LAK', 'Sri Lanka': 'LKR', India: 'INR',
+  'Timor Leste': 'USD',
 };
 
 const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
@@ -166,6 +167,7 @@ const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
   Singapore: 'Bank Deposit', Cambodia: 'Bank Deposit', Japan: 'Bank Deposit',
   China: 'Alipay', Mongolia: 'Bank Deposit', Myanmar: 'Bank Deposit',
   Pakistan: 'Bank Deposit', Laos: 'Bank Deposit', 'Sri Lanka': 'Bank Deposit', India: 'Bank Deposit',
+  'Timor Leste': ['Bank Deposit', 'Cash Pickup (MoneyGram)'],
 };
 
 // GME embeds a service fee inside send_amount_krw for these corridors.

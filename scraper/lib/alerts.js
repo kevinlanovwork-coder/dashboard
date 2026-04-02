@@ -5,7 +5,7 @@ const CURRENCY_MAP = {
   Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Nepal: 'NPR',
   Philippines: 'PHP', Cambodia: 'USD', China: 'CNY', Mongolia: 'MNT',
   Myanmar: 'MMK', Pakistan: 'PKR', Laos: 'LAK', 'Sri Lanka': 'LKR',
-  India: 'INR',
+  India: 'INR', 'Timor Leste': 'USD',
 };
 
 function calcRate(receiveAmount, sendKRW) {

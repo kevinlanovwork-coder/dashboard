@@ -193,6 +193,7 @@ Next.js Dashboard (Vercel)
 | Sri Lanka | LKR | 230,000 | GME, Sentbe, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
 | India | INR | 100,000 | WireBarley, Sentbe, GMoneyTrans, GME, Hanpass |
 | Cambodia | USD | 1,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay |
+| Timor Leste | USD | 1,000 | GMoneyTrans, Hanpass (Bank Deposit + Cash Pickup MoneyGram) |
 
 ## Scraper Libraries
 

@@ -42,6 +42,8 @@ jobs:
             script: run-lkr.js
           - name: India INR
             script: run-inr.js
+          - name: Timor Leste USD
+            script: run-tls.js
 
     defaults:
       run:
