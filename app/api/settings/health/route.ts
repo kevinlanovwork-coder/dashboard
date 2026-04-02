@@ -127,8 +127,44 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Sort recent failures by run_hour descending, take last 30
+  // Sort inferred failures by run_hour descending
   recentFailures.sort((a, b) => b.runHour.localeCompare(a.runHour));
+
+  // Fetch logged failures with reasons from scraper_failure_log
+  const { data: failureLogs } = await supabase
+    .from('scraper_failure_log')
+    .select('*')
+    .gte('created_at', fromDateStr)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  // Build a lookup of logged reasons by key
+  const failureReasonMap = new Map<string, { reason: string; error_message: string | null }>();
+  (failureLogs ?? []).forEach(f => {
+    failureReasonMap.set(`${f.run_hour}||${f.receiving_country}||${f.delivery_method}||${f.operator}`, { reason: f.reason, error_message: f.error_message });
+  });
+
+  // Also detect manually deleted records
+  const { data: deletedRows } = await supabase
+    .from('rate_records')
+    .select('run_hour, operator, receiving_country, delivery_method')
+    .not('deleted_at', 'is', null)
+    .gte('run_hour', fromDateStr)
+    .order('run_hour', { ascending: false })
+    .limit(200);
+
+  const deletedSet = new Set(
+    (deletedRows ?? []).map(r => `${r.run_hour}||${r.receiving_country}||${r.delivery_method ?? 'Bank Deposit'}||${r.operator}`)
+  );
+
+  // Enrich recent failures with reasons
+  const enrichedFailures = recentFailures.map(f => {
+    const key = `${f.runHour}||${f.country}||${f.deliveryMethod}||${f.operator}`;
+    const logged = failureReasonMap.get(key);
+    if (logged) return { ...f, reason: logged.reason, errorMessage: logged.error_message };
+    if (deletedSet.has(key)) return { ...f, reason: 'manually_deleted', errorMessage: null };
+    return { ...f, reason: 'unknown', errorMessage: null };
+  });
 
   // Fetch recent outliers
   const { data: outlierRows } = await supabase
@@ -152,7 +188,7 @@ export async function GET(req: NextRequest) {
     totalRuns,
     overallSuccessRate: totalExpected > 0 ? Math.round((totalSuccesses / totalExpected) * 100) : 0,
     corridors,
-    recentFailures: recentFailures.slice(0, 30),
+    recentFailures: enrichedFailures.slice(0, 100),
     recentOutliers,
   });
 }

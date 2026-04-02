@@ -6,7 +6,7 @@
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
-import { saveRates } from './lib/supabase.js';
+import { saveRates, logFailure } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
 import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 
@@ -177,6 +177,7 @@ async function main() {
     } else {
       console.error(`  ✗ ${name} 실패: ${result.reason?.message}`);
       errors.push({ name, error: result.reason?.message });
+      logFailure(runHour, COUNTRY, name, 'Bank Deposit', result.reason?.message);
     }
   }
 

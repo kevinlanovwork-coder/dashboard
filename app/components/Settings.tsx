@@ -762,7 +762,7 @@ interface HealthData {
       lastFailure: string | null;
     }[];
   }[];
-  recentFailures: { runHour: string; country: string; operator: string; deliveryMethod: string }[];
+  recentFailures: { runHour: string; country: string; operator: string; deliveryMethod: string; reason: string; errorMessage: string | null }[];
   recentOutliers: { runHour: string; country: string; operator: string; deliveryMethod: string; scrapedValue: number; medianValue: number; deviationPct: number }[];
 }
 
@@ -894,11 +894,28 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
           <>
             <div className="space-y-1">
               {health.recentFailures.slice(failurePage * FAILURE_PAGE_SIZE, (failurePage + 1) * FAILURE_PAGE_SIZE).map((f, i) => (
-                <div key={i} className="flex items-center gap-3 text-xs py-2 border-b border-slate-100 dark:border-slate-800/50">
-                  <span className="text-slate-400">{formatRunHour(f.runHour)}</span>
-                  <span className="font-medium">{f.country}</span>
-                  <span className="text-red-600 dark:text-red-400">{f.operator}</span>
-                  <span className="text-slate-400">{f.deliveryMethod === 'Bank Deposit' ? 'Bank Deposit' : f.deliveryMethod}</span>
+                <div key={i} className="flex items-center justify-between text-xs py-2 border-b border-slate-100 dark:border-slate-800/50">
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-400">{formatRunHour(f.runHour)}</span>
+                    <span className="font-medium">{f.country}</span>
+                    <span className="text-red-600 dark:text-red-400">{f.operator}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-1.5 py-0.5 rounded text-xs ${
+                      f.reason === 'website_down' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' :
+                      f.reason === 'api_error' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600' :
+                      f.reason === 'manually_deleted' ? 'bg-slate-200 dark:bg-slate-700 text-slate-500' :
+                      f.reason === 'scrape_error' ? 'bg-red-100 dark:bg-red-900/30 text-red-600' :
+                      'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                    }`}>{
+                      f.reason === 'website_down' ? 'Website Down' :
+                      f.reason === 'api_error' ? 'API Error' :
+                      f.reason === 'manually_deleted' ? 'Deleted' :
+                      f.reason === 'scrape_error' ? 'Scrape Error' :
+                      'Unknown'
+                    }</span>
+                    {f.errorMessage && <span className="text-slate-400 max-w-48 truncate" title={f.errorMessage}>{f.errorMessage}</span>}
+                  </div>
                 </div>
               ))}
             </div>

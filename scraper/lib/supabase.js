@@ -58,4 +58,24 @@ export async function saveRates(records) {
   if (error) throw new Error(`Supabase upsert error: ${error.message}`);
 }
 
+/**
+ * Classify and log a scraper failure to scraper_failure_log.
+ */
+export async function logFailure(runHour, country, operator, deliveryMethod, errorMessage) {
+  let reason = 'scrape_error';
+  const msg = (errorMessage ?? '').toLowerCase();
+  if (msg.includes('http') || msg.includes('econnrefused') || msg.includes('enotfound') || msg.includes('err_connection')) {
+    reason = 'website_down';
+  } else if (msg.includes('파싱 실패') || msg.includes('soap') || msg.includes('api 오류')) {
+    reason = 'api_error';
+  }
+  try {
+    await supabase.from('scraper_failure_log').insert({
+      run_hour: runHour, operator, receiving_country: country,
+      delivery_method: deliveryMethod ?? 'Bank Deposit',
+      reason, error_message: errorMessage?.slice(0, 500) ?? null,
+    });
+  } catch { /* non-fatal */ }
+}
+
 export default supabase;
