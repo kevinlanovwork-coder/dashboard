@@ -10,6 +10,8 @@ import { saveRates, logFailure } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
 import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 
+const COUNTRY = 'Indonesia';
+
 // ── 스크래퍼 임포트 ──────────────────────────────────────────────────────
 import { scrape as scrapeGme }        from './scrapers/gme.js';
 import { scrape as scrapeGmoneytrans } from './scrapers/gmoneytrans.js';
