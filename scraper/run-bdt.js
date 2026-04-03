@@ -2,7 +2,7 @@
  * Bangladesh (BDT) 스크래퍼 — 100,000 BDT 기준
  * 실행: node --env-file=.env run-bdt.js
  *
- * 지원 사업자: GME, GMoneyTrans, E9Pay, Utransfer, Hanpass, JRF
+ * 지원 사업자: GME, GMoneyTrans, E9Pay, Utransfer, Hanpass, JRF, Cross
  * 수령 방식: Bank Deposit
  */
 import { chromium } from 'playwright';
@@ -14,30 +14,25 @@ import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 const COUNTRY = 'Bangladesh';
 const AMOUNT  = 100_000;
 
-// ─── GME ─────────────────────────────────────────────────────────────────────
-async function scrapeGme(browser) {
-  const page = await browser.newPage();
-  try {
-    await page.goto('https://online.gmeremit.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForSelector('#nCountry', { timeout: 10000 });
-    await page.click('#nCountry'); await page.waitForTimeout(500);
-    await page.fill('#CountryValue', 'Bangladesh'); await page.waitForTimeout(300);
-    await page.click('#toCurrUl li[data-countrycode="BDT"]');
-    await page.waitForTimeout(1000);
-    await page.click('#recAmt', { clickCount: 3 });
-    await page.fill('#recAmt', String(AMOUNT));
-    await page.dispatchEvent('#recAmt', 'change');
-    let total = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await page.waitForTimeout(1000);
-      const raw = await page.$eval('#numAmount', el => el.value || el.textContent).catch(() => null);
-      total = extractNumber(raw);
-      if (total) break;
-    }
-    if (!total) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total, service_fee: 0, total_sending_amount: total };
-  } finally { await page.close(); }
+// ─── GME (API — Bank Deposit) ────────────────────────────────────────────────
+async function scrapeGme() {
+  const body = new URLSearchParams({
+    method: 'GetExRate', pCurr: 'BDT', pCountryName: 'Bangladesh',
+    collCurr: 'KRW', deliveryMethod: '2', cAmt: '', pAmt: String(AMOUNT),
+    cardOnline: 'false', calBy: 'P',
+  }).toString();
+  const res = await fetch('https://online.gmeremit.com/Default.aspx', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body, signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.errorCode !== '0') throw new Error(`GME API 오류: ${data.msg}`);
+  const total = extractNumber(data.collAmt);
+  const fee   = extractNumber(data.scCharge) ?? 0;
+  if (!total) throw new Error('총 송금액 추출 실패');
+  return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
 }
 
 // ─── GMoneyTrans (API) ────────────────────────────────────────────────────────
@@ -171,14 +166,46 @@ async function scrapeJrf(browser) {
   } finally { await page.close(); await context.close(); }
 }
 
+// ─── Cross ──────────────────────────────────────────────────────────────────
+async function scrapeCross(browser) {
+  const page = await browser.newPage();
+  try {
+    await page.goto('https://crossenf.com/remittance', { waitUntil: 'load', timeout: 30000 });
+    await page.waitForTimeout(2000);
+    // 수신 통화 드롭다운 열기 (기본값 THB) → Bangladesh 선택
+    await page.locator('div.relative:has(span:text("THB"))').click();
+    await page.waitForSelector('#aside-root ul', { timeout: 10000 });
+    await page.waitForTimeout(500);
+    await page.locator('#aside-root li:has(img[alt="BD flag"])').click();
+    await page.waitForTimeout(1500);
+    // 수령액 입력: 100,000 BDT
+    const receiveInput = page.locator('input[inputmode="numeric"]').nth(1);
+    await receiveInput.click({ clickCount: 3 });
+    await receiveInput.fill(String(AMOUNT));
+    await receiveInput.press('Tab');
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.locator('input[inputmode="numeric"]').nth(0).inputValue();
+      total = extractNumber(raw);
+      if (total && total !== 1_000_000) break;
+    }
+    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    const fee = 5000;
+    return { operator: 'Cross', receiving_country: COUNTRY, receive_amount: AMOUNT,
+      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
+  } finally { await page.close(); }
+}
+
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
-  { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
+  { name: 'GME',         fn: () => withRetry(scrapeGme), needsBrowser: false },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'Utransfer',   fn: (b) => withRetry(() => scrapeUtransfer(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
   { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b)), needsBrowser: true  },
+  { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
@@ -222,6 +249,12 @@ async function main() {
   // ── 수수료 오버라이드 적용 ────────────────────────────────────────────
   const feeMap = await loadFees(COUNTRY);
   const adjusted = applyFeeOverrides(results, feeMap);
+
+  // ── Bangladesh: hardcode all service fees to 0 KRW ─────────────────
+  adjusted.forEach(r => {
+    r.total_sending_amount = r.send_amount_krw;
+    r.service_fee = 0;
+  });
 
   const gmeRecord   = adjusted.find(r => r.operator === 'GME');
   const gmeBaseline = gmeRecord?.total_sending_amount ?? null;

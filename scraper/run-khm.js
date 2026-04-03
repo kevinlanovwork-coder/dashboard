@@ -181,7 +181,8 @@ async function scrapeE9pay(browser) {
 const SCRAPERS = [
   { name: 'GME',         fn: () => withRetry(() => scrapeGme()),   needsBrowser: false },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
-  { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
+  // Sentbe disabled — www.sentbe.com/ko redirects to corporate.sentbe.com (no web calculator since Apr 2026)
+  // { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },

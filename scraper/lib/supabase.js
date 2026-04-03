@@ -14,6 +14,18 @@ export async function saveRates(records) {
 
   const validated = [];
   for (const r of records) {
+    // Guard: exact 1,000,000 KRW send amount is almost certainly a scraping default, not a real rate
+    if (r.send_amount_krw === 1_000_000 || r.total_sending_amount === 1_000_000) {
+      console.warn(`  ⚠️ Suspicious 1,000,000 KRW skipped: ${r.operator} ${r.receiving_country}`);
+      try {
+        await supabase.from('outlier_log').insert({
+          run_hour: r.run_hour, operator: r.operator, receiving_country: r.receiving_country,
+          delivery_method: r.delivery_method, scraped_value: r.total_sending_amount,
+          median_value: null, deviation_pct: null,
+        });
+      } catch { /* non-fatal */ }
+      continue;
+    }
     try {
       const { data: recent } = await supabase
         .from('rate_records')

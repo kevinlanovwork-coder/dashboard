@@ -47,14 +47,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json([]);
   }
 
+  // Bangladesh corridor: hardcode all service fees to 0 KRW
+  const zeroFees = country === 'Bangladesh';
+
   // Build GME baseline map (delivery-method-aware for multi-method corridors like China)
   const gmeBaselineMap = new Map<string, number>();
   data.forEach((r: Record<string, unknown>) => {
     if (r.operator === 'GME' && r.total_sending_amount) {
+      const effectiveTotal = zeroFees ? (r.send_amount_krw as number) : (r.total_sending_amount as number);
       const dmKey = `${r.run_hour}||${r.delivery_method}`;
-      gmeBaselineMap.set(dmKey, r.total_sending_amount as number);
+      gmeBaselineMap.set(dmKey, effectiveTotal);
       if (!gmeBaselineMap.has(r.run_hour as string)) {
-        gmeBaselineMap.set(r.run_hour as string, r.total_sending_amount as number);
+        gmeBaselineMap.set(r.run_hour as string, effectiveTotal);
       }
     }
   });
@@ -62,7 +66,7 @@ export async function GET(req: NextRequest) {
   const records = data.map((r: Record<string, unknown>) => {
     const dmKey = `${r.run_hour}||${r.delivery_method}`;
     const gmeBaseline = gmeBaselineMap.get(dmKey) ?? gmeBaselineMap.get(r.run_hour as string) ?? null;
-    const totalSend = r.total_sending_amount as number;
+    const totalSend = zeroFees ? (r.send_amount_krw as number) : (r.total_sending_amount as number);
     const priceGap = r.operator !== 'GME' && gmeBaseline
       ? totalSend - gmeBaseline
       : null;
@@ -84,7 +88,7 @@ export async function GET(req: NextRequest) {
       sendAmountKRW: r.send_amount_krw as number,
       receiveMultiplier: 1,
       adjustedSendingAmount: r.send_amount_krw as number,
-      serviceFee: (r.service_fee ?? 0) as number,
+      serviceFee: zeroFees ? 0 : (r.service_fee ?? 0) as number,
       totalSendingAmount: totalSend,
       gmeBaseline,
       priceGap,

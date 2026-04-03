@@ -392,7 +392,8 @@ async function scrapeDebunk(browser) {
 const SCRAPERS = [
   { name: 'GME',                       fn: () => scrapeGmeApi('2', 'Alipay'),                           needsBrowser: false },
   { name: 'GMoneyTrans',              fn: () => scrapeGmoneytransApi('Alipay', 'Alipay'),              needsBrowser: false },
-  { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
+  // Sentbe disabled — www.sentbe.com/ko redirects to corporate.sentbe.com (no web calculator since Apr 2026)
+  // { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
   { name: 'Hanpass',           fn: () => withRetry(() => scrapeHanpass({ mtoServiceCenterCode: 'ALMW-0001' }, 'Alipay')),  needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },

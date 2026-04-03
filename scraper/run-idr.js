@@ -5,15 +5,35 @@
  * - Supabase에 저장
  */
 import { chromium } from 'playwright';
-import { getRunHour, withRetry } from './lib/browser.js';
+import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
 import { saveRates, logFailure } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
 import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 
 const COUNTRY = 'Indonesia';
 
+// ─── GME (API — Bank Deposit) ────────────────────────────────────────────────
+async function scrapeGme() {
+  const body = new URLSearchParams({
+    method: 'GetExRate', pCurr: 'IDR', pCountryName: 'Indonesia',
+    collCurr: 'KRW', deliveryMethod: '2', cAmt: '', pAmt: '13000000',
+    cardOnline: 'false', calBy: 'P',
+  }).toString();
+  const res = await fetch('https://online.gmeremit.com/Default.aspx', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body, signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.errorCode !== '0') throw new Error(`GME API 오류: ${data.msg}`);
+  const total = extractNumber(data.collAmt);
+  const fee   = extractNumber(data.scCharge) ?? 0;
+  if (!total) throw new Error('총 송금액 추출 실패');
+  return { operator: 'GME', receiving_country: COUNTRY, receive_amount: 13000000,
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
+}
+
 // ── 스크래퍼 임포트 ──────────────────────────────────────────────────────
-import { scrape as scrapeGme }        from './scrapers/gme.js';
 import { scrape as scrapeGmoneytrans } from './scrapers/gmoneytrans.js';
 import { scrape as scrapeSentbe }     from './scrapers/sentbe.js';
 import { scrape as scrapeHanpass }    from './scrapers/hanpass.js';
@@ -28,7 +48,7 @@ import { scrape as scrapeE9pay }      from './scrapers/e9pay.js';
 // needsBrowser: true → Playwright 브라우저 필요
 // needsBrowser: false → 직접 fetch (브라우저 불필요)
 const SCRAPERS = [
-  { name: 'GME',          fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
+  { name: 'GME',          fn: () => withRetry(scrapeGme), needsBrowser: false },
   { name: 'GMoneyTrans',  fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Sentbe',       fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
   { name: 'Hanpass',      fn: () => withRetry(scrapeHanpass), needsBrowser: false },

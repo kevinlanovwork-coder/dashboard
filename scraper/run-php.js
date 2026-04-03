@@ -13,55 +13,25 @@ import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 const COUNTRY = 'Philippines';
 const AMOUNT  = 40_000;
 
-// ─── GME ─────────────────────────────────────────────────────────────────────
-async function scrapeGme(browser) {
-  const page = await browser.newPage();
-  try {
-    await page.goto('https://online.gmeremit.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForSelector('#nCountry', { timeout: 10000 });
-    await page.click('#nCountry'); await page.waitForTimeout(500);
-    await page.fill('#CountryValue', 'Philippines'); await page.waitForTimeout(300);
-    await page.click('#toCurrUl li[data-countrycode="PHP"]');
-    await page.waitForTimeout(1000);
-    // Select delivery method (required for Philippines) — options loaded via AJAX
-    await page.waitForSelector('#sendingType', { timeout: 10000 });
-    await page.waitForFunction(() => {
-      const sel = document.querySelector('#sendingType');
-      return sel && sel.options.length > 1;
-    }, null, { timeout: 10000 });
-    // Use jQuery .trigger('change') so the site's jQuery handler fires
-    // (native dispatchEvent does NOT trigger jQuery .on('change') handlers)
-    const picked = await page.evaluate(() => {
-      const sel = document.querySelector('#sendingType');
-      const opts = Array.from(sel.options);
-      const bank = opts.find(o => /bank/i.test(o.text));
-      const target = bank || opts.find(o => o.value && o.value !== '');
-      if (target) {
-        $('#sendingType').val(target.value).trigger('change');
-        return target.text;
-      }
-      return null;
-    });
-    console.log(`    GME Philippines delivery method: ${picked}`);
-    await page.waitForTimeout(2000);
-    await page.click('#recAmt', { clickCount: 3 });
-    await page.fill('#recAmt', String(AMOUNT));
-    // Capture initial value before triggering calculation
-    const initRaw = await page.$eval('#numAmount', el => el.value || el.textContent).catch(() => null);
-    const initVal = extractNumber(initRaw);
-    // Explicitly trigger calculation (site uses keypress monitoring, not onchange)
-    await page.evaluate(() => Calculate('P'));
-    let total = null;
-    for (let attempt = 0; attempt < 15; attempt++) {
-      await page.waitForTimeout(1000);
-      const raw = await page.$eval('#numAmount', el => el.value || el.textContent).catch(() => null);
-      total = extractNumber(raw);
-      if (total && total !== initVal) break;
-    }
-    if (!total || total === initVal) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total, service_fee: 0, total_sending_amount: total };
-  } finally { await page.close(); }
+// ─── GME (API — Bank Deposit) ────────────────────────────────────────────────
+async function scrapeGme() {
+  const body = new URLSearchParams({
+    method: 'GetExRate', pCurr: 'PHP', pCountryName: 'Philippines',
+    collCurr: 'KRW', deliveryMethod: '2', cAmt: '', pAmt: String(AMOUNT),
+    cardOnline: 'false', calBy: 'P',
+  }).toString();
+  const res = await fetch('https://online.gmeremit.com/Default.aspx', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body, signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.errorCode !== '0') throw new Error(`GME API 오류: ${data.msg}`);
+  const total = extractNumber(data.collAmt);
+  const fee   = extractNumber(data.scCharge) ?? 0;
+  if (!total) throw new Error('총 송금액 추출 실패');
+  return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
 }
 
 // ─── GMoneyTrans (API) ────────────────────────────────────────────────────────
@@ -108,9 +78,9 @@ async function scrapeSbi(browser) {
       await page.waitForTimeout(1000);
       const raw = await page.inputValue('#krwAmount');
       sendAmt = extractNumber(raw);
-      if (sendAmt) break;
+      if (sendAmt && sendAmt !== 1_000_000) break;
     }
-    if (!sendAmt) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const fee = 5000;
     return { operator: 'SBI', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
@@ -135,9 +105,9 @@ async function scrapeCoinshot(browser) {
       await page.waitForTimeout(1000);
       const raw = await page.inputValue('#sending-input');
       sendAmt = extractNumber(raw);
-      if (sendAmt) break;
+      if (sendAmt && sendAmt !== 1_000_000) break;
     }
-    if (!sendAmt) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const feeRaw = await page.locator('h5.text-left').textContent().catch(() => null);
     const fee = extractNumber(feeRaw) ?? 2500;
     return { operator: 'Coinshot', receiving_country: COUNTRY, receive_amount: AMOUNT,
@@ -261,9 +231,9 @@ async function scrapeJrf(browser) {
       await page.waitForTimeout(1000);
       const raw = await page.inputValue('#send_money');
       sendAmt = extractNumber(raw);
-      if (sendAmt) break;
+      if (sendAmt && sendAmt !== 1_000_000) break;
     }
-    if (!sendAmt) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const fee = 5000;
     return { operator: 'JRF', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
@@ -487,7 +457,7 @@ async function scrapeJrfCashPickup(browser) {
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
   // Bank Deposit
-  { name: 'GME',         fn: (b) => withRetry(() => scrapeGme(b)), needsBrowser: true  },
+  { name: 'GME',         fn: () => withRetry(scrapeGme), needsBrowser: false },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Coinshot',    fn: (b) => withRetry(() => scrapeCoinshot(b)), needsBrowser: true  },
@@ -496,7 +466,8 @@ const SCRAPERS = [
   { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b)), needsBrowser: true  },
   { name: 'Utransfer',   fn: (b) => withRetry(() => scrapeUtransfer(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
-  { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
+  // Sentbe disabled — www.sentbe.com/ko redirects to corporate.sentbe.com (no web calculator since Apr 2026)
+  // { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
   // Cash Pickup
   { name: 'GME (Cash Pickup)',         fn: () => withRetry(scrapeGmeCashPickup), needsBrowser: false },
   { name: 'GMoneyTrans (Cash Pickup)', fn: scrapeGmoneytransCashPickup, needsBrowser: false },

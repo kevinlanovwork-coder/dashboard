@@ -58,14 +58,18 @@ export default async function Home() {
 
   const data = allData;
 
+  // Bangladesh corridor: hardcode all service fees to 0 KRW
+  const zeroFees = DEFAULT_COUNTRY === 'Bangladesh';
+
   // Build GME baseline map per run_hour (delivery-method-aware for multi-method corridors like China)
   const gmeBaselineMap = new Map<string, number>();
   data.forEach(r => {
     if (r.operator === 'GME' && r.total_sending_amount) {
+      const effectiveTotal = zeroFees ? r.send_amount_krw : r.total_sending_amount;
       const dmKey = `${r.run_hour}||${r.delivery_method}`;
-      gmeBaselineMap.set(dmKey, r.total_sending_amount);
+      gmeBaselineMap.set(dmKey, effectiveTotal);
       if (!gmeBaselineMap.has(r.run_hour)) {
-        gmeBaselineMap.set(r.run_hour, r.total_sending_amount);
+        gmeBaselineMap.set(r.run_hour, effectiveTotal);
       }
     }
   });
@@ -73,8 +77,9 @@ export default async function Home() {
   const records: RateRecord[] = data.map(r => {
     const dmKey = `${r.run_hour}||${r.delivery_method}`;
     const gmeBaseline = gmeBaselineMap.get(dmKey) ?? gmeBaselineMap.get(r.run_hour) ?? null;
+    const totalSend = zeroFees ? r.send_amount_krw : r.total_sending_amount;
     const priceGap = r.operator !== 'GME' && gmeBaseline
-      ? r.total_sending_amount - gmeBaseline
+      ? totalSend - gmeBaseline
       : null;
     const status = r.operator === 'GME'
       ? 'GME'
@@ -94,8 +99,8 @@ export default async function Home() {
       sendAmountKRW: r.send_amount_krw,
       receiveMultiplier: 1,
       adjustedSendingAmount: r.send_amount_krw,
-      serviceFee: r.service_fee ?? 0,
-      totalSendingAmount: r.total_sending_amount,
+      serviceFee: zeroFees ? 0 : (r.service_fee ?? 0),
+      totalSendingAmount: totalSend,
       gmeBaseline,
       priceGap,
       status,
