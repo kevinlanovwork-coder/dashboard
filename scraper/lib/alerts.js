@@ -5,7 +5,8 @@ const CURRENCY_MAP = {
   Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Nepal: 'NPR',
   Philippines: 'PHP', Cambodia: 'USD', China: 'CNY', Mongolia: 'MNT',
   Myanmar: 'MMK', Pakistan: 'PKR', Laos: 'LAK', 'Sri Lanka': 'LKR',
-  India: 'INR', 'Timor Leste': 'USD',
+  India: 'INR', 'Timor Leste': 'USD', Bangladesh: 'BDT', Russia: 'RUB',
+  Uzbekistan: 'USD', Kazakhstan: 'USD', Kyrgyzstan: 'USD',
 };
 
 function calcRate(receiveAmount, sendKRW) {
@@ -55,6 +56,10 @@ export async function checkAlerts(records, runHour) {
       ? `GME Current: ${gme.total_sending_amount?.toLocaleString('ko-KR')} KRW (Send: ${gme.send_amount_krw?.toLocaleString('ko-KR')} + Fee: ${gme.service_fee?.toLocaleString('ko-KR')}) | Rate: ${gmeRateStr}`
       : '';
     const receiveInfo = `Receive Amount: ${gme?.receive_amount?.toLocaleString('ko-KR') ?? '-'} ${CURRENCY_MAP[country] ?? country}`;
+    const gmeInfoKo = gme
+      ? `GME 현재: ${gme.total_sending_amount?.toLocaleString('ko-KR')} KRW (송금액: ${gme.send_amount_krw?.toLocaleString('ko-KR')} + 수수료: ${gme.service_fee?.toLocaleString('ko-KR')}) | 환율: ${gmeRateStr}`
+      : '';
+    const receiveInfoKo = `수령액: ${gme?.receive_amount?.toLocaleString('ko-KR') ?? '-'} ${CURRENCY_MAP[country] ?? country}`;
 
     // Split rules by type
     const priceRules = rules.filter(r => (r.alert_type ?? 'price') === 'price');
@@ -116,6 +121,20 @@ export async function checkAlerts(records, runHour) {
           <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;color:#2563eb;font-weight:bold;">${rateStr}</td>
         </tr>`;
       }).join('');
+      const koRows = priceTriggered.map(r => {
+        const gapColor = r.price_gap < 0 ? '#dc2626' : '#16a34a';
+        const rateStr = r.suggestedRate != null ? r.suggestedRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
+        return `<tr>
+          <td style="padding:6px 10px;border:1px solid #ddd;">${r.operator}</td>
+          <td style="padding:6px 10px;border:1px solid #ddd;">${r.delivery_method}</td>
+          <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;">${r.total_sending_amount?.toLocaleString('ko-KR')}</td>
+          <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;">${r.service_fee?.toLocaleString('ko-KR') ?? '0'}</td>
+          <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;">${r.gme_baseline?.toLocaleString('ko-KR') ?? '-'}</td>
+          <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;color:${gapColor};font-weight:bold;">${r.price_gap > 0 ? '+' : ''}${r.price_gap?.toLocaleString('ko-KR')}</td>
+          <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;">${r.threshold?.toLocaleString('ko-KR')}</td>
+          <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;color:#2563eb;font-weight:bold;">${rateStr}</td>
+        </tr>`;
+      }).join('');
       const html = `<div style="font-family:sans-serif;max-width:900px;">
         <h2 style="color:#1e293b;margin-bottom:4px;">GME Competitors Price Alert - ${country}</h2>
         <p style="color:#64748b;margin-top:0;">Run: ${runHour} KST &nbsp;|&nbsp; ${receiveInfo}</p>
@@ -131,7 +150,22 @@ export async function checkAlerts(records, runHour) {
           <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;color:#2563eb;">Suggested Rate</th>
         </tr></thead><tbody>${rows}</tbody></table>
         <p style="color:#94a3b8;font-size:12px;margin-top:12px;">* Suggested Rate = rate GME needs to match the competitor's price (after deducting GME fee).</p>
-        <p style="margin-top:12px;"><a href="https://gme-competitors-rate.vercel.app" style="color:#2563eb;">Open Dashboard</a></p>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />
+        <h2 style="color:#1e293b;margin-bottom:4px;">GME 경쟁사 가격 알림 - ${country}</h2>
+        <p style="color:#64748b;margin-top:0;">실행: ${runHour} KST &nbsp;|&nbsp; ${receiveInfoKo}</p>
+        ${gmeInfoKo ? `<p style="color:#ef4444;font-weight:bold;margin:8px 0;">${gmeInfoKo}</p>` : ''}
+        <table style="border-collapse:collapse;width:100%;font-size:13px;"><thead><tr style="background:#f1f5f9;">
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:left;">운영사</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:left;">입금방식</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;">경쟁사 수금액</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;">수수료</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;">GME 기준가</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;">가격차이</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;">기준값</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;color:#2563eb;">제안 환율</th>
+        </tr></thead><tbody>${koRows}</tbody></table>
+        <p style="color:#94a3b8;font-size:12px;margin-top:12px;">* 제안 환율 = 경쟁사 가격에 맞추기 위해 GME가 설정해야 할 환율 (GME 수수료 차감 후).</p>
+        <p style="margin-top:12px;"><a href="https://gme-competitors-rate.vercel.app" style="color:#2563eb;">Open Dashboard / 대시보드 열기</a></p>
       </div>`;
       await sendAlertEmail({ to: notifyEmails, subject, html });
       if (priceRuleIds.length > 0) {
@@ -198,6 +232,16 @@ export async function checkAlerts(records, runHour) {
           <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;color:${gapColor};font-weight:bold;">${r.rateGap != null ? (r.rateGap > 0 ? '+' : '') + fmtRate(r.rateGap) : '-'}</td>
         </tr>`;
       }).join('');
+      const koRateRows = rateTriggered.map(r => {
+        const gapColor = r.rateGap != null && r.rateGap < 0 ? '#dc2626' : '#16a34a';
+        return `<tr>
+          <td style="padding:6px 10px;border:1px solid #ddd;">${r.operator}</td>
+          <td style="padding:6px 10px;border:1px solid #ddd;">${r.delivery_method}</td>
+          <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;">${fmtRate(r.compRate)}</td>
+          <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;">${fmtRate(gmeRate)}</td>
+          <td style="padding:6px 10px;border:1px solid #ddd;text-align:right;color:${gapColor};font-weight:bold;">${r.rateGap != null ? (r.rateGap > 0 ? '+' : '') + fmtRate(r.rateGap) : '-'}</td>
+        </tr>`;
+      }).join('');
       const html = `<div style="font-family:sans-serif;max-width:700px;">
         <h2 style="color:#1e293b;margin-bottom:4px;">GME Competitors Rate Alert - ${country}</h2>
         <p style="color:#64748b;margin-top:0;">Run: ${runHour} KST &nbsp;|&nbsp; ${receiveInfo}</p>
@@ -210,7 +254,19 @@ export async function checkAlerts(records, runHour) {
           <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;">Rate Gap</th>
         </tr></thead><tbody>${rows}</tbody></table>
         <p style="color:#94a3b8;font-size:12px;margin-top:12px;">* Rate Gap = Competitor Rate - GME Rate.</p>
-        <p style="margin-top:12px;"><a href="https://gme-competitors-rate.vercel.app" style="color:#2563eb;">Open Dashboard</a></p>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />
+        <h2 style="color:#1e293b;margin-bottom:4px;">GME 경쟁사 환율 알림 - ${country}</h2>
+        <p style="color:#64748b;margin-top:0;">실행: ${runHour} KST &nbsp;|&nbsp; ${receiveInfoKo}</p>
+        ${gmeInfoKo ? `<p style="color:#ef4444;font-weight:bold;margin:8px 0;">${gmeInfoKo}</p>` : ''}
+        <table style="border-collapse:collapse;width:100%;font-size:13px;"><thead><tr style="background:#f1f5f9;">
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:left;">운영사</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:left;">입금방식</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;">경쟁사 환율</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;">GME 환율</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;text-align:right;">환율 차이</th>
+        </tr></thead><tbody>${koRateRows}</tbody></table>
+        <p style="color:#94a3b8;font-size:12px;margin-top:12px;">* 환율 차이 = 경쟁사 환율 - GME 환율.</p>
+        <p style="margin-top:12px;"><a href="https://gme-competitors-rate.vercel.app" style="color:#2563eb;">Open Dashboard / 대시보드 열기</a></p>
       </div>`;
       await sendAlertEmail({ to: notifyEmails, subject, html });
       if (rateRuleIds.length > 0) {
