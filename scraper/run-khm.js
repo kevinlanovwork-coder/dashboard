@@ -17,10 +17,11 @@ const COUNTRY = 'Cambodia';
 const AMOUNT  = 1_000;
 
 // ─── GME (API) ────────────────────────────────────────────────────────────────
-async function scrapeGme() {
+// dm=2: Bank Deposit, dm=1: Cash Pickup
+async function scrapeGme(dm, method) {
   const body = new URLSearchParams({
     method: 'GetExRate', pCurr: 'USD', pCountryName: 'Cambodia',
-    collCurr: 'KRW', deliveryMethod: '2', cAmt: '', pAmt: String(AMOUNT),
+    collCurr: 'KRW', deliveryMethod: dm, cAmt: '', pAmt: String(AMOUNT),
     cardOnline: 'false', calBy: 'P',
   }).toString();
   const res = await fetch('https://online.gmeremit.com/Default.aspx', {
@@ -32,18 +33,20 @@ async function scrapeGme() {
   const data = await res.json();
   if (data.errorCode !== '0') throw new Error(`GME API 오류: ${data.msg}`);
   const total = extractNumber(data.collAmt);
+  const fee   = extractNumber(data.scCharge) ?? 0;
   if (!total) throw new Error('총 송금액 추출 실패');
   return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
-    send_amount_krw: total, service_fee: 0, total_sending_amount: total };
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total,
+    delivery_method: method };
 }
 
 // ─── GMoneyTrans (API) ────────────────────────────────────────────────────────
-async function scrapeGmoneytrans() {
+async function scrapeGmoneytrans(paymentType, method) {
   const url = 'https://mapi.gmoneytrans.net/exratenew1/ajx_calcRate.asp'
     + `?receive_amount=${AMOUNT}`
     + '&payout_country=Cambodia'
     + '&total_collected=0'
-    + '&payment_type=Bank+Account'
+    + '&payment_type=' + encodeURIComponent(paymentType)
     + '&currencyType=USD';
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -53,7 +56,8 @@ async function scrapeGmoneytrans() {
   if (!sendAmount) throw new Error(`파싱 실패: ${text.slice(0, 200)}`);
   return { operator: 'GMoneyTrans', receiving_country: COUNTRY, receive_amount: AMOUNT,
     send_amount_krw: sendAmount, service_fee: serviceCharge,
-    total_sending_amount: sendAmount + serviceCharge };
+    total_sending_amount: sendAmount + serviceCharge,
+    delivery_method: method };
 }
 function parseField(text, field) {
   const m = text.match(new RegExp(`${field}--td_clm--([\\d.]+)--td_end--`));
@@ -99,7 +103,7 @@ async function scrapeHanpass() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ inputAmount: String(AMOUNT), inputCurrencyCode: 'USD',
       fromCurrencyCode: 'KRW', toCurrencyCode: 'USD', toCountryCode: 'KH',
-      memberSeq: '1', lang: 'en' }),
+      remittanceOption: 'CASH_PICKUP', memberSeq: '1', lang: 'en' }),
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -109,7 +113,8 @@ async function scrapeHanpass() {
   const fee   = data.transferFee ?? 0;
   if (!total) throw new Error('총 송금액 추출 실패');
   return { operator: 'Hanpass', receiving_country: COUNTRY, receive_amount: AMOUNT,
-    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total,
+    delivery_method: 'Cash Pickup' };
 }
 
 // ─── SBI ──────────────────────────────────────────────────────────────────────
@@ -139,12 +144,14 @@ async function scrapeSbi(browser) {
     const feeRaw = await page.$eval('.fee-amount', el => el.textContent).catch(() => null);
     const fee = extractNumber(feeRaw) ?? 5000;
     return { operator: 'SBI', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
+      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee,
+      delivery_method: 'Cash Pickup' };
   } finally { await page.close(); await context.close(); }
 }
 
-// ─── E9Pay ────────────────────────────────────────────────────────────────────
-async function scrapeE9pay(browser) {
+// ─── E9Pay (Playwright) ──────────────────────────────────────────────────────
+// methodIndex: 0 = ABA Bank Account (default), 4 = AMK Cash Pick-Up
+async function scrapeE9pay(browser, methodIndex, method) {
   const page = await browser.newPage();
   try {
     await page.goto('https://www.e9pay.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -156,7 +163,14 @@ async function scrapeE9pay(browser) {
       radio.dispatchEvent(new Event('change', { bubbles: true }));
       radio.dispatchEvent(new Event('click',  { bubbles: true }));
     });
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
+    if (methodIndex > 0) {
+      await page.evaluate((idx) => {
+        const li = document.querySelectorAll('#remit-methods li')[idx];
+        if (li) li.querySelector('a').click();
+      }, methodIndex);
+      await page.waitForTimeout(1500);
+    }
     await page.click('#reverse'); await page.waitForTimeout(500);
     await page.waitForSelector('#receive-money', { timeout: 5000 });
     await page.click('#receive-money', { clickCount: 3 });
@@ -173,19 +187,25 @@ async function scrapeE9pay(browser) {
     const feeRaw = await page.$eval('#remit-fee', el => el.textContent || el.value).catch(() => null);
     const fee = extractNumber(feeRaw) ?? 0;
     return { operator: 'E9Pay', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
+      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee,
+      delivery_method: method };
   } finally { await page.close(); }
 }
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
-  { name: 'GME',         fn: () => withRetry(() => scrapeGme()),   needsBrowser: false },
-  { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
+  // Bank Deposit
+  { name: 'GME (Bank Deposit)',         fn: () => withRetry(() => scrapeGme('2', 'Bank Deposit')),                needsBrowser: false },
+  { name: 'GMoneyTrans (Bank Deposit)', fn: () => scrapeGmoneytrans('Bank Account', 'Bank Deposit'),             needsBrowser: false },
+  { name: 'Hanpass (Cash Pickup)',       fn: () => withRetry(scrapeHanpass),                                       needsBrowser: false },
+  { name: 'E9Pay (Bank Deposit)',       fn: (b) => withRetry(() => scrapeE9pay(b, 0, 'Bank Deposit')),           needsBrowser: true  },
+  // Cash Pickup
+  { name: 'GME (Cash Pickup)',          fn: () => withRetry(() => scrapeGme('1', 'Cash Pickup')),                 needsBrowser: false },
+  { name: 'GMoneyTrans (Cash Pickup)',  fn: () => scrapeGmoneytrans('Cash Pickup', 'Cash Pickup'),               needsBrowser: false },
+  { name: 'SBI',                        fn: (b) => withRetry(() => scrapeSbi(b)),                                 needsBrowser: true  },
+  { name: 'E9Pay (Cash Pickup)',        fn: (b) => withRetry(() => scrapeE9pay(b, 4, 'Cash Pickup')),            needsBrowser: true  },
   // Sentbe disabled — www.sentbe.com/ko redirects to corporate.sentbe.com (no web calculator since Apr 2026)
   // { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
-  { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
-  { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
-  { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
@@ -215,7 +235,7 @@ async function main() {
     } else {
       console.error(`  ✗ ${name} 실패: ${result.reason?.message}`);
       errors.push({ name, error: result.reason?.message });
-      logFailure(runHour, COUNTRY, name, 'Bank Deposit', result.reason?.message);
+      logFailure(runHour, COUNTRY, name, result.reason?.delivery_method ?? 'Bank Deposit', result.reason?.message);
     }
   }
 
@@ -230,13 +250,17 @@ async function main() {
   const feeMap = await loadFees(COUNTRY);
   const adjusted = applyFeeOverrides(results, feeMap);
 
-  const gmeRecord   = adjusted.find(r => r.operator === 'GME');
-  const gmeBaseline = gmeRecord?.total_sending_amount ?? null;
-  if (!gmeBaseline) console.warn('\n⚠️  GME 기준값 없음 — price_gap 계산 불가');
+  // ── GME 기준값 (delivery-method-aware) ────────────────────────────────
+  const gmeBaselineMap = new Map();
+  adjusted.filter(r => r.operator === 'GME').forEach(r => {
+    gmeBaselineMap.set(r.delivery_method, r.total_sending_amount);
+  });
+  if (gmeBaselineMap.size === 0) console.warn('\n⚠️  GME 기준값 없음 — price_gap 계산 불가');
 
   const toSave = adjusted.map(r => {
-    const priceGap = gmeBaseline && r.operator !== 'GME'
-      ? r.total_sending_amount - gmeBaseline : null;
+    const baseline = gmeBaselineMap.get(r.delivery_method) ?? null;
+    const priceGap = baseline && r.operator !== 'GME'
+      ? r.total_sending_amount - baseline : null;
     const status = priceGap === null ? null : priceGap > 0 ? 'GME 유리' : '경쟁사 유리';
     return {
       run_hour:             runHour,
@@ -246,10 +270,10 @@ async function main() {
       send_amount_krw:      r.send_amount_krw,
       service_fee:          r.service_fee ?? 0,
       total_sending_amount: r.total_sending_amount,
-      gme_baseline:         gmeBaseline,
+      gme_baseline:         baseline,
       price_gap:            priceGap,
       status:               status,
-      delivery_method:      'Bank Deposit',
+      delivery_method:      r.delivery_method,
     };
   });
 
@@ -269,12 +293,15 @@ async function main() {
   }
 
   console.log('\n── Cambodia USD 1,000 결과 요약 ───────────────────────────────────');
-  console.log(`${'운영사'.padEnd(14)} ${'송금액(KRW)'.padStart(12)} ${'수수료'.padStart(8)} ${'합계'.padStart(12)} 차이`);
-  console.log('─'.repeat(60));
-  toSave.sort((a, b) => a.total_sending_amount - b.total_sending_amount).forEach(r => {
+  console.log(`${'운영사'.padEnd(14)} ${'수령방식'.padEnd(14)} ${'송금액(KRW)'.padStart(12)} ${'수수료'.padStart(8)} ${'합계'.padStart(12)} 차이`);
+  console.log('─'.repeat(74));
+  toSave.sort((a, b) => {
+    const methodOrder = a.delivery_method.localeCompare(b.delivery_method);
+    return methodOrder !== 0 ? methodOrder : a.total_sending_amount - b.total_sending_amount;
+  }).forEach(r => {
     const gap = r.price_gap !== null ? `${r.price_gap > 0 ? '+' : ''}${r.price_gap.toLocaleString()}원` : '';
     console.log(
-      `${r.operator.padEnd(14)} ${r.send_amount_krw.toLocaleString().padStart(12)} ${(r.service_fee || 0).toLocaleString().padStart(8)} ${r.total_sending_amount.toLocaleString().padStart(12)} ${gap}`
+      `${r.operator.padEnd(14)} ${r.delivery_method.padEnd(14)} ${r.send_amount_krw.toLocaleString().padStart(12)} ${(r.service_fee || 0).toLocaleString().padStart(8)} ${r.total_sending_amount.toLocaleString().padStart(12)} ${gap}`
     );
   });
   console.log('\n완료.\n');

@@ -192,7 +192,7 @@ const CURRENCY_MAP: Record<string, string> = {
 const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
   Indonesia: 'Bank Deposit', Thailand: 'Bank Deposit', Vietnam: 'Bank Deposit',
   Nepal: 'Bank Deposit', Philippines: ['Bank Deposit', 'Cash Pickup'], Malaysia: 'Bank Deposit',
-  Singapore: 'Bank Deposit', Cambodia: 'Bank Deposit', Japan: 'Bank Deposit',
+  Singapore: 'Bank Deposit', Cambodia: ['Bank Deposit', 'Cash Pickup'], Japan: 'Bank Deposit',
   China: 'Alipay', Mongolia: 'Bank Deposit', Myanmar: 'Bank Deposit',
   Pakistan: 'Bank Deposit', Laos: 'Bank Deposit', 'Sri Lanka': 'Bank Deposit', India: 'Bank Deposit',
   'Timor Leste': ['Bank Deposit', 'Cash Pickup (MoneyGram)'],
