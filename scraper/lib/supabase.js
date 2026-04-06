@@ -14,7 +14,8 @@ export async function saveRates(records) {
 
   const validated = [];
   for (const r of records) {
-    const isRound = r.total_sending_amount % 1000 === 0;
+    // Coinshot legitimately returns round numbers — exempt from round-number guard
+    const isRound = r.total_sending_amount % 1000 === 0 && r.operator !== 'Coinshot';
 
     try {
       const { data: recent } = await supabase
