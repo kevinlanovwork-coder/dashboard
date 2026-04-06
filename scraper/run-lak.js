@@ -38,14 +38,14 @@ async function scrapeGme() {
 async function scrapeGmoneytrans() {
   const url = 'https://mapi.gmoneytrans.net/exratenew1/ajx_calcRate.asp'
     + `?receive_amount=${AMOUNT}`
-    + '&payout_country=Laos'
+    + '&payout_country=Lao+People%60s+Democratic+Republic'
     + '&total_collected=0'
     + '&payment_type=Bank+Account'
     + '&currencyType=LAK';
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const text = await res.text();
-  const serviceCharge = parseField(text, 'serviceCharge') ?? 2500;
+  const serviceCharge = parseField(text, 'serviceCharge') ?? 5000;
   const sendAmount    = parseField(text, 'sendAmount');
   if (!sendAmount) throw new Error(`파싱 실패: ${text.slice(0, 200)}`);
   return { operator: 'GMoneyTrans', receiving_country: COUNTRY, receive_amount: AMOUNT,
@@ -114,7 +114,7 @@ async function scrapeHanpass() {
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
   { name: 'GME',         fn: () => withRetry(scrapeGme), needsBrowser: false },
-  // { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false }, // 비활성화: API가 SOAP XML 응답 반환 중 (2026-03-30)
+  { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
 ];
