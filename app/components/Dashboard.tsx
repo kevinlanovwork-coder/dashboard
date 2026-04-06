@@ -30,7 +30,7 @@ const EN = {
   cheaperLegend: 'Cheaper than GME',
   rateLegend: (curr: string, perKRW: boolean) => perKRW ? `( ) = Exchange rate (${curr} per 1 KRW)` : `( ) = Exchange rate (KRW per 1 ${curr})`,
   avgDiffTitle: 'Avg. Price Difference by Operator',
-  avgDiffSub: (from: string, to: string) => from && to && from !== to ? `Avg. for ${from} ~ ${to} (vs GME, KRW)` : `Daily avg. for ${to || from} (vs GME, KRW)`,
+  avgDiffSub: (from: string, to: string) => from && to && from !== to ? `Daily avg. from ${from} to ${to} (vs GME, KRW)` : `Daily avg. for ${to || from} (vs GME, KRW)`,
   gmeWins: 'More expensive than GME (GME wins)',
   gmeLoses: 'Cheaper than GME (GME loses)',
   trendTitle: 'Collection Amount Trend',
@@ -96,7 +96,7 @@ const KO = {
   cheaperLegend: 'GME보다 저렴',
   rateLegend: (curr: string, perKRW: boolean) => perKRW ? `( ) = 환율 (1 KRW 기준 ${curr})` : `( ) = 환율 (1 ${curr} 기준 KRW)`,
   avgDiffTitle: '운영사별 평균 가격 차이',
-  avgDiffSub: (from: string, to: string) => from && to && from !== to ? `${from} ~ ${to} 평균 (GME 기준, KRW)` : `${to || from} 일별 평균 (GME 기준, KRW)`,
+  avgDiffSub: (from: string, to: string) => from && to && from !== to ? `${from} ~ ${to} 일별 평균 (GME 기준, KRW)` : `${to || from} 일별 평균 (GME 기준, KRW)`,
   gmeWins: 'GME보다 비쌈 (GME 유리)',
   gmeLoses: 'GME보다 저렴 (GME 불리)',
   trendTitle: '수금액 추이',
@@ -1118,7 +1118,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h2 className="text-sm font-semibold">{t.avgDiffTitle}</h2>
-                  <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(effectiveAvgFromDate ? formatDate(effectiveAvgFromDate) : '', effectiveAvgToDate ? formatDate(effectiveAvgToDate) : '')}</p>
+                  <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(formatDate(effectiveAvgFromDate || avgDates[0] || ''), formatDate(effectiveAvgToDate || avgDates[avgDates.length - 1] || ''))}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="flex items-center gap-1 text-xs">
