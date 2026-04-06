@@ -196,7 +196,7 @@ const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
   China: 'Alipay', Mongolia: 'Bank Deposit', Myanmar: 'Bank Deposit',
   Pakistan: 'Bank Deposit', Laos: 'Bank Deposit', 'Sri Lanka': 'Bank Deposit', India: 'Bank Deposit',
   'Timor Leste': ['Bank Deposit', 'Cash Pickup (MoneyGram)'],
-  Uzbekistan: 'Cash Pickup',
+  Uzbekistan: ['Cash Pickup', 'Card Payment'],
 };
 
 // GME embeds a service fee inside send_amount_krw for these corridors.
