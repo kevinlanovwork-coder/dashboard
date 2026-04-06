@@ -39,6 +39,7 @@ const EN = {
   operatorTrendSub: 'Total send amount over time (KRW)',
   allDates: 'All dates',
   insufficientData: 'Insufficient data',
+  dateRangeError: '"From" date must be earlier than "To" date. Please adjust the date range.',
   detailedData: 'Detailed Data',
   records: (n: number) => `${n.toLocaleString()} records`,
   searchOperator: 'Search operator...',
@@ -66,6 +67,13 @@ const EN = {
   statusCheaper: 'Cheaper',
   statusExpensive: 'More Expensive',
   won: ' KRW',
+  lastAccessed: 'Last accessed',
+  countryLabel: 'Country',
+  snapshotDate: 'Date',
+  snapshotTime: 'Time',
+  periodLabel: 'Period',
+  latestDate: 'Latest',
+  latestTime: 'Latest',
 };
 
 const KO = {
@@ -97,6 +105,7 @@ const KO = {
   operatorTrendSub: '시간에 따른 총 송금액 변화 (KRW)',
   allDates: '전체 기간',
   insufficientData: '데이터 부족',
+  dateRangeError: '"시작" 날짜가 "종료" 날짜보다 이후입니다. 날짜 범위를 조정해주세요.',
   detailedData: '상세 데이터',
   records: (n: number) => `${n.toLocaleString()}건`,
   searchOperator: '운영사 검색...',
@@ -124,6 +133,13 @@ const KO = {
   statusCheaper: '더 저렴',
   statusExpensive: '더 비쌈',
   won: '원',
+  lastAccessed: '마지막 접속',
+  countryLabel: '국가',
+  snapshotDate: '날짜',
+  snapshotTime: '시간',
+  periodLabel: '기간',
+  latestDate: '최신',
+  latestTime: '최신',
 };
 
 type T = typeof EN;
@@ -137,7 +153,19 @@ function formatKRW(value: number, t: T) {
 function formatRunHour(runHour: string) {
   const m = runHour.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
   if (!m) return runHour;
-  return `${parseInt(m[2])}/${parseInt(m[3])} ${m[4]}:${m[5]}`;
+  return `${m[1]}/${m[2]}/${m[3]} ${m[4]}:${m[5]}`;
+}
+
+function formatDate(dateStr: string) {
+  // "2026-04-06" → "2026/04/06"
+  return dateStr.replace(/-/g, '/');
+}
+
+function formatChartLabel(runHour: string) {
+  // "2026-04-06 15:30" → "04/06 15:30"
+  const m = runHour.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
+  if (!m) return runHour;
+  return `${m[2]}/${m[3]} ${m[4]}:${m[5]}`;
 }
 
 function statusLabel(status: string, t: T) {
@@ -280,6 +308,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [isEn, setIsEn] = useState(true);
   const [selectedCountry, setSelectedCountry] = useState(defaultCountry);
   const [selectedRunHour, setSelectedRunHour] = useState('all');
+  const [snapshotDate, setSnapshotDate] = useState('all');
+  const [snapshotTime, setSnapshotTime] = useState('all');
   const [tableSearch, setTableSearch] = useState('');
   const [tableStatus, setTableStatus] = useState('all');
   const [tableDate, setTableDate] = useState('all');
@@ -307,6 +337,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [lastAccessed, setLastAccessed] = useState<Date | null>(null);
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const detailedDataRef = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = pageSize;
@@ -343,6 +374,9 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     localStorage.setItem('dashboard-country', selectedCountry);
   }, [selectedCountry]);
 
+  // Set initial last-accessed time on client mount (avoids hydration mismatch)
+  useEffect(() => { setLastAccessed(new Date()); }, []);
+
   // Fetch data when country or date range changes
   useEffect(() => {
     if (selectedCountry === defaultCountry && daysRange === 14) {
@@ -354,12 +388,21 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     fetch(`/api/rates?country=${encodeURIComponent(selectedCountry)}&days=${daysRange}`)
       .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
       .then(data => {
-        if (!cancelled) setRecords(data);
+        if (!cancelled) { setRecords(data); setLastAccessed(new Date()); }
       })
       .catch(err => console.error('Failed to fetch rates:', err))
       .finally(() => { if (!cancelled) setIsLoadingRecords(false); });
     return () => { cancelled = true; };
   }, [selectedCountry, daysRange, defaultCountry, initialRecords]);
+
+  function handleRefresh() {
+    setIsLoadingRecords(true);
+    fetch(`/api/rates?country=${encodeURIComponent(selectedCountry)}&days=${daysRange}`)
+      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
+      .then(data => { setRecords(data); setLastAccessed(new Date()); })
+      .catch(err => console.error('Failed to fetch rates:', err))
+      .finally(() => setIsLoadingRecords(false));
+  }
 
   async function handleDelete(r: RateRecord) {
     if (!confirm(t.deleteConfirm(r.operator, formatRunHour(r.runHour)))) return;
@@ -409,7 +452,9 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const hasMultipleMethods = deliveryMethods.length > 1;
 
   useEffect(() => {
-    setSelectedDeliveryMethod(deliveryMethods[0]);
+    setSelectedDeliveryMethod(
+      deliveryMethods.includes('Bank Deposit') ? 'Bank Deposit' : deliveryMethods[0]
+    );
   }, [deliveryMethods]);
 
   const filteredCountries = useMemo(
@@ -436,6 +481,31 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     );
     return withGME[withGME.length - 1] ?? runHours[runHours.length - 1] ?? '';
   }, [byCountry, runHours]);
+
+  // Snapshot date/time lists (similar to Detailed Data filters)
+  const snapshotDates = useMemo(
+    () => [...new Set(runHours.map(rh => rh.slice(0, 10)))].sort().reverse(),
+    [runHours]
+  );
+  const snapshotTimes = useMemo(() => {
+    const filtered = snapshotDate === 'all'
+      ? runHours
+      : runHours.filter(rh => rh.slice(0, 10) === snapshotDate);
+    return [...filtered].reverse();
+  }, [runHours, snapshotDate]);
+
+  // Sync selectedRunHour from snapshotDate + snapshotTime
+  useEffect(() => {
+    if (snapshotDate === 'all' && snapshotTime === 'all') {
+      setSelectedRunHour('all');
+    } else if (snapshotTime !== 'all') {
+      setSelectedRunHour(snapshotTime);
+    } else {
+      // Date selected but time is "latest" — pick latest run_hour for that date
+      const timesForDate = runHours.filter(rh => rh.slice(0, 10) === snapshotDate);
+      setSelectedRunHour(timesForDate[timesForDate.length - 1] ?? 'all');
+    }
+  }, [snapshotDate, snapshotTime, runHours]);
 
   const targetRunHour = selectedRunHour === 'all' ? latestRunHour : selectedRunHour;
 
@@ -535,7 +605,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
       });
     return Object.entries(map)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([runHour, gmeBaseline]) => ({ runHour, label: formatRunHour(runHour), gmeBaseline }));
+      .map(([runHour, gmeBaseline]) => ({ runHour, label: formatChartLabel(runHour), gmeBaseline }));
   }, [byCountry]);
 
   const gmeTrendDates = useMemo(
@@ -586,7 +656,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
       .forEach(r => { if (!map[r.runHour]) map[r.runHour] = r.totalSendingAmount; });
     return Object.entries(map)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([runHour, totalSendingAmount]) => ({ runHour, label: formatRunHour(runHour), totalSendingAmount }));
+      .map(([runHour, totalSendingAmount]) => ({ runHour, label: formatChartLabel(runHour), totalSendingAmount }));
   }, [byCountry, effectiveTrendOperator]);
 
   const operatorTrendDates = useMemo(
@@ -704,70 +774,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Country searchable dropdown */}
-              <div ref={countryDropdownRef} className="relative">
-                <button
-                  onClick={() => { setCountryDropdownOpen(o => !o); setCountrySearch(''); }}
-                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-1.5"
-                >
-                  <span>{selectedCountry}</span>
-                  <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-                </button>
-                {countryDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-52 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
-                    <div className="p-1.5">
-                      <input
-                        type="text"
-                        placeholder={isEn ? 'Search country...' : '국가 검색...'}
-                        value={countrySearch}
-                        onChange={e => setCountrySearch(e.target.value)}
-                        autoFocus
-                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <ul className="max-h-56 overflow-y-auto py-1">
-                      {filteredCountries.map(c => (
-                        <li key={c}>
-                          <button
-                            onClick={() => { setSelectedCountry(c); setSelectedRunHour('all'); setTablePage(0); setTableSearch(''); setTableStatus('all'); setTableDeliveryMethod('all'); setTableDate('all'); setTableTime('all'); setSnapshotHiddenOps(new Set()); setCountryDropdownOpen(false); }}
-                            className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${c === selectedCountry ? 'bg-blue-500 text-white' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-                          >
-                            {c}
-                          </button>
-                        </li>
-                      ))}
-                      {filteredCountries.length === 0 && (
-                        <li className="px-3 py-2 text-sm text-slate-400 dark:text-slate-500">{t.noData}</li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <select
-                value={selectedRunHour}
-                onChange={e => setSelectedRunHour(e.target.value)}
-                className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">{t.latestSnapshot}</option>
-                {[...runHours].reverse().map(rh => (
-                  <option key={rh} value={rh}>{formatRunHour(rh)}</option>
-                ))}
-              </select>
-
-              {/* Date range */}
-              <select
-                value={daysRange}
-                onChange={e => setDaysRange(Number(e.target.value))}
-                className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value={7}>{isEn ? '7 days' : '7일'}</option>
-                <option value={14}>{isEn ? '14 days' : '14일'}</option>
-                <option value={30}>{isEn ? '30 days' : '30일'}</option>
-                <option value={60}>{isEn ? '60 days' : '60일'}</option>
-                <option value={90}>{isEn ? '90 days' : '90일'}</option>
-              </select>
-
               {/* Language toggle */}
               <div className="flex rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden text-sm">
                 <button
@@ -817,41 +823,138 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               )}
             </div>
           </div>
+          {/* Filter bar */}
+          <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 pb-3 pt-1 flex items-end gap-4 flex-wrap">
+            {/* Country */}
+            <div>
+              <span className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t.countryLabel}</span>
+              <div ref={countryDropdownRef} className="relative">
+                <button
+                  onClick={() => { setCountryDropdownOpen(o => !o); setCountrySearch(''); }}
+                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between gap-1.5 min-w-[140px]"
+                >
+                  <span>{selectedCountry}</span>
+                  <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                </button>
+                {countryDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-52 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                    <div className="p-1.5">
+                      <input
+                        type="text"
+                        placeholder={isEn ? 'Search country...' : '국가 검색...'}
+                        value={countrySearch}
+                        onChange={e => setCountrySearch(e.target.value)}
+                        autoFocus
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <ul className="max-h-56 overflow-y-auto py-1">
+                      {filteredCountries.map(c => (
+                        <li key={c}>
+                          <button
+                            onClick={() => { setSelectedCountry(c); setSelectedRunHour('all'); setSnapshotDate('all'); setSnapshotTime('all'); setTablePage(0); setTableSearch(''); setTableStatus('all'); setTableDeliveryMethod('all'); setTableDate('all'); setTableTime('all'); setSnapshotHiddenOps(new Set()); setCountryDropdownOpen(false); }}
+                            className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${c === selectedCountry ? 'bg-blue-500 text-white' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                          >
+                            {c}
+                          </button>
+                        </li>
+                      ))}
+                      {filteredCountries.length === 0 && (
+                        <li className="px-3 py-2 text-sm text-slate-400 dark:text-slate-500">{t.noData}</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Deposit Method */}
+            <div>
+              <span className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t.depositMethod}</span>
+              <select
+                value={selectedDeliveryMethod}
+                onChange={e => setSelectedDeliveryMethod(e.target.value)}
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {deliveryMethods.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Snapshot Date */}
+            <div>
+              <span className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t.snapshotDate}</span>
+              <select
+                value={snapshotDate}
+                onChange={e => { setSnapshotDate(e.target.value); setSnapshotTime('all'); }}
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">{t.latestDate}</option>
+                {snapshotDates.map(d => (
+                  <option key={d} value={d}>{formatDate(d)}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Snapshot Time */}
+            <div>
+              <span className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t.snapshotTime}</span>
+              <select
+                value={snapshotTime}
+                onChange={e => setSnapshotTime(e.target.value)}
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">{t.latestTime}</option>
+                {snapshotTimes.map(rh => (
+                  <option key={rh} value={rh}>{rh.slice(11, 16)}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Period */}
+            <div>
+              <span className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t.periodLabel}</span>
+              <select
+                value={daysRange}
+                onChange={e => setDaysRange(Number(e.target.value))}
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={7}>{isEn ? '7 days' : '7일'}</option>
+                <option value={14}>{isEn ? '14 days' : '14일'}</option>
+                <option value={30}>{isEn ? '30 days' : '30일'}</option>
+                <option value={60}>{isEn ? '60 days' : '60일'}</option>
+                <option value={90}>{isEn ? '90 days' : '90일'}</option>
+              </select>
+            </div>
+
+            {/* Last accessed — right aligned */}
+            <div className="ml-auto flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+              {isLoadingRecords && (
+                <span>{isEn ? 'Loading...' : '로딩 중...'}</span>
+              )}
+              <span>{t.lastAccessed}: {lastAccessed ? `${lastAccessed.getFullYear()}/${String(lastAccessed.getMonth() + 1).padStart(2, '0')}/${String(lastAccessed.getDate()).padStart(2, '0')} ${String(lastAccessed.getHours()).padStart(2, '0')}:${String(lastAccessed.getMinutes()).padStart(2, '0')}:${String(lastAccessed.getSeconds()).padStart(2, '0')}` : '--'}</span>
+              <button
+                onClick={handleRefresh}
+                disabled={isLoadingRecords}
+                className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+                title={isEn ? 'Refresh data' : '데이터 새로고침'}
+              >
+                <svg className={`h-3.5 w-3.5 ${isLoadingRecords ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.992 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182M21.015 4.356v4.992" /></svg>
+              </button>
+            </div>
+          </div>
         </header>
 
         <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-          {isLoadingRecords && (
-            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              {isEn ? 'Loading data...' : '데이터 로딩 중...'}
-            </div>
-          )}
           {/* KPI Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left group — aligns with Snapshot Comparison below */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
-                <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{t.depositMethod}</p>
-                {hasMultipleMethods ? (
-                  <select
-                    value={selectedDeliveryMethod}
-                    onChange={e => setSelectedDeliveryMethod(e.target.value)}
-                    className="text-2xl font-bold text-slate-900 dark:text-slate-100 bg-transparent border-none outline-none cursor-pointer w-full appearance-none"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0 center' }}
-                  >
-                    {deliveryMethods.map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{deliveryMethods[0]}</p>
-                )}
-                <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">{selectedCountry}</p>
-              </div>
+            <div className="grid grid-cols-2 gap-3">
               <KPICard
                 title={t.receiveBaseline}
                 value={receiveBaseline ? `${receiveBaseline.toLocaleString()} ${receiveCurrency}` : '-'}
-                sub={selectedCountry}
+                sub={selectedDeliveryMethod || deliveryMethods[0]}
               />
               <KPICard
                 title={t.latestGMEBaseline}
@@ -885,17 +988,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Snapshot */}
             <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h2 className="text-sm font-semibold">{t.snapshotTitle}</h2>
-                  <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.snapshotSub(formatRunHour(targetRunHour))}</p>
+              <div className="mb-3">
+                <h2 className="text-sm font-semibold">{t.snapshotTitle} - {selectedCountry} ({selectedDeliveryMethod || deliveryMethods[0]})</h2>
+                <div className="flex items-center justify-between mt-0.5">
+                  <p className="text-slate-500 dark:text-slate-500 text-xs">{t.snapshotSub(formatRunHour(targetRunHour))}</p>
+                  <span className="text-xs text-slate-500 dark:text-slate-500">{t.rateLegend(CURRENCY_MAP[selectedCountry] ?? '', snapshotChartData[0]?.rateIsPerKRW ?? false)}</span>
                 </div>
-                <button
-                  onClick={() => setSnapshotSortDesc(d => !d)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
-                >
-                  {snapshotSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
-                </button>
               </div>
               {/* Operator checkboxes (GME always shown) */}
               {snapshotOperators.length > 0 && (
@@ -1006,8 +1104,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />{t.gmeBaselineLegend}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.moreExpensiveLegend}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.cheaperLegend}</span>
-                <span className="text-slate-400 dark:text-slate-600">|</span>
-                <span>{t.rateLegend(CURRENCY_MAP[selectedCountry] ?? '', snapshotChartData[0]?.rateIsPerKRW ?? false)}</span>
+                <button
+                  onClick={() => setSnapshotSortDesc(d => !d)}
+                  className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
+                >
+                  {snapshotSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
+                </button>
               </div>
             </div>
 
@@ -1019,21 +1121,15 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(effectiveAvgFromDate, effectiveAvgToDate)}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => setAvgGapSortDesc(d => !d)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
-                  >
-                    {avgGapSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
-                  </button>
                   <div className="flex items-center gap-1 text-xs">
                     <select value={avgFromDate} onChange={e => setAvgFromDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">{isEn ? 'From' : '시작'}</option>
-                      {[...avgDates].reverse().map(d => <option key={d} value={d}>{d}</option>)}
+                      {[...avgDates].reverse().map(d => <option key={d} value={d}>{formatDate(d)}</option>)}
                     </select>
                     <span className="text-slate-400">~</span>
                     <select value={avgToDate} onChange={e => setAvgToDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">{isEn ? 'To' : '종료'}</option>
-                      {[...avgDates].reverse().map(d => <option key={d} value={d}>{d}</option>)}
+                      {[...avgDates].reverse().map(d => <option key={d} value={d}>{formatDate(d)}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1093,12 +1189,20 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+              ) : effectiveAvgFromDate && effectiveAvgToDate && effectiveAvgFromDate > effectiveAvgToDate ? (
+                <div className="h-72 flex items-center justify-center text-orange-500 dark:text-orange-400 text-sm">{t.dateRangeError}</div>
               ) : (
                 <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.noData}</div>
               )}
-              <div className="flex items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
+              <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.gmeWins}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.gmeLoses}</span>
+                <button
+                  onClick={() => setAvgGapSortDesc(d => !d)}
+                  className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
+                >
+                  {avgGapSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
+                </button>
               </div>
             </div>
           </div>
@@ -1122,12 +1226,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 <div className="flex items-center gap-1 text-xs">
                   <select value={gmeTrendFromDate} onChange={e => setGmeTrendFromDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">{isEn ? 'From' : '시작'}</option>
-                    {gmeTrendDates.map(d => <option key={d} value={d}>{d}</option>)}
+                    {gmeTrendDates.map(d => <option key={d} value={d}>{formatDate(d)}</option>)}
                   </select>
                   <span className="text-slate-400">~</span>
                   <select value={gmeTrendToDate} onChange={e => setGmeTrendToDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">{isEn ? 'To' : '종료'}</option>
-                    {gmeTrendDates.map(d => <option key={d} value={d}>{d}</option>)}
+                    {gmeTrendDates.map(d => <option key={d} value={d}>{formatDate(d)}</option>)}
                   </select>
                 </div>
               </div>
@@ -1192,6 +1296,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   )}
                 </LineChart>
               </ResponsiveContainer>
+            ) : effectiveGmeTrendFromDate && effectiveGmeTrendToDate && effectiveGmeTrendFromDate > effectiveGmeTrendToDate ? (
+              <div className="h-48 flex items-center justify-center text-orange-500 dark:text-orange-400 text-sm">{t.dateRangeError}</div>
             ) : (
               <div className="h-48 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.insufficientData}</div>
             )}
@@ -1256,7 +1362,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 >
                   <option value="all">{t.allDate}</option>
                   {tableDates.map(d => (
-                    <option key={d} value={d}>{d}</option>
+                    <option key={d} value={d}>{formatDate(d)}</option>
                   ))}
                 </select>
                 <select
