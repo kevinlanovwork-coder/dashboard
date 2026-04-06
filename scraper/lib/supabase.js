@@ -14,18 +14,8 @@ export async function saveRates(records) {
 
   const validated = [];
   for (const r of records) {
-    // Guard: exact 1,000,000 KRW send amount is almost certainly a scraping default, not a real rate
-    if (r.send_amount_krw === 1_000_000 || r.total_sending_amount === 1_000_000) {
-      console.warn(`  ⚠️ Suspicious 1,000,000 KRW skipped: ${r.operator} ${r.receiving_country}`);
-      try {
-        await supabase.from('outlier_log').insert({
-          run_hour: r.run_hour, operator: r.operator, receiving_country: r.receiving_country,
-          delivery_method: r.delivery_method, scraped_value: r.total_sending_amount,
-          median_value: null, deviation_pct: null,
-        });
-      } catch { /* non-fatal */ }
-      continue;
-    }
+    const isRound = r.total_sending_amount % 1000 === 0;
+
     try {
       const { data: recent } = await supabase
         .from('rate_records')
@@ -42,6 +32,19 @@ export async function saveRates(records) {
         const median = sorted[Math.floor(sorted.length / 2)];
         if (median > 0) {
           const deviation = Math.abs(r.total_sending_amount - median) / median;
+          // Round multiples of 1,000 KRW with >10% deviation are almost certainly scraping defaults
+          if (isRound && deviation > 0.1) {
+            console.warn(`  ⚠️ Suspicious round value skipped: ${r.operator} ${r.receiving_country} — ${r.total_sending_amount?.toLocaleString()} (median: ${median.toLocaleString()}, deviation: ${(deviation * 100).toFixed(0)}%)`);
+            try {
+              await supabase.from('outlier_log').insert({
+                run_hour: r.run_hour, operator: r.operator, receiving_country: r.receiving_country,
+                delivery_method: r.delivery_method, scraped_value: r.total_sending_amount,
+                median_value: median, deviation_pct: Math.round(deviation * 100),
+              });
+            } catch { /* non-fatal */ }
+            continue;
+          }
+          // Any value with >50% deviation is an outlier
           if (deviation > 0.5) {
             console.warn(`  ⚠️ Outlier skipped: ${r.operator} ${r.receiving_country} — ${r.total_sending_amount?.toLocaleString()} (median: ${median.toLocaleString()}, deviation: ${(deviation * 100).toFixed(0)}%)`);
             try {
@@ -54,6 +57,17 @@ export async function saveRates(records) {
             continue;
           }
         }
+      } else if (isRound) {
+        // No median baseline yet — round number is suspicious on its own
+        console.warn(`  ⚠️ Suspicious round value skipped (no baseline): ${r.operator} ${r.receiving_country} — ${r.total_sending_amount?.toLocaleString()}`);
+        try {
+          await supabase.from('outlier_log').insert({
+            run_hour: r.run_hour, operator: r.operator, receiving_country: r.receiving_country,
+            delivery_method: r.delivery_method, scraped_value: r.total_sending_amount,
+            median_value: null, deviation_pct: null,
+          });
+        } catch { /* non-fatal */ }
+        continue;
       }
     } catch {
       // Validation failed — save anyway rather than lose data
