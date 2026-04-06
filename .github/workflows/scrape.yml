@@ -46,6 +46,8 @@ jobs:
             script: run-tls.js
           - name: Bangladesh BDT
             script: run-bdt.js
+          - name: Uzbekistan USD
+            script: run-uzb.js
 
     defaults:
       run:
