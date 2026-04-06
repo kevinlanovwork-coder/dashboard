@@ -52,6 +52,8 @@ jobs:
             script: run-uzb-card.js
           - name: Russia RUB
             script: run-rub.js
+          - name: Kazakhstan USD
+            script: run-kzt.js
 
     defaults:
       run:
