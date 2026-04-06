@@ -320,11 +320,11 @@ async function scrapeSentbe(browser) {
 
 // ─── Cash Pickup Scrapers ──────────────────────────────────────────────────────
 
-// GME Cash Pickup (API deliveryMethod=2)
+// GME Cash Pickup (API deliveryMethod=1)
 async function scrapeGmeCashPickup() {
   const body = new URLSearchParams({
     method: 'GetExRate', pCurr: 'PHP', pCountryName: 'Philippines',
-    collCurr: 'KRW', deliveryMethod: '2', cAmt: '', pAmt: String(AMOUNT),
+    collCurr: 'KRW', deliveryMethod: '1', cAmt: '', pAmt: String(AMOUNT),
     cardOnline: 'false', calBy: 'P',
   }).toString();
   const res = await fetch('https://online.gmeremit.com/Default.aspx', {
