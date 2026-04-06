@@ -54,6 +54,8 @@ jobs:
             script: run-rub.js
           - name: Kazakhstan USD
             script: run-kzt.js
+          - name: Kyrgyzstan USD
+            script: run-kgs.js
 
     defaults:
       run:
