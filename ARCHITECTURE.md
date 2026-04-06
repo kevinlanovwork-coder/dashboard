@@ -32,7 +32,7 @@ dashboard/
 │   │   ├── alerts.js                 # checkAlerts + email logic
 │   │   └── email.js                  # Gmail SMTP transport
 │   ├── scrapers/*.js                 # Individual operator modules
-│   ├── run-{idr,thb,vnd,cny,...}.js  # 11 corridor runners
+│   ├── run-{idr,thb,vnd,cny,...}.js  # 20 corridor runners
 │   └── package.json
 ├── supabase/migrations/
 │   ├── 001_init.sql                  # rate_records + RLS
@@ -42,7 +42,8 @@ dashboard/
 │   ├── 005_alert_rules.sql           # alert_config, alert_rules, alert_log
 │   ├── 006_service_fees.sql          # service_fees table
 │   └── 007_service_fees_edit_tracking.sql
-├── .github/workflows/scrape.yml      # GitHub Actions (11 parallel jobs)
+├── .github/workflows/scrape.yml      # GitHub Actions (20 parallel jobs)
+├── .github/workflows/backup.yml      # Weekly database backup
 ├── public/GME_swirl_icon.png         # Logo
 └── .env.local                        # Local env vars
 ```
@@ -144,6 +145,8 @@ dashboard/
 | GET | /api/settings/fees?country=X | List service fees |
 | PUT | /api/settings/fees | Update fee (admin edit) |
 | POST | /api/settings/fees | Get latest scraped fee (for reset) |
+| GET | /api/settings/fees/history | Fee edit history |
+| GET | /api/settings/health?days=N | Scraper health + outliers |
 
 ## Data Flow
 
@@ -154,7 +157,7 @@ cron-job.org (every 30 min)
 GitHub Actions workflow_dispatch
   |
   v
-11 parallel matrix jobs (one per corridor)
+20 parallel matrix jobs (one per corridor/method)
   |
   v
 run-*.js
@@ -178,22 +181,30 @@ Next.js Dashboard (Vercel)
 
 ## Corridors and Operators
 
-| Corridor | Currency | Receive Amount | Operators |
-|----------|----------|---------------|-----------|
-| Indonesia | IDR | 13,000,000 | GME, GMoneyTrans, Sentbe, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
-| Thailand | THB | 26,000 | GME, GMoneyTrans, WireBarley, Sentbe, Hanpass, SBI, Cross, Coinshot, JRF, E9Pay |
-| Vietnam | VND | 20,000,000 | GME, Sentbe, SBI, GMoneyTrans, E9Pay, Hanpass, Cross, JRF |
-| China (Alipay) | CNY | 10,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk |
-| Nepal | NPR | 100,000 | GME, GMoneyTrans, Sentbe, Hanpass, JRF, E9Pay, Coinshot |
-| Philippines | PHP | 40,000 | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
-| Mongolia | MNT | 2,500,000 | GME, GMoneyTrans, Utransfer, Cross, E9Pay, Coinshot, Hanpass |
-| Myanmar | MMK | 5,000,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
-| Pakistan | PKR | 100,000 | GME, GMoneyTrans, Sentbe, Hanpass, JRF |
-| Laos | LAK | 15,000,000 | GME, GMoneyTrans, E9Pay, Hanpass |
-| Sri Lanka | LKR | 230,000 | GME, Sentbe, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
-| India | INR | 100,000 | WireBarley, Sentbe, GMoneyTrans, GME, Hanpass |
-| Cambodia | USD | 1,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay |
-| Timor Leste | USD | 1,000 | GMoneyTrans, Hanpass (Bank Deposit + Cash Pickup MoneyGram) |
+| Corridor | Currency | Receive Amount | Deposit Method | Operators |
+|----------|----------|---------------|----------------|-----------|
+| Indonesia | IDR | 13,000,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
+| Thailand | THB | 26,000 | Bank Deposit | GME, GMoneyTrans, WireBarley, Hanpass, SBI, Cross, Coinshot, JRF, E9Pay |
+| Vietnam | VND | 20,000,000 | Bank Deposit | GME, SBI, GMoneyTrans, E9Pay, Hanpass, Cross, JRF |
+| China | CNY | 10,000 | Alipay | GME, GMoneyTrans, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk |
+| Nepal | NPR | 100,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, JRF, E9Pay, Coinshot |
+| Philippines | PHP | 40,000 | Bank Deposit + Cash Pickup | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
+| Mongolia | MNT | 2,500,000 | Bank Deposit | GME, GMoneyTrans, Utransfer, Cross, E9Pay, Coinshot, Hanpass |
+| Myanmar | MMK | 5,000,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Pakistan | PKR | 100,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, JRF |
+| Laos | LAK | 15,000,000 | Bank Deposit | GME, GMoneyTrans, E9Pay, Hanpass |
+| Sri Lanka | LKR | 230,000 | Bank Deposit | GME, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
+| India | INR | 100,000 | Bank Deposit | GMoneyTrans, GME, Hanpass |
+| Cambodia | USD | 1,000 | Bank Deposit + Cash Pickup | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Timor Leste | USD | 1,000 | Bank Deposit + Cash Pickup (MoneyGram) | GMoneyTrans, Hanpass |
+| Bangladesh | BDT | 100,000 | Bank Deposit | GME, GMoneyTrans, E9Pay, Utransfer, Hanpass, JRF, Cross |
+| Russia | RUB | 10,000 | Cash Payment + Card Payment | GME, GMoneyTrans, E9Pay |
+| Uzbekistan | USD | 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass |
+| Uzbekistan | UZS | 1,000,000 | Card Payment | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass |
+| Kazakhstan | USD | 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
+| Kyrgyzstan | USD | 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
+
+> Sentbe disabled across all corridors since Apr 2026 (website redirected to corporate.sentbe.com).
 
 ## Scraper Libraries
 
@@ -211,7 +222,9 @@ Next.js Dashboard (Vercel)
 
 **Fee Overrides:** Admin edits in Settings persist across scraper runs. `seedFees()` only inserts new entries, never overwrites. `manually_edited` flag tracks admin changes. Reset button reverts to latest non-zero scraped value.
 
-**Delivery Methods:** Most corridors use Bank Deposit. China uses Alipay.
+**Delivery Methods:** Most corridors use Bank Deposit. China uses Alipay. CIS corridors (Uzbekistan, Kazakhstan, Kyrgyzstan) use Cash Pickup (USD). Uzbekistan also has Card Payment (UZS). Russia has Cash Payment + Card Payment. Philippines and Cambodia have both Bank Deposit and Cash Pickup with per-method GME baselines.
+
+**Outlier Detection:** Validates scraped values before saving. Round multiples of 1,000 KRW with >10% deviation from median are flagged as suspicious defaults. Any value with >50% deviation from median is flagged as an outlier. Coinshot is exempt from the round-number check (legitimately returns round values). All flagged values are logged to `outlier_log` and visible in Settings.
 
 **Alert Cooldown:** Per-rule cooldown checked against `alert_log`. Prevents email spam when same condition persists across multiple scrape cycles.
 
@@ -225,7 +238,7 @@ Next.js Dashboard (Vercel)
 |-----------|----------|
 | Database | Supabase (PostgreSQL + RLS) |
 | Frontend | Vercel (Next.js 16 auto-deploy on push) |
-| Scrapers | GitHub Actions (Node.js 20 + Playwright, 11 parallel jobs) |
+| Scrapers | GitHub Actions (Node.js 20 + Playwright, 20 parallel jobs) |
 | Cron | cron-job.org (every 30 min) |
 | Email | Gmail SMTP (nodemailer) |
 

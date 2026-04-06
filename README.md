@@ -37,24 +37,30 @@ Competitor websites
 
 ## Corridors tracked
 
-| Country      | Currency | Receive Baseline   | Operators |
-|--------------|----------|--------------------|-----------|
-| Indonesia    | IDR      | 13,000,000 IDR     | GME, GMoneyTrans, Sentbe, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
-| Thailand     | THB      | 26,000 THB         | GME, GMoneyTrans, Sentbe, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
-| Vietnam      | VND      | 20,000,000 VND     | GME, GMoneyTrans, Sentbe, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
-| Mongolia     | MNT      | 2,500,000 MNT      | GME, GMoneyTrans, Sentbe, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
-| Nepal        | NPR      | 100,000 NPR        | GME, GMoneyTrans, Sentbe, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
-| China        | CNY      | 10,000 CNY         | GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk |
-| Cambodia     | USD      | 1,000 USD          | GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay |
-| Myanmar      | MMK      | 5,000,000 MMK      | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
-| Pakistan     | PKR      | 100,000 PKR        | GME, GMoneyTrans, Sentbe, Hanpass, JRF |
-| Laos         | LAK      | 15,000,000 LAK     | GME, GMoneyTrans, E9Pay, Hanpass |
-| Sri Lanka    | LKR      | 230,000 LKR        | GME, Sentbe, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
-| India        | INR      | 100,000 INR        | WireBarley, Sentbe, GMoneyTrans, GME, Hanpass |
-| Timor Leste  | USD      | 1,000 USD          | GMoneyTrans, Hanpass (Bank Deposit + Cash Pickup MoneyGram) |
-| Philippines  | PHP      | 40,000 PHP         | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
+| Country      | Currency | Receive Baseline   | Deposit Method | Operators |
+|--------------|----------|--------------------|----------------|-----------|
+| Indonesia    | IDR      | 13,000,000 IDR     | Bank Deposit | GME, GMoneyTrans, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
+| Thailand     | THB      | 26,000 THB         | Bank Deposit | GME, GMoneyTrans, WireBarley, Hanpass, SBI, Cross, Coinshot, JRF, E9Pay |
+| Vietnam      | VND      | 20,000,000 VND     | Bank Deposit | GME, SBI, GMoneyTrans, E9Pay, Hanpass, Cross, JRF |
+| Mongolia     | MNT      | 2,500,000 MNT      | Bank Deposit | GME, GMoneyTrans, Utransfer, Cross, E9Pay, Coinshot, Hanpass |
+| Nepal        | NPR      | 100,000 NPR        | Bank Deposit | GME, GMoneyTrans, Hanpass, JRF, E9Pay, Coinshot |
+| China        | CNY      | 10,000 CNY         | Alipay | GME, GMoneyTrans, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk |
+| Cambodia     | USD      | 1,000 USD          | Bank Deposit + Cash Pickup | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Myanmar      | MMK      | 5,000,000 MMK      | Bank Deposit | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Pakistan     | PKR      | 100,000 PKR        | Bank Deposit | GME, GMoneyTrans, Hanpass, JRF |
+| Laos         | LAK      | 15,000,000 LAK     | Bank Deposit | GME, GMoneyTrans, E9Pay, Hanpass |
+| Sri Lanka    | LKR      | 230,000 LKR        | Bank Deposit | GME, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
+| India        | INR      | 100,000 INR        | Bank Deposit | GMoneyTrans, GME, Hanpass |
+| Timor Leste  | USD      | 1,000 USD          | Bank Deposit + Cash Pickup (MoneyGram) | GMoneyTrans, Hanpass |
+| Philippines  | PHP      | 40,000 PHP         | Bank Deposit + Cash Pickup | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
+| Bangladesh   | BDT      | 100,000 BDT        | Bank Deposit | GME, GMoneyTrans, E9Pay, Utransfer, Hanpass, JRF, Cross |
+| Russia       | RUB      | 10,000 RUB         | Cash Payment + Card Payment | GME, GMoneyTrans, E9Pay |
+| Uzbekistan   | USD      | 1,000 USD          | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass |
+| Uzbekistan   | UZS      | 1,000,000 UZS      | Card Payment | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass |
+| Kazakhstan   | USD      | 1,000 USD          | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
+| Kyrgyzstan   | USD      | 1,000 USD          | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
 
-> All China operators use **Alipay** as the delivery method.
+> Sentbe disabled across all corridors since Apr 2026 (website redirected to corporate.sentbe.com).
 
 ---
 
@@ -70,6 +76,12 @@ Competitor websites
 - **Dark / Light mode** --toggled in the header, persisted in `localStorage`
 - **EN / Korean** --full bilingual UI, persisted in `localStorage`
 - **Country persistence** --selected corridor is remembered across page refreshes
+- **Sticky filter bar** --Country, Deposit Method, Date, Time, Period dropdowns with labels, always visible
+- **Last accessed** --timestamp with refresh button (right-aligned in filter bar)
+- **Date range error** --charts show error message when From date is after To date
+- **XLS export** --download detailed data as Excel spreadsheet
+- **Outlier detection** --round-number and median-deviation guards prevent bad data from being saved
+- **Scraper Health** --Settings tab showing success rates, recent failures, and outliers
 
 ---
 
@@ -154,12 +166,19 @@ dashboard/
 |   +-- run-inr.js                     # India INR scraper
 |   +-- run-tls.js                     # Timor Leste USD scraper
 |   +-- run-php.js                     # Philippines PHP scraper
+|   +-- run-bdt.js                     # Bangladesh BDT scraper
+|   +-- run-rub.js                     # Russia RUB scraper
+|   +-- run-uzb.js                     # Uzbekistan USD (Cash Pickup) scraper
+|   +-- run-uzb-card.js                # Uzbekistan UZS (Card Payment) scraper
+|   +-- run-kzt.js                     # Kazakhstan USD (Cash Pickup) scraper
+|   +-- run-kgs.js                     # Kyrgyzstan USD (Cash Pickup) scraper
 |   +-- package.json
 +-- data/
 |   +-- rates.csv                      # Historical rates data (backup/seed)
 +-- .github/
 |   +-- workflows/
-|       +-- scrape.yml                 # GitHub Actions -- matrix scrape (11 corridors)
+|       +-- scrape.yml                 # GitHub Actions -- matrix scrape (20 corridors)
+|       +-- backup.yml                 # Weekly database backup
 +-- vercel.json                        # Vercel deployment config
 +-- README.md
 ```
@@ -192,6 +211,12 @@ node --env-file=.env run-lkr.js      # Sri Lanka
 node --env-file=.env run-inr.js      # India
 node --env-file=.env run-tls.js      # Timor Leste
 node --env-file=.env run-php.js      # Philippines
+node --env-file=.env run-bdt.js      # Bangladesh
+node --env-file=.env run-rub.js      # Russia
+node --env-file=.env run-uzb.js      # Uzbekistan (Cash Pickup USD)
+node --env-file=.env run-uzb-card.js # Uzbekistan (Card Payment UZS)
+node --env-file=.env run-kzt.js      # Kazakhstan
+node --env-file=.env run-kgs.js      # Kyrgyzstan
 ```
 
 ---
@@ -222,7 +247,7 @@ npm run dev
 
 ## Scraping schedule
 
-An external cron service (cron-job.org) triggers the GitHub Actions workflow via `workflow_dispatch` every 30 minutes (at :00 and :30 UTC). Each corridor runs as a separate parallel job in a matrix strategy, so all 11 corridors are scraped simultaneously within the same workflow run. Timestamps are rounded to the nearest 30-minute mark in KST (UTC+9).
+An external cron service (cron-job.org) triggers the GitHub Actions workflow via `workflow_dispatch` every 30 minutes (at :00 and :30 UTC). Each corridor runs as a separate parallel job in a matrix strategy, so all 20 corridors are scraped simultaneously within the same workflow run. Timestamps are rounded to the nearest 30-minute mark in KST (UTC+9).
 
 ---
 
