@@ -47,8 +47,8 @@ const EN = {
   allMethods: 'All Methods',
   allDate: 'All Dates',
   allTime: 'All Times',
-  tableHeaders: ['Time', 'Operator', 'Method', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Service Fee', 'Collection Amt (KRW)', 'GME Baseline', 'Diff', 'Rate', 'Status', ''],
-  rightAlignHeaders: ['Recv. Amount', 'Send Amt (KRW)', 'Service Fee', 'Collection Amt (KRW)', 'GME Baseline', 'Diff', 'Rate'],
+  tableHeaders: ['Time', 'Operator', 'Method', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Service Fee', 'Collection Amt (KRW)', 'GME Baseline', 'Price Gap', 'Rate', 'Status', ''],
+  rightAlignHeaders: ['Recv. Amount', 'Send Amt (KRW)', 'Service Fee', 'Collection Amt (KRW)', 'GME Baseline', 'Price Gap', 'Rate'],
   deleteConfirm: (op: string, time: string) => `Delete record for ${op} at ${time}?`,
   deleting: 'Deleting...',
   pagination: (start: number, end: number, total: number) =>
@@ -113,8 +113,8 @@ const KO = {
   allMethods: '전체 방식',
   allDate: '전체 날짜',
   allTime: '전체 시간',
-  tableHeaders: ['시간대', '운영사', '입금방식', '국가', '수령액', '송금액 (KRW)', '수수료', '수금액 (KRW)', 'GME 기준가', '차이', '환율', '상태', ''],
-  rightAlignHeaders: ['수령액', '송금액 (KRW)', '수수료', '수금액 (KRW)', 'GME 기준가', '차이', '환율'],
+  tableHeaders: ['시간대', '운영사', '입금방식', '국가', '수령액', '송금액 (KRW)', '수수료', '수금액 (KRW)', 'GME 기준가', '가격차이', '환율', '상태', ''],
+  rightAlignHeaders: ['수령액', '송금액 (KRW)', '수수료', '수금액 (KRW)', 'GME 기준가', '가격차이', '환율'],
   deleteConfirm: (op: string, time: string) => `${op} (${time}) 기록을 삭제하시겠습니까?`,
   deleting: '삭제 중...',
   pagination: (start: number, end: number, total: number) =>
@@ -746,7 +746,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
       'Service Fee': r.serviceFee,
       'Collection Amt (KRW)': r.totalSendingAmount,
       'GME Baseline': r.gmeBaseline ?? '',
-      Diff: r.priceGap ?? '',
+      'Price Gap': r.priceGap ?? '',
       Rate: r.sendAmountKRW > 0
         ? (() => { const exKRW = rateExchangeKRW(r); const raw = r.receiveAmount / exKRW; return parseFloat((raw >= 1 ? raw : exKRW / r.receiveAmount).toFixed(4)); })()
         : '',
@@ -1118,7 +1118,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h2 className="text-sm font-semibold">{t.avgDiffTitle}</h2>
-                  <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(effectiveAvgFromDate, effectiveAvgToDate)}</p>
+                  <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(effectiveAvgFromDate ? formatDate(effectiveAvgFromDate) : '', effectiveAvgToDate ? formatDate(effectiveAvgToDate) : '')}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="flex items-center gap-1 text-xs">
@@ -1383,7 +1383,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800">
                     {t.tableHeaders.map(h => (
-                      <th key={h} className={`py-2.5 px-3 text-slate-500 dark:text-slate-500 font-medium text-xs ${t.rightAlignHeaders.includes(h) ? 'text-right' : h === t.tableHeaders[t.tableHeaders.length - 1] ? 'text-center' : 'text-left'}`}>
+                      <th key={h} className={`py-2.5 px-3 text-slate-500 dark:text-slate-500 font-medium text-xs ${t.rightAlignHeaders.includes(h) ? 'text-center' : h === t.tableHeaders[t.tableHeaders.length - 1] || h === 'Status' || h === '상태' ? 'text-center' : 'text-left'}`}>
                         {h}
                       </th>
                     ))}

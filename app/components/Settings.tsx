@@ -309,7 +309,16 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
     fetchConfig();
   }
 
-  function formatDate(iso: string | null) { if (!iso) return isEn ? 'Never' : '없음'; return new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }); }
+  function formatDate(iso: string | null) {
+    if (!iso) return isEn ? 'Never' : '없음';
+    const d = new Date(iso);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${y}/${m}/${day} ${h}:${min}`;
+  }
 
   function handleSort(col: 'receiving_country' | 'operator' | 'delivery_method') {
     if (sortColumn === col) setSortAsc(!sortAsc); else { setSortColumn(col); setSortAsc(true); }
@@ -614,7 +623,16 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
     fetchFees(); fetchFeeHistory();
   }
 
-  function formatDate(iso: string | null) { if (!iso) return '-'; return new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }); }
+  function formatDate(iso: string | null) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${y}/${m}/${day} ${h}:${min}`;
+  }
 
   return (
     <div className="space-y-6">
@@ -793,8 +811,9 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
 
   function formatRunHour(rh: string | null) {
     if (!rh) return '-';
-    const [date, time] = rh.split(' ');
-    return `${date.slice(5)} ${time}`;
+    const m = rh.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
+    if (!m) return rh;
+    return `${m[2]}/${m[3]} ${m[4]}:${m[5]}`;
   }
 
   function rateColor(rate: number) {
