@@ -2,7 +2,7 @@
  * Sri Lanka (LKR) 스크래퍼 — 230,000 LKR 기준
  * 실행: node --env-file=.env run-lkr.js
  *
- * 지원 사업자: GME, Sentbe, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass
+ * 지원 사업자: GME, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';

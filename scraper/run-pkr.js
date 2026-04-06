@@ -2,7 +2,7 @@
  * Pakistan (PKR) 스크래퍼 — 100,000 PKR 기준
  * 실행: node --env-file=.env run-pkr.js
  *
- * 지원 사업자: GME, GMoneyTrans, Sentbe, Hanpass, JRF
+ * 지원 사업자: GME, GMoneyTrans, Hanpass, JRF
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';

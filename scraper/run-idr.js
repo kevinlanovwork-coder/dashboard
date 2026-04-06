@@ -35,7 +35,8 @@ async function scrapeGme() {
 
 // ── 스크래퍼 임포트 ──────────────────────────────────────────────────────
 import { scrape as scrapeGmoneytrans } from './scrapers/gmoneytrans.js';
-import { scrape as scrapeSentbe }     from './scrapers/sentbe.js';
+// Sentbe disabled — www.sentbe.com/ko redirects to corporate.sentbe.com (no web calculator since Apr 2026)
+// import { scrape as scrapeSentbe }     from './scrapers/sentbe.js';
 import { scrape as scrapeHanpass }    from './scrapers/hanpass.js';
 import { scrape as scrapeUtransfer }  from './scrapers/utransfer.js';
 import { scrape as scrapeSbi }        from './scrapers/sbi.js';
@@ -50,7 +51,8 @@ import { scrape as scrapeE9pay }      from './scrapers/e9pay.js';
 const SCRAPERS = [
   { name: 'GME',          fn: () => withRetry(scrapeGme), needsBrowser: false },
   { name: 'GMoneyTrans',  fn: scrapeGmoneytrans,  needsBrowser: false },
-  { name: 'Sentbe',       fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
+  // Sentbe disabled — www.sentbe.com/ko redirects to corporate.sentbe.com (no web calculator since Apr 2026)
+  // { name: 'Sentbe',       fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
   { name: 'Hanpass',      fn: () => withRetry(scrapeHanpass), needsBrowser: false },
   { name: 'Utransfer',    fn: (b) => withRetry(() => scrapeUtransfer(b)), needsBrowser: true  },
   { name: 'SBI',          fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
