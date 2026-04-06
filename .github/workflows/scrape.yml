@@ -50,6 +50,8 @@ jobs:
             script: run-uzb.js
           - name: Uzbekistan UZS Card
             script: run-uzb-card.js
+          - name: Russia RUB
+            script: run-rub.js
 
     defaults:
       run:
