@@ -514,7 +514,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
                 <tbody>
                   {filteredHistory.slice(historyPage * HISTORY_PAGE_SIZE, (historyPage + 1) * HISTORY_PAGE_SIZE).map(log => (
                     <tr key={log.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 text-xs">
-                      <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{log.notified_at ? new Date(log.notified_at).toLocaleDateString('en-CA') : '-'}</td>
+                      <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{log.notified_at ? new Date(log.notified_at).toLocaleDateString('en-CA').replace(/-/g, '/') : '-'}</td>
                       <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{log.run_hour?.split(' ')[1] ?? '-'}</td>
                       <td className="px-3 py-2.5 font-medium">{log.receiving_country}</td>
                       <td className="px-3 py-2.5">{log.operator}</td>
@@ -812,6 +812,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
 interface HealthData {
   days: number;
   totalRuns: number;
+  lastRunHour: string | null;
   overallSuccessRate: number;
   corridors: {
     country: string;
@@ -910,13 +911,14 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
           <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{isEn ? 'Total Scrape Runs' : '총 스크래핑 횟수'}</p>
           <p className="text-2xl font-bold">{health.totalRuns}</p>
+          {health.lastRunHour && <p className="text-slate-400 text-xs mt-1">{isEn ? 'Last run:' : '최근:'} {health.lastRunHour.replace(/-/g, '/')}</p>}
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
           <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{isEn ? 'Overall Success Rate' : '전체 성공률'}</p>
           <p className={`text-2xl font-bold ${rateColor(health.overallSuccessRate)}`}>{health.overallSuccessRate}%</p>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
-          <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{isEn ? 'Corridors with Issues' : '이슈 발생 복도'}</p>
+          <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{isEn ? 'Routes with Issues' : '이슈 발생 경로'}</p>
           <p className={`text-2xl font-bold ${issueCorridors.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>{issueCorridors.length} / {filteredCorridors.length}</p>
         </div>
       </div>
@@ -932,25 +934,25 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-left text-xs text-slate-500 dark:text-slate-400">
-                  <th className="px-4 py-2.5">{isEn ? 'Operator' : '운영사'}</th>
-                  <th className="px-4 py-2.5 text-center">{isEn ? 'Success Rate' : '성공률'}</th>
-                  <th className="px-4 py-2.5 text-right">{isEn ? 'Successes' : '성공'}</th>
-                  <th className="px-4 py-2.5 text-right">{isEn ? 'Failures' : '실패'}</th>
-                  <th className="px-4 py-2.5">{isEn ? 'Last Success' : '최근 성공'}</th>
-                  <th className="px-4 py-2.5">{isEn ? 'Last Failure' : '최근 실패'}</th>
+                  <th className="px-4 py-2.5 w-[20%]">{isEn ? 'Operator' : '운영사'}</th>
+                  <th className="px-4 py-2.5 text-center w-[14%]">{isEn ? 'Success Rate' : '성공률'}</th>
+                  <th className="px-4 py-2.5 text-right w-[10%]">{isEn ? 'Successes' : '성공'}</th>
+                  <th className="px-4 py-2.5 text-right w-[10%]">{isEn ? 'Failures' : '실패'}</th>
+                  <th className="px-4 py-2.5 w-[23%]">{isEn ? 'Last Failure' : '최근 실패'}</th>
+                  <th className="px-4 py-2.5 w-[23%]">{isEn ? 'Last Success' : '최근 성공'}</th>
                 </tr>
               </thead>
               <tbody>
                 {corridor.operators.map(op => (
-                  <tr key={op.operator} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30">
+                  <tr key={op.operator} className={`border-b border-slate-100 dark:border-slate-800/50 ${op.successRate < 100 ? 'bg-red-50 dark:bg-red-900/10' : 'hover:bg-slate-100/50 dark:hover:bg-slate-800/30'}`}>
                     <td className="px-4 py-2.5 font-medium">{op.operator}</td>
                     <td className="px-4 py-2.5 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${rateBg(op.successRate)}`}>{op.successRate}%</span>
                     </td>
                     <td className="px-4 py-2.5 text-right text-green-600 dark:text-green-400">{op.successes}</td>
                     <td className="px-4 py-2.5 text-right text-red-600 dark:text-red-400">{op.failures > 0 ? op.failures : '-'}</td>
-                    <td className="px-4 py-2.5 text-xs text-slate-400">{formatRunHour(op.lastSuccess)}</td>
-                    <td className="px-4 py-2.5 text-xs text-slate-400">{op.lastFailure ? formatRunHour(op.lastFailure) : '-'}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-700 dark:text-slate-200">{op.lastFailure ? formatRunHour(op.lastFailure) : '-'}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-700 dark:text-slate-200">{op.lastSuccess === health.lastRunHour ? <span className="text-green-600 dark:text-green-400">Latest</span> : formatRunHour(op.lastSuccess)}</td>
                   </tr>
                 ))}
               </tbody>

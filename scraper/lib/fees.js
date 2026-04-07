@@ -89,6 +89,21 @@ export async function seedFees(records) {
       (existing ?? []).map(e => `${e.operator}||${e.delivery_method}`)
     );
 
+    const now = new Date().toISOString();
+
+    // GME: always sync fee from API to keep it up to date
+    const gmeRecords = records.filter(r => r.operator === 'GME' && r.receiving_country);
+    for (const r of gmeRecords) {
+      const key = `${r.operator}||${r.delivery_method ?? 'Bank Deposit'}`;
+      if (existingKeys.has(key)) {
+        await supabase.from('service_fees')
+          .update({ fee_krw: r.service_fee ?? 0, updated_at: now })
+          .eq('receiving_country', country)
+          .eq('operator', 'GME')
+          .eq('delivery_method', r.delivery_method ?? 'Bank Deposit');
+      }
+    }
+
     // Only insert rows that don't already exist
     const newRows = records
       .filter(r => r.operator && r.receiving_country)
@@ -98,7 +113,7 @@ export async function seedFees(records) {
         operator: r.operator,
         delivery_method: r.delivery_method ?? 'Bank Deposit',
         fee_krw: r.service_fee ?? 0,
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       }));
 
     if (newRows.length === 0) return;

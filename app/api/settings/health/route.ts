@@ -187,9 +187,12 @@ export async function GET(req: NextRequest) {
     deviationPct: o.deviation_pct,
   }));
 
+  const lastRunHour = allData.length > 0 ? allData[0].run_hour : null;
+
   return NextResponse.json({
     days,
     totalRuns,
+    lastRunHour,
     overallSuccessRate: totalExpected > 0 ? Math.round((totalSuccesses / totalExpected) * 100) : 0,
     corridors,
     recentFailures: enrichedFailures.slice(0, 100),
