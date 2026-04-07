@@ -254,12 +254,6 @@ async function main() {
   const feeMap = await loadFees(COUNTRY);
   const adjusted = applyFeeOverrides(results, feeMap);
 
-  // ── Bangladesh: hardcode all service fees to 0 KRW ─────────────────
-  adjusted.forEach(r => {
-    r.total_sending_amount = r.send_amount_krw;
-    r.service_fee = 0;
-  });
-
   const gmeRecord   = adjusted.find(r => r.operator === 'GME');
   const gmeBaseline = gmeRecord?.total_sending_amount ?? null;
   if (!gmeBaseline) console.warn('\n⚠️  GME 기준값 없음 — price_gap 계산 불가');
