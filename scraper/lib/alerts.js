@@ -173,6 +173,7 @@ export async function checkAlerts(records, runHour) {
           alert_rule_id: priceRuleIds[0], run_hour: runHour, operator: r.operator,
           receiving_country: country, price_gap: r.price_gap,
           total_sending_amount: r.total_sending_amount, gme_baseline: r.gme_baseline, email_sent_to: notifyEmails,
+          alert_type: 'price', threshold: r.threshold,
         }));
         await supabase.from('alert_log').insert(logEntries);
       }
@@ -274,6 +275,7 @@ export async function checkAlerts(records, runHour) {
           alert_rule_id: rateRuleIds[0], run_hour: runHour, operator: r.operator,
           receiving_country: country, price_gap: r.rateGap,
           total_sending_amount: r.total_sending_amount, gme_baseline: r.gme_baseline, email_sent_to: notifyEmails,
+          alert_type: 'rate', threshold: r.threshold,
         }));
         await supabase.from('alert_log').insert(logEntries);
       }

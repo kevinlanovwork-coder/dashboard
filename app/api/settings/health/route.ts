@@ -116,18 +116,32 @@ export async function GET(req: NextRequest) {
   // Sort inferred failures by run_hour descending
   recentFailures.sort((a, b) => b.runHour.localeCompare(a.runHour));
 
-  // Fetch logged failures with reasons from scraper_failure_log
-  const { data: failureLogs } = await supabase
-    .from('scraper_failure_log')
-    .select('*')
-    .gte('created_at', fromDateStr)
-    .order('created_at', { ascending: false })
-    .limit(100);
+  // Fetch logged failures with reasons from scraper_failure_log (batched)
+  let allFailureLogs: { run_hour: string; receiving_country: string; delivery_method: string; operator: string; reason: string; error_message: string | null }[] = [];
+  let failFrom = 0;
+  while (true) {
+    const { data: batch } = await supabase
+      .from('scraper_failure_log')
+      .select('run_hour, receiving_country, delivery_method, operator, reason, error_message')
+      .gte('created_at', fromDateStr)
+      .order('created_at', { ascending: false })
+      .range(failFrom, failFrom + BATCH - 1);
+    if (!batch || batch.length === 0) break;
+    allFailureLogs = allFailureLogs.concat(batch);
+    if (batch.length < BATCH) break;
+    failFrom += BATCH;
+  }
 
-  // Build a lookup of logged reasons by key
+  // Build lookups of logged reasons — exact key and relaxed key (without delivery_method)
   const failureReasonMap = new Map<string, { reason: string; error_message: string | null }>();
-  (failureLogs ?? []).forEach(f => {
+  const failureReasonByOpMap = new Map<string, { reason: string; error_message: string | null }>();
+  allFailureLogs.forEach(f => {
     failureReasonMap.set(`${f.run_hour}||${f.receiving_country}||${f.delivery_method}||${f.operator}`, { reason: f.reason, error_message: f.error_message });
+    // Relaxed key: match by run_hour + country + operator (ignore delivery_method mismatch)
+    const relaxedKey = `${f.run_hour}||${f.receiving_country}||${f.operator}`;
+    if (!failureReasonByOpMap.has(relaxedKey)) {
+      failureReasonByOpMap.set(relaxedKey, { reason: f.reason, error_message: f.error_message });
+    }
   });
 
   // Also detect manually deleted records
@@ -148,8 +162,12 @@ export async function GET(req: NextRequest) {
     const key = `${f.runHour}||${f.country}||${f.deliveryMethod}||${f.operator}`;
     const logged = failureReasonMap.get(key);
     if (logged) return { ...f, reason: logged.reason, errorMessage: logged.error_message };
+    // Relaxed match: same run_hour + country + operator, any delivery_method
+    const relaxedKey = `${f.runHour}||${f.country}||${f.operator}`;
+    const relaxed = failureReasonByOpMap.get(relaxedKey);
+    if (relaxed) return { ...f, reason: relaxed.reason, errorMessage: relaxed.error_message };
     if (deletedSet.has(key)) return { ...f, reason: 'manually_deleted', errorMessage: null };
-    return { ...f, reason: 'unknown', errorMessage: null };
+    return { ...f, reason: 'not_scraped', errorMessage: null };
   });
 
   // Fetch recent outliers

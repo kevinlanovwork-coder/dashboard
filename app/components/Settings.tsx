@@ -34,6 +34,8 @@ interface AlertLog {
   total_sending_amount: number | null;
   gme_baseline: number | null;
   notified_at: string;
+  alert_type: string | null;
+  threshold: number | null;
 }
 
 interface ServiceFee {
@@ -150,6 +152,7 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
   const [sortAsc, setSortAsc] = useState(true);
   const [historyPage, setHistoryPage] = useState(0);
   const HISTORY_PAGE_SIZE = 10;
+  const [alertHistoryCountry, setAlertHistoryCountry] = useState('');
   const [filterCountry, setFilterCountry] = useState('');
   const [rulesPage, setRulesPage] = useState(0);
   const RULES_PAGE_SIZE = 10;
@@ -225,11 +228,13 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
 
   async function handleSave() {
     const base = { receiving_country: formCountry, delivery_method: formDelivery, direction: formDirection, alert_type: formAlertType, threshold_krw: Number(formThreshold), cooldown_minutes: formCooldown };
+    const nonGmeOps = (OPERATOR_MAP[`${formCountry}||${formDelivery}`] ?? []).filter(o => o !== 'GME');
+    const isAll = nonGmeOps.length > 0 && nonGmeOps.every(o => formOperators.has(o));
     if (editingId) {
       // Find the group this rule belongs to
       const group = groupedRules.find(g => g.rules.some(r => r.id === editingId));
       const existingRules = group?.rules ?? [];
-      const newOps: (string | null)[] = formOperators.size > 0 ? [...formOperators] : [null];
+      const newOps: (string | null)[] = isAll ? [null] : (formOperators.size > 0 ? [...formOperators] : [null]);
       // Delete rules whose operators were unchecked
       const toDelete = existingRules.filter(r => !newOps.includes(r.operator));
       // Update rules whose operators still exist
@@ -242,8 +247,8 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
         ...toUpdate.map(r => fetch('/api/alerts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id, ...base, operator: r.operator, is_active: true }) })),
         ...toCreate.map(op => fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...base, operator: op }) })),
       ]); } catch { /* partial failure — fetchRules will refresh */ }
-    } else if (formOperators.size === 0) {
-      // "Any operator" — single rule with null
+    } else if (formOperators.size === 0 || isAll) {
+      // "All" operators — single rule with null
       await fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...base, operator: null }) });
     } else {
@@ -318,9 +323,9 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
       const existing = map.get(k);
       if (existing) {
         existing.rules.push(rule);
-        existing.operators.push(rule.operator ?? (isEn ? 'Any' : '전체'));
+        existing.operators.push(rule.operator ?? (isEn ? 'All' : '전체'));
       } else {
-        const g = { key: k, rules: [rule], operators: [rule.operator ?? (isEn ? 'Any' : '전체')], is_active: rule.is_active };
+        const g = { key: k, rules: [rule], operators: [rule.operator ?? (isEn ? 'All' : '전체')], is_active: rule.is_active };
         groups.push(g);
         map.set(k, g);
       }
@@ -375,10 +380,12 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
             <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Delivery Method' : '입금 방식'}</label><select value={formDelivery} onChange={e => setFormDelivery(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm">{deliveryMethods.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
             <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Operators' : '운영사'}</label>
               <div className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm max-h-36 overflow-y-auto space-y-1">
-                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={formOperators.size === 0} onChange={() => setFormOperators(new Set())} className="rounded" /><span className="text-slate-500">{isEn ? 'Any operator' : '전체 운영사'}</span></label>
-                {operators.filter(o => o !== 'GME').map(o => (
+                {(() => { const nonGme = operators.filter(o => o !== 'GME'); const allChecked = nonGme.length > 0 && nonGme.every(o => formOperators.has(o)); return (<>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={allChecked} onChange={() => { if (allChecked) setFormOperators(new Set()); else setFormOperators(new Set(nonGme)); }} className="rounded" /><span className="text-slate-500 font-medium">{isEn ? 'All' : '전체'}</span></label>
+                {nonGme.map(o => (
                   <label key={o} className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={formOperators.has(o)} onChange={() => { const next = new Set(formOperators); if (next.has(o)) next.delete(o); else next.add(o); setFormOperators(next); }} className="rounded" />{o}</label>
                 ))}
+                </>); })()}
               </div>
             </div>
             <div><label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{isEn ? 'Direction' : '방향'}</label><select value={formDirection} onChange={e => setFormDirection(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"><option value="cheaper">{isEn ? 'Cheaper than GME' : 'GME보다 저렴'}</option><option value="any">{isEn ? 'Any direction' : '모든 방향'}</option></select></div>
@@ -462,9 +469,19 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
 
       </> : <>
       {/* Alert History */}
+      {(() => {
+        const alertCountries = [...new Set(history.map(h => h.receiving_country))].sort();
+        const filteredHistory = alertHistoryCountry ? history.filter(h => h.receiving_country === alertHistoryCountry) : history;
+        return (
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold">{isEn ? 'Recent Alerts' : '최근 알림'} <span className="text-slate-400 font-normal">({history.length})</span></h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold">{isEn ? 'Recent Alerts' : '최근 알림'} <span className="text-slate-400 font-normal">({filteredHistory.length})</span></h2>
+            <select value={alertHistoryCountry} onChange={e => { setAlertHistoryCountry(e.target.value); setHistoryPage(0); }} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs">
+              <option value="">{isEn ? 'All Countries' : '전체 국가'}</option>
+              {alertCountries.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
           {history.length > 0 && (
             <button
               onClick={async () => {
@@ -478,46 +495,69 @@ function AlertRulesTab({ isEn }: { isEn: boolean }) {
             </button>
           )}
         </div>
-        {history.length === 0 ? <p className="text-sm text-slate-400">{isEn ? 'No alerts sent yet.' : '발송된 알림이 없습니다.'}</p> : (
+        {filteredHistory.length === 0 ? <p className="text-sm text-slate-400">{isEn ? 'No alerts sent yet.' : '발송된 알림이 없습니다.'}</p> : (
           <>
-            <div className="space-y-1">
-              {history.slice(historyPage * HISTORY_PAGE_SIZE, (historyPage + 1) * HISTORY_PAGE_SIZE).map(log => (
-                <div key={log.id} className="flex items-center justify-between text-xs py-2 border-b border-slate-100 dark:border-slate-800/50">
-                  <div className="flex items-center gap-3">
-                    <span className="text-slate-400">{formatDate(log.notified_at)}</span>
-                    <span className="font-medium">{log.receiving_country}</span>
-                    <span>{log.operator}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`font-mono ${log.price_gap < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                      {log.price_gap > 0 ? '+' : ''}{log.price_gap.toLocaleString()} KRW
-                    </span>
-                    <button
-                      onClick={async () => {
-                        await fetch('/api/alerts/history', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: log.id }) });
-                        fetchHistory();
-                      }}
-                      className="text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 transition-colors"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                    <th className="px-3 py-2.5">{isEn ? 'Date' : '날짜'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Run Hour' : '실행 시간'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Country' : '국가'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Operator' : '운영사'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Type' : '유형'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Threshold' : '기준값'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Gap' : '차이'}</th>
+                    <th className="px-3 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredHistory.slice(historyPage * HISTORY_PAGE_SIZE, (historyPage + 1) * HISTORY_PAGE_SIZE).map(log => (
+                    <tr key={log.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 text-xs">
+                      <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{log.notified_at ? new Date(log.notified_at).toLocaleDateString('en-CA') : '-'}</td>
+                      <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{log.run_hour?.split(' ')[1] ?? '-'}</td>
+                      <td className="px-3 py-2.5 font-medium">{log.receiving_country}</td>
+                      <td className="px-3 py-2.5">{log.operator}</td>
+                      <td className="px-3 py-2.5">
+                        <span className={`px-1.5 py-0.5 rounded text-xs ${(log.alert_type ?? 'price') === 'rate' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'}`}>{(log.alert_type ?? 'price') === 'rate' ? 'Rate' : 'Price'}</span>
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-slate-500">{log.threshold != null ? ((log.alert_type ?? 'price') === 'rate' ? log.threshold.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : log.threshold.toLocaleString() + ' KRW') : '-'}</td>
+                      <td className="px-3 py-2.5">
+                        <span className={`font-mono font-semibold ${log.price_gap < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                          {log.price_gap > 0 ? '+' : ''}{(log.alert_type ?? 'price') === 'rate' ? log.price_gap.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : log.price_gap.toLocaleString() + ' KRW'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <button
+                          onClick={async () => {
+                            await fetch('/api/alerts/history', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: log.id }) });
+                            fetchHistory();
+                          }}
+                          className="text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 transition-colors"
+                        >
+                          &times;
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {history.length > HISTORY_PAGE_SIZE && (
+            {filteredHistory.length > HISTORY_PAGE_SIZE && (
               <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
-                <span>{historyPage * HISTORY_PAGE_SIZE + 1}–{Math.min((historyPage + 1) * HISTORY_PAGE_SIZE, history.length)} / {history.length}</span>
+                <span>{historyPage * HISTORY_PAGE_SIZE + 1}–{Math.min((historyPage + 1) * HISTORY_PAGE_SIZE, filteredHistory.length)} / {filteredHistory.length}</span>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => setHistoryPage(p => Math.max(0, p - 1))} disabled={historyPage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
-                  <span className="px-2">{historyPage + 1} / {Math.ceil(history.length / HISTORY_PAGE_SIZE)}</span>
-                  <button onClick={() => setHistoryPage(p => Math.min(Math.ceil(history.length / HISTORY_PAGE_SIZE) - 1, p + 1))} disabled={historyPage >= Math.ceil(history.length / HISTORY_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
+                  <span className="px-2">{historyPage + 1} / {Math.ceil(filteredHistory.length / HISTORY_PAGE_SIZE)}</span>
+                  <button onClick={() => setHistoryPage(p => Math.min(Math.ceil(filteredHistory.length / HISTORY_PAGE_SIZE) - 1, p + 1))} disabled={historyPage >= Math.ceil(filteredHistory.length / HISTORY_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
                 </div>
               </div>
             )}
           </>
         )}
       </div>
+        );
+      })()}
       </>}
     </div>
   );
@@ -549,6 +589,7 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
   const [editEffectiveUntil, setEditEffectiveUntil] = useState('');
   const [feeHistory, setFeeHistory] = useState<FeeEditLog[]>([]);
   const [feeHistoryPage, setFeeHistoryPage] = useState(0);
+  const [historyCountry, setHistoryCountry] = useState('');
   const FEE_HISTORY_PAGE_SIZE = 10;
 
   const fetchFees = useCallback(async () => {
@@ -674,9 +715,19 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
       ))}
       </> : <>
       {/* Fee Edit History */}
+      {(() => {
+        const historyCountries = [...new Set(feeHistory.map(h => h.receiving_country))].sort();
+        const filtered = historyCountry ? feeHistory.filter(h => h.receiving_country === historyCountry) : feeHistory;
+        return (
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold">{isEn ? 'Edit History' : '수정 이력'} <span className="text-slate-400 font-normal">({feeHistory.length})</span></h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold">{isEn ? 'Edit History' : '수정 이력'} <span className="text-slate-400 font-normal">({filtered.length})</span></h2>
+            <select value={historyCountry} onChange={e => { setHistoryCountry(e.target.value); setFeeHistoryPage(0); }} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs">
+              <option value="">{isEn ? 'All Countries' : '전체 국가'}</option>
+              {historyCountries.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
           {feeHistory.length > 0 && (
             <button
               onClick={async () => {
@@ -690,49 +741,67 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
             </button>
           )}
         </div>
-        {feeHistory.length === 0 ? <p className="text-sm text-slate-400">{isEn ? 'No edits yet.' : '수정 이력이 없습니다.'}</p> : (
+        {filtered.length === 0 ? <p className="text-sm text-slate-400">{isEn ? 'No edits yet.' : '수정 이력이 없습니다.'}</p> : (
           <>
-            <div className="space-y-1">
-              {feeHistory.slice(feeHistoryPage * FEE_HISTORY_PAGE_SIZE, (feeHistoryPage + 1) * FEE_HISTORY_PAGE_SIZE).map(log => (
-                <div key={log.id} className="flex items-center justify-between text-xs py-2 border-b border-slate-100 dark:border-slate-800/50">
-                  <div className="flex items-center gap-3">
-                    <span className="text-slate-400">{formatDate(log.edited_at)}</span>
-                    <span className="font-medium">{log.receiving_country}</span>
-                    <span>{log.operator}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-xs ${log.action === 'expired' ? 'bg-red-100 dark:bg-red-900/30 text-red-600' : log.action === 'reset' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'}`}>{log.action === 'expired' ? 'Expired' : log.action === 'reset' ? 'Reset' : 'Edit'}</span>
-                    {log.notes && <span className="text-slate-400 italic">{log.notes}</span>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-slate-500">{log.old_fee.toLocaleString()}</span>
-                    <span className="text-slate-400">→</span>
-                    <span className="font-mono font-semibold">{log.new_fee.toLocaleString()}</span>
-                    {log.effective_until && <span className="text-xs text-blue-500 dark:text-blue-400">{isEn ? 'until' : '~'} {formatDate(log.effective_until)}</span>}
-                    <button
-                      onClick={async () => {
-                        await fetch('/api/settings/fees/history', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: log.id }) });
-                        fetchFeeHistory();
-                      }}
-                      className="text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 transition-colors"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                    <th className="px-3 py-2.5">{isEn ? 'Date' : '날짜'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Country' : '국가'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Operator' : '운영사'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Action' : '유형'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Old Fee' : '이전 수수료'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'New Fee' : '새 수수료'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Effective Until' : '유효기간'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Notes' : '메모'}</th>
+                    <th className="px-3 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.slice(feeHistoryPage * FEE_HISTORY_PAGE_SIZE, (feeHistoryPage + 1) * FEE_HISTORY_PAGE_SIZE).map(log => (
+                    <tr key={log.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 text-xs">
+                      <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{formatDate(log.edited_at)}</td>
+                      <td className="px-3 py-2.5 font-medium">{log.receiving_country}</td>
+                      <td className="px-3 py-2.5">{log.operator}</td>
+                      <td className="px-3 py-2.5">
+                        <span className={`px-1.5 py-0.5 rounded text-xs ${log.action === 'expired' ? 'bg-red-100 dark:bg-red-900/30 text-red-600' : log.action === 'reset' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'}`}>{log.action === 'expired' ? 'Expired' : log.action === 'reset' ? 'Reset' : 'Edit'}</span>
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-slate-500">{log.old_fee.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 font-mono font-semibold">{log.new_fee.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-blue-500 dark:text-blue-400 whitespace-nowrap">{log.effective_until ? formatDate(log.effective_until) : '-'}</td>
+                      <td className="px-3 py-2.5 text-slate-400 italic">{log.action === 'expired' ? (isEn ? 'Auto-reverted after expired' : '만료 후 자동 복원') : (log.notes || '-')}</td>
+                      <td className="px-3 py-2.5">
+                        <button
+                          onClick={async () => {
+                            await fetch('/api/settings/fees/history', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: log.id }) });
+                            fetchFeeHistory();
+                          }}
+                          className="text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 transition-colors"
+                        >
+                          &times;
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {feeHistory.length > FEE_HISTORY_PAGE_SIZE && (
+            {filtered.length > FEE_HISTORY_PAGE_SIZE && (
               <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
-                <span>{feeHistoryPage * FEE_HISTORY_PAGE_SIZE + 1}–{Math.min((feeHistoryPage + 1) * FEE_HISTORY_PAGE_SIZE, feeHistory.length)} / {feeHistory.length}</span>
+                <span>{feeHistoryPage * FEE_HISTORY_PAGE_SIZE + 1}–{Math.min((feeHistoryPage + 1) * FEE_HISTORY_PAGE_SIZE, filtered.length)} / {filtered.length}</span>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => setFeeHistoryPage(p => Math.max(0, p - 1))} disabled={feeHistoryPage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
-                  <span className="px-2">{feeHistoryPage + 1} / {Math.ceil(feeHistory.length / FEE_HISTORY_PAGE_SIZE)}</span>
-                  <button onClick={() => setFeeHistoryPage(p => Math.min(Math.ceil(feeHistory.length / FEE_HISTORY_PAGE_SIZE) - 1, p + 1))} disabled={feeHistoryPage >= Math.ceil(feeHistory.length / FEE_HISTORY_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
+                  <span className="px-2">{feeHistoryPage + 1} / {Math.ceil(filtered.length / FEE_HISTORY_PAGE_SIZE)}</span>
+                  <button onClick={() => setFeeHistoryPage(p => Math.min(Math.ceil(filtered.length / FEE_HISTORY_PAGE_SIZE) - 1, p + 1))} disabled={feeHistoryPage >= Math.ceil(filtered.length / FEE_HISTORY_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
                 </div>
               </div>
             )}
           </>
         )}
       </div>
+        );
+      })()}
       </>}
     </div>
   );
@@ -766,6 +835,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
+  const [filterCountry, setFilterCountry] = useState('');
   const [failurePage, setFailurePage] = useState(0);
   const [outlierPage, setOutlierPage] = useState(0);
   const FAILURE_PAGE_SIZE = 10;
@@ -804,19 +874,23 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
   if (loading) return <div className="p-8 text-center text-slate-400">Loading...</div>;
   if (!health) return <div className="p-8 text-center text-slate-400">{isEn ? 'No health data available.' : '상태 데이터가 없습니다.'}</div>;
 
-  const issueCorridors = health.corridors.filter(c => c.operators.some(o => o.successRate < 95));
+  const healthCountries = [...new Set(health.corridors.map(c => c.country))].sort();
+  const filteredCorridors = filterCountry ? health.corridors.filter(c => c.country === filterCountry) : health.corridors;
+  const filteredFailures = filterCountry ? health.recentFailures.filter(f => f.country === filterCountry) : health.recentFailures;
+  const filteredOutliers = filterCountry ? (health.recentOutliers ?? []).filter(o => o.country === filterCountry) : (health.recentOutliers ?? []);
+  const issueCorridors = filteredCorridors.filter(c => c.operators.some(o => o.successRate < 95));
 
   return (
     <div className="space-y-6">
       {/* Sub-tab switcher */}
       <div className="flex gap-2 text-sm">
-        <button onClick={() => setSubTab('health')} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'health' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Health' : '상태'}</button>
-        <button onClick={() => setSubTab('failures')} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'failures' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Recent Failures' : '최근 실패'} {health.recentFailures.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs">{health.recentFailures.length}</span>}</button>
-        <button onClick={() => setSubTab('outliers')} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'outliers' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Outliers' : '이상치'} {health.recentOutliers?.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs">{health.recentOutliers.length}</span>}</button>
+        <button onClick={() => { setSubTab('health'); setFilterCountry(''); }} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'health' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Health' : '상태'}</button>
+        <button onClick={() => { setSubTab('failures'); setFilterCountry(''); setFailurePage(0); }} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'failures' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Recent Failures' : '최근 실패'} {filteredFailures.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs">{filteredFailures.length}</span>}</button>
+        <button onClick={() => { setSubTab('outliers'); setFilterCountry(''); setOutlierPage(0); }} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'outliers' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Outliers' : '이상치'} {filteredOutliers.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs">{filteredOutliers.length}</span>}</button>
       </div>
 
       {subTab === 'health' ? <>
-      {/* Date range */}
+      {/* Date range + Country filter */}
       <div className="flex items-center gap-2">
         <span className="text-sm text-slate-500">{isEn ? 'Period:' : '기간:'}</span>
         {[1, 3, 7].map(d => (
@@ -825,6 +899,10 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
             {d === 1 ? (isEn ? '24h' : '24시간') : `${d}${isEn ? ' days' : '일'}`}
           </button>
         ))}
+        <select value={filterCountry} onChange={e => { setFilterCountry(e.target.value); }} className="ml-auto bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-3 py-1.5 text-sm">
+          <option value="">{isEn ? 'All Countries' : '전체 국가'}</option>
+          {healthCountries.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
       </div>
 
       {/* Summary cards */}
@@ -839,12 +917,12 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
           <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{isEn ? 'Corridors with Issues' : '이슈 발생 복도'}</p>
-          <p className={`text-2xl font-bold ${issueCorridors.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>{issueCorridors.length} / {health.corridors.length}</p>
+          <p className={`text-2xl font-bold ${issueCorridors.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>{issueCorridors.length} / {filteredCorridors.length}</p>
         </div>
       </div>
 
       {/* Per-corridor tables */}
-      {health.corridors.map(corridor => (
+      {filteredCorridors.map(corridor => (
         <div key={`${corridor.country}||${corridor.deliveryMethod}`} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <h3 className="text-sm font-semibold">{corridor.country} <span className="text-slate-400 font-normal">— {corridor.deliveryMethod === 'Bank Deposit' ? 'Bank Deposit' : corridor.deliveryMethod}</span></h3>
@@ -882,62 +960,81 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
       ))}
       </> : subTab === 'failures' ? <>
       {/* Recent failures */}
-      {health.recentFailures.length > 0 && (
-        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold">{isEn ? 'Recent Failures' : '최근 실패'} <span className="text-slate-400 font-normal">({health.recentFailures.length})</span></h2>
+      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold">{isEn ? 'Recent Failures' : '최근 실패'} <span className="text-slate-400 font-normal">({filteredFailures.length})</span></h2>
+            <select value={filterCountry} onChange={e => { setFilterCountry(e.target.value); setFailurePage(0); }} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs">
+              <option value="">{isEn ? 'All Countries' : '전체 국가'}</option>
+              {healthCountries.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
+        </div>
+        {filteredFailures.length === 0 ? <p className="text-sm text-slate-400">{isEn ? 'No failures found.' : '실패 기록이 없습니다.'}</p> : (
           <>
-            <div className="space-y-1">
-              {health.recentFailures.slice(failurePage * FAILURE_PAGE_SIZE, (failurePage + 1) * FAILURE_PAGE_SIZE).map((f, i) => (
-                <div key={i} className="flex items-center justify-between text-xs py-2 border-b border-slate-100 dark:border-slate-800/50">
-                  <div className="flex items-center gap-3">
-                    <span className="text-slate-400">{formatRunHour(f.runHour)}</span>
-                    <span className="font-medium">{f.country}</span>
-                    <span className="text-red-600 dark:text-red-400">{f.operator}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-1.5 py-0.5 rounded text-xs ${
-                      f.reason === 'website_down' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' :
-                      f.reason === 'api_error' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600' :
-                      f.reason === 'manually_deleted' ? 'bg-slate-200 dark:bg-slate-700 text-slate-500' :
-                      f.reason === 'scrape_error' ? 'bg-red-100 dark:bg-red-900/30 text-red-600' :
-                      'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                    }`}>{
-                      f.reason === 'website_down' ? 'Website Down' :
-                      f.reason === 'api_error' ? 'API Error' :
-                      f.reason === 'manually_deleted' ? 'Deleted' :
-                      f.reason === 'scrape_error' ? 'Scrape Error' :
-                      'Unknown'
-                    }</span>
-                    {f.errorMessage && <span className="text-slate-400 max-w-48 truncate" title={f.errorMessage}>{f.errorMessage}</span>}
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                    <th className="px-3 py-2.5">{isEn ? 'Time' : '시간'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Country' : '국가'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Operator' : '운영사'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Reason' : '원인'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Error Message' : '오류 메시지'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredFailures.slice(failurePage * FAILURE_PAGE_SIZE, (failurePage + 1) * FAILURE_PAGE_SIZE).map((f, i) => (
+                    <tr key={i} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 text-xs">
+                      <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{formatRunHour(f.runHour)}</td>
+                      <td className="px-3 py-2.5 font-medium">{f.country}</td>
+                      <td className="px-3 py-2.5 text-red-600 dark:text-red-400">{f.operator}</td>
+                      <td className="px-3 py-2.5">
+                        <span className={`px-1.5 py-0.5 rounded text-xs ${
+                          f.reason === 'website_down' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' :
+                          f.reason === 'api_error' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600' :
+                          f.reason === 'manually_deleted' ? 'bg-slate-200 dark:bg-slate-700 text-slate-500' :
+                          f.reason === 'scrape_error' ? 'bg-red-100 dark:bg-red-900/30 text-red-600' :
+                          f.reason === 'not_scraped' ? 'bg-slate-100 dark:bg-slate-800 text-slate-500' :
+                          'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                        }`}>{
+                          f.reason === 'website_down' ? 'Website Down' :
+                          f.reason === 'api_error' ? 'API Error' :
+                          f.reason === 'manually_deleted' ? 'Deleted' :
+                          f.reason === 'scrape_error' ? 'Scrape Error' :
+                          f.reason === 'not_scraped' ? 'Not Scraped' :
+                          'Unknown'
+                        }</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-400 max-w-xs truncate" title={f.errorMessage ?? ''}>{f.errorMessage || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {health.recentFailures.length > FAILURE_PAGE_SIZE && (
+            {filteredFailures.length > FAILURE_PAGE_SIZE && (
               <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
-                <span>{failurePage * FAILURE_PAGE_SIZE + 1}–{Math.min((failurePage + 1) * FAILURE_PAGE_SIZE, health.recentFailures.length)} / {health.recentFailures.length}</span>
+                <span>{failurePage * FAILURE_PAGE_SIZE + 1}–{Math.min((failurePage + 1) * FAILURE_PAGE_SIZE, filteredFailures.length)} / {filteredFailures.length}</span>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => setFailurePage(p => Math.max(0, p - 1))} disabled={failurePage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
-                  <span className="px-2">{failurePage + 1} / {Math.ceil(health.recentFailures.length / FAILURE_PAGE_SIZE)}</span>
-                  <button onClick={() => setFailurePage(p => Math.min(Math.ceil(health.recentFailures.length / FAILURE_PAGE_SIZE) - 1, p + 1))} disabled={failurePage >= Math.ceil(health.recentFailures.length / FAILURE_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
+                  <span className="px-2">{failurePage + 1} / {Math.ceil(filteredFailures.length / FAILURE_PAGE_SIZE)}</span>
+                  <button onClick={() => setFailurePage(p => Math.min(Math.ceil(filteredFailures.length / FAILURE_PAGE_SIZE) - 1, p + 1))} disabled={failurePage >= Math.ceil(filteredFailures.length / FAILURE_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
                 </div>
               </div>
             )}
           </>
-        </div>
-      )}
+        )}
+      </div>
       </> : <>
       {/* Outliers Skipped */}
-      {health.recentOutliers && health.recentOutliers.length > 0 && (
+      {filteredOutliers.length > 0 && (
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold">{isEn ? 'Outliers Skipped' : '이상치 스킵'} <span className="text-slate-400 font-normal">({health.recentOutliers.length})</span></h2>
+            <h2 className="text-sm font-semibold">{isEn ? 'Outliers Skipped' : '이상치 스킵'} <span className="text-slate-400 font-normal">({filteredOutliers.length})</span></h2>
           </div>
           <>
             <div className="space-y-1">
-              {health.recentOutliers.slice(outlierPage * FAILURE_PAGE_SIZE, (outlierPage + 1) * FAILURE_PAGE_SIZE).map((o, i) => (
+              {filteredOutliers.slice(outlierPage * FAILURE_PAGE_SIZE, (outlierPage + 1) * FAILURE_PAGE_SIZE).map((o, i) => (
                 <div key={i} className="flex items-center justify-between text-xs py-2 border-b border-slate-100 dark:border-slate-800/50">
                   <div className="flex items-center gap-3">
                     <span className="text-slate-400">{formatRunHour(o.runHour)}</span>
@@ -953,13 +1050,13 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
                 </div>
               ))}
             </div>
-            {health.recentOutliers.length > FAILURE_PAGE_SIZE && (
+            {filteredOutliers.length > FAILURE_PAGE_SIZE && (
               <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
-                <span>{outlierPage * FAILURE_PAGE_SIZE + 1}–{Math.min((outlierPage + 1) * FAILURE_PAGE_SIZE, health.recentOutliers.length)} / {health.recentOutliers.length}</span>
+                <span>{outlierPage * FAILURE_PAGE_SIZE + 1}–{Math.min((outlierPage + 1) * FAILURE_PAGE_SIZE, filteredOutliers.length)} / {filteredOutliers.length}</span>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => setOutlierPage(p => Math.max(0, p - 1))} disabled={outlierPage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
-                  <span className="px-2">{outlierPage + 1} / {Math.ceil(health.recentOutliers.length / FAILURE_PAGE_SIZE)}</span>
-                  <button onClick={() => setOutlierPage(p => Math.min(Math.ceil(health.recentOutliers.length / FAILURE_PAGE_SIZE) - 1, p + 1))} disabled={outlierPage >= Math.ceil(health.recentOutliers.length / FAILURE_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
+                  <span className="px-2">{outlierPage + 1} / {Math.ceil(filteredOutliers.length / FAILURE_PAGE_SIZE)}</span>
+                  <button onClick={() => setOutlierPage(p => Math.min(Math.ceil(filteredOutliers.length / FAILURE_PAGE_SIZE) - 1, p + 1))} disabled={outlierPage >= Math.ceil(filteredOutliers.length / FAILURE_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
                 </div>
               </div>
             )}

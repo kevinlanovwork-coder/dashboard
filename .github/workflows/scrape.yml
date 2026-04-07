@@ -103,9 +103,24 @@ jobs:
           node ${{ matrix.script }} 2>&1 | tee scraper_output.log
           if grep -q "실패한 스크래퍼" scraper_output.log; then
             echo "has_failures=true" >> $GITHUB_OUTPUT
+
+            # Extract failure count
+            FAIL_COUNT=$(grep -oP '\d+(?=개)' scraper_output.log | tail -1)
+            echo "fail_count=${FAIL_COUNT:-0}" >> $GITHUB_OUTPUT
+
+            # Build HTML table rows from failure lines
+            TABLE_ROWS=""
+            while IFS= read -r line; do
+              OP=$(echo "$line" | sed -n 's/.*- \([^:]*\):.*/\1/p')
+              MSG=$(echo "$line" | sed -n 's/.*- [^:]*: \(.*\)/\1/p')
+              if [ -n "$OP" ]; then
+                TABLE_ROWS="${TABLE_ROWS}<tr><td style=\"padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:500;\">${OP}</td><td style=\"padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#dc2626;font-size:12px;\">${MSG}</td></tr>"
+              fi
+            done < <(grep "^   - " scraper_output.log)
+
             {
-              echo "details<<HEREDOC"
-              grep -A 20 "실패한 스크래퍼" scraper_output.log
+              echo "table_rows<<HEREDOC"
+              echo "$TABLE_ROWS"
               echo "HEREDOC"
             } >> $GITHUB_OUTPUT
           else
@@ -121,13 +136,51 @@ jobs:
           secure: true
           username: ${{ secrets.NOTIFY_EMAIL }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: "⚠️ [${{ matrix.name }}] 스크래퍼 부분 실패"
+          subject: "Scraper Failure: ${{ matrix.name }} (${{ steps.scraper.outputs.fail_count }} failed)"
           to: ${{ secrets.NOTIFY_EMAIL }}
           from: ${{ secrets.NOTIFY_EMAIL }}
-          body: |
-            [${{ matrix.name }}] 스크래핑 중 일부 운영사가 실패했습니다.
-
-            ${{ steps.scraper.outputs.details }}
-
-            Actions 실행 확인:
-            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          html_body: |
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:700px;margin:0 auto;">
+              <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+                <h2 style="color:#991b1b;margin:0 0 4px 0;font-size:18px;">Scraper Partial Failure — ${{ matrix.name }}</h2>
+                <p style="color:#b91c1c;margin:0;font-size:13px;">${{ steps.scraper.outputs.fail_count }} operator(s) failed during the scrape run.</p>
+              </div>
+              <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+                <thead>
+                  <tr style="background:#f8fafc;">
+                    <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Operator</th>
+                    <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Error Message</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${{ steps.scraper.outputs.table_rows }}
+                </tbody>
+              </table>
+              <p style="margin-top:16px;font-size:13px;">
+                <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="color:#2563eb;text-decoration:none;">View Actions Run →</a>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                <a href="https://gme-competitors-rate.vercel.app/settings" style="color:#2563eb;text-decoration:none;">Open Dashboard →</a>
+              </p>
+              <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />
+              <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+                <h2 style="color:#991b1b;margin:0 0 4px 0;font-size:18px;">스크래퍼 부분 실패 — ${{ matrix.name }}</h2>
+                <p style="color:#b91c1c;margin:0;font-size:13px;">스크래핑 중 ${{ steps.scraper.outputs.fail_count }}개 운영사가 실패했습니다.</p>
+              </div>
+              <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+                <thead>
+                  <tr style="background:#f8fafc;">
+                    <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">운영사</th>
+                    <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">오류 메시지</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${{ steps.scraper.outputs.table_rows }}
+                </tbody>
+              </table>
+              <p style="margin-top:16px;font-size:13px;">
+                <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="color:#2563eb;text-decoration:none;">Actions 실행 확인 →</a>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                <a href="https://gme-competitors-rate.vercel.app/settings" style="color:#2563eb;text-decoration:none;">대시보드 열기 →</a>
+              </p>
+              <p style="color:#94a3b8;font-size:11px;margin-top:24px;">This is an automated notification from GME Competitors Rate Dashboard.</p>
+            </div>
