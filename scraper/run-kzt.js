@@ -163,7 +163,10 @@ async function scrapeCross(browser) {
       await page.locator('div.relative').first().click();
     });
     await page.waitForSelector('#aside-root ul', { timeout: 10000 });
-    // Select Kazakhstan USD — flag alt="KZ flag" with USD text
+    // Type "USD" to filter — searching country name may not show results
+    const searchInput = page.locator('#aside-root input');
+    await searchInput.fill('USD');
+    await page.waitForTimeout(1000);
     await page.locator('#aside-root li:has(img[alt="KZ flag"])').filter({ hasText: 'USD' }).click();
     await page.waitForTimeout(1000);
     // Enter receive amount

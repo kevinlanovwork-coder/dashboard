@@ -151,14 +151,21 @@ async function scrapeHanpass() {
     delivery_method: METHOD };
 }
 
-// ─── Cross (Playwright — Kyrgyzstan USD, index 14) ──────────────────────────
+// ─── Cross (Playwright — Kyrgyzstan USD) ────────────────────────────────────
 async function scrapeCross(browser) {
   const page = await browser.newPage();
   try {
     await page.goto('https://crossenf.com/remittance', { waitUntil: 'load', timeout: 30000 });
     await page.waitForTimeout(2000);
-    await page.locator('div.relative').first().click();
+    // Open currency dropdown (default shows THB or other)
+    await page.locator('div.relative:has(span:text("THB"))').click().catch(async () => {
+      await page.locator('div.relative').first().click();
+    });
     await page.waitForSelector('#aside-root ul', { timeout: 10000 });
+    // Type "USD" to filter — searching "Kyrgyzstan" doesn't show results
+    const searchInput = page.locator('#aside-root input');
+    await searchInput.fill('USD');
+    await page.waitForTimeout(1000);
     await page.locator('#aside-root li:has(img[alt="KG flag"])').filter({ hasText: 'USD' }).click();
     await page.waitForTimeout(1000);
     const receiveInput = page.locator('input[inputmode="numeric"]').nth(1);
