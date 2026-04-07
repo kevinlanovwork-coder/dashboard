@@ -199,20 +199,10 @@ const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
   Uzbekistan: ['Cash Pickup', 'Card Payment'], Bangladesh: 'Bank Deposit', Russia: ['Cash Payment', 'Card Payment'], Kazakhstan: 'Cash Pickup', Kyrgyzstan: 'Cash Pickup',
 };
 
-// GME embeds a service fee inside send_amount_krw for these corridors.
-// Subtract it to get the true exchange-only amount used for rate calculation.
-const GME_EMBEDDED_FEE: Record<string, number> = {
-  Indonesia: 5000,
-  Thailand: 5000,
-  Mongolia: 2500,
-  Vietnam: 5000,
-};
-
+// Rate is calculated from send_amount_krw (net amount excluding service fee).
+// GME API returns collAmt (total) and scCharge (fee) separately;
+// send_amount_krw = collAmt - scCharge, so no further adjustment needed.
 function rateExchangeKRW(r: RateRecord): number {
-  if (r.operator === 'GME') {
-    const embedded = GME_EMBEDDED_FEE[r.receivingCountry] ?? 0;
-    return Math.max(r.sendAmountKRW - embedded, 1);
-  }
   return r.sendAmountKRW;
 }
 
