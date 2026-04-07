@@ -173,9 +173,13 @@ async function scrapeCross(browser) {
     await page.goto('https://crossenf.com/remittance', { waitUntil: 'load', timeout: 30000 });
     await page.waitForTimeout(2000);
     // 수신 통화 드롭다운 열기 (기본값 THB) → Bangladesh 선택
-    await page.locator('div.relative:has(span:text("THB"))').click();
+    await page.locator('div.relative:has(span:text("THB"))').click().catch(async () => {
+      await page.locator('div.relative').first().click();
+    });
     await page.waitForSelector('#aside-root ul', { timeout: 10000 });
-    await page.waitForTimeout(500);
+    const searchInput = page.locator('#aside-root input');
+    await searchInput.fill('BDT');
+    await page.waitForTimeout(1000);
     await page.locator('#aside-root li:has(img[alt="BD flag"])').click();
     await page.waitForTimeout(1500);
     // 수령액 입력: 100,000 BDT

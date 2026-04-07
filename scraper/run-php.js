@@ -123,29 +123,14 @@ async function scrapeCross(browser) {
     await page.waitForTimeout(3000);
 
     // Open receiving currency dropdown (default may show THB or other currency)
-    const dropdown = page.locator('div.relative').filter({ hasText: /^(THB|IDR|PHP|VND|USD)$/ }).first();
-    await dropdown.click();
+    await page.locator('div.relative:has(span:text("THB"))').click().catch(async () => {
+      await page.locator('div.relative').first().click();
+    });
     await page.waitForSelector('#aside-root ul', { state: 'visible', timeout: 15000 });
-    await page.waitForTimeout(500);
-
-    // Try multiple selectors for Philippines flag/label
-    const phSelectors = [
-      '#aside-root li:has(img[alt="PH flag"])',
-      '#aside-root li:has(img[alt="Philippines flag"])',
-      '#aside-root li:has(img[alt="ph flag"])',
-      '#aside-root li:has-text("PHP")',
-      '#aside-root li:has-text("Philippines")',
-    ];
-    let selected = false;
-    for (const sel of phSelectors) {
-      const el = page.locator(sel);
-      if (await el.count() > 0) {
-        await el.first().click();
-        selected = true;
-        break;
-      }
-    }
-    if (!selected) throw new Error('Philippines 국가 선택 실패 — 모든 셀렉터 불일치');
+    const searchInput = page.locator('#aside-root input');
+    await searchInput.fill('PHP');
+    await page.waitForTimeout(1000);
+    await page.locator('#aside-root li:has(img[alt="PH flag"])').click();
 
     await page.waitForTimeout(1500);
 

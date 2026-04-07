@@ -18,8 +18,13 @@ export async function scrape(browser) {
 
     // ── 수신 국가: Indonesia (IDR) 선택 ────────────────────────────────
     // 수신 통화 드롭다운 열기 (기본값 THB)
-    await page.locator('div.relative:has(span:text("THB"))').click();
+    await page.locator('div.relative:has(span:text("THB"))').click().catch(async () => {
+      await page.locator('div.relative').first().click();
+    });
     await page.waitForSelector('#aside-root ul', { timeout: 10000 });
+    const searchInput = page.locator('#aside-root input');
+    await searchInput.fill('IDR');
+    await page.waitForTimeout(1000);
 
     // Indonesia 국기(ID flag) 이미지로 li 선택
     await page.locator('#aside-root li:has(img[alt="ID flag"])').click();

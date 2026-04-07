@@ -89,8 +89,13 @@ async function scrapeCross(browser) {
   try {
     await page.goto('https://crossenf.com/remittance', { waitUntil: 'load', timeout: 30000 });
     await page.waitForTimeout(2000);
-    await page.locator('div.relative:has(span:text("THB"))').click();
+    await page.locator('div.relative:has(span:text("THB"))').click().catch(async () => {
+      await page.locator('div.relative').first().click();
+    });
     await page.waitForSelector('#aside-root ul', { timeout: 10000 });
+    const searchInput = page.locator('#aside-root input');
+    await searchInput.fill('MNT');
+    await page.waitForTimeout(1000);
     await page.locator('#aside-root li:has(img[alt="MN flag"])').click();
     await page.waitForTimeout(1000);
     const receiveInput = page.locator('input[inputmode="numeric"]').nth(1);
