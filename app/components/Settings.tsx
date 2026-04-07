@@ -978,6 +978,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
                     <th className="px-3 py-2.5">{isEn ? 'Time' : '시간'}</th>
                     <th className="px-3 py-2.5">{isEn ? 'Country' : '국가'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Delivery Method' : '입금방식'}</th>
                     <th className="px-3 py-2.5">{isEn ? 'Operator' : '운영사'}</th>
                     <th className="px-3 py-2.5">{isEn ? 'Reason' : '원인'}</th>
                     <th className="px-3 py-2.5">{isEn ? 'Error Message' : '오류 메시지'}</th>
@@ -988,6 +989,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
                     <tr key={i} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 text-xs">
                       <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{formatRunHour(f.runHour)}</td>
                       <td className="px-3 py-2.5 font-medium">{f.country}</td>
+                      <td className="px-3 py-2.5 text-slate-500">{f.deliveryMethod}</td>
                       <td className="px-3 py-2.5 text-red-600 dark:text-red-400">{f.operator}</td>
                       <td className="px-3 py-2.5">
                         <span className={`px-1.5 py-0.5 rounded text-xs ${
