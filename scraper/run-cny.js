@@ -395,7 +395,7 @@ async function scrapeDebunk(browser) {
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
-  { name: 'GME',                       fn: () => scrapeGmeApi('2', 'Alipay'),                           needsBrowser: false },
+  { name: 'GME',                       fn: () => scrapeGmeApi('17', 'Alipay'),                          needsBrowser: false },
   { name: 'GMoneyTrans',              fn: () => scrapeGmoneytransApi('Alipay', 'Alipay'),              needsBrowser: false },
   // Sentbe disabled — www.sentbe.com/ko redirects to corporate.sentbe.com (no web calculator since Apr 2026)
   // { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
