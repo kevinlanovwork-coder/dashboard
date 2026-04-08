@@ -390,7 +390,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     setIsLoadingRecords(true);
     fetch(`/api/rates?country=${encodeURIComponent(selectedCountry)}&days=${daysRange}`)
       .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
-      .then(data => { setRecords(data); setLastAccessed(new Date()); })
+      .then(data => { setRecords(data); setLastAccessed(new Date()); setSnapshotDate(''); setSnapshotTime(''); })
       .catch(err => console.error('Failed to fetch rates:', err))
       .finally(() => setIsLoadingRecords(false));
   }
@@ -802,12 +802,13 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 {isDark ? <SunIcon /> : <MoonIcon />}
               </button>
 
-              {/* Auth: Login / Alerts + Logout */}
+              {/* Auth: Login / Settings + Logout */}
               {isLoggedIn ? (
                 <>
                   <a href="/settings" className="px-3 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
                     {isEn ? 'Settings' : '설정'}
                   </a>
+                  <span className="text-slate-300 dark:text-slate-600">|</span>
                   <button
                     onClick={() => { sessionStorage.removeItem('alerts-auth'); setIsLoggedIn(false); }}
                     className="px-3 py-1.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"

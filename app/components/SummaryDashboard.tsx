@@ -280,26 +280,26 @@ export default function SummaryDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Home link */}
+              <a href="/" className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                {isEn ? 'Home' : '홈'}
+              </a>
+
               {/* Language toggle */}
               <div className="flex rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden text-sm">
                 <button onClick={() => setIsEn(true)} className={`px-3 py-1.5 transition-colors ${isEn ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>EN</button>
-                <button onClick={() => setIsEn(false)} className={`px-3 py-1.5 transition-colors ${!isEn ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>한국어</button>
+                <button onClick={() => setIsEn(false)} className={`px-3 py-1.5 transition-colors ${!isEn ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>한</button>
               </div>
 
               {/* Dark / Light toggle */}
               <button
                 onClick={() => setIsDark(d => !d)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
               >
                 {isDark ? <SunIcon /> : <MoonIcon />}
-                {isDark ? 'Light' : 'Dark'}
               </button>
 
-              {/* Nav links */}
-              <a href="/" className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                {isEn ? 'Home' : '홈'}
-              </a>
-              <a href="/settings" className="px-3 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+              <a href="/settings?tab=summary" className="px-3 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
                 {isEn ? 'Settings' : '설정'}
               </a>
             </div>

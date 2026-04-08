@@ -79,6 +79,11 @@ export default function Settings() {
 
 function SettingsContent() {
   const [activeTab, setActiveTab] = useState<'alerts' | 'fees' | 'health' | 'summary'>('alerts');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'summary') setActiveTab('summary');
+  }, []);
   const [isDark, setIsDark] = useState(false);
   const [isEn, setIsEn] = useState(true);
 
@@ -1164,6 +1169,7 @@ function SummaryConfigTab({ isEn }: { isEn: boolean }) {
       const co = data?.corridor_operators;
       if (co && typeof co === 'object' && Object.keys(co).length > 0) {
         setCorridorOps(co);
+        setSavedOps(co);
       } else if (data?.main_operators && (data.main_operators as string[]).length > 0) {
         // Migrate from old global config: apply to all corridors and save
         const migrated: Record<string, string[]> = {};
@@ -1171,6 +1177,7 @@ function SummaryConfigTab({ isEn }: { isEn: boolean }) {
           migrated[key] = (data.main_operators as string[]).filter(op => ops.includes(op)).slice(0, MAX_OPS_PER_CORRIDOR);
         }
         setCorridorOps(migrated);
+        setSavedOps(migrated);
         // Auto-save the migration
         await fetch('/api/summary/config', {
           method: 'PUT',
@@ -1184,13 +1191,21 @@ function SummaryConfigTab({ isEn }: { isEn: boolean }) {
 
   useEffect(() => { fetchConfig(); }, [fetchConfig]);
 
-  const saveConfig = async (updated: Record<string, string[]>) => {
-    setCorridorOps(updated);
-    await fetch('/api/summary/config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: configId, corridor_operators: updated }),
-    });
+  const [savedOps, setSavedOps] = useState<Record<string, string[]>>({});
+  const [saving, setSaving] = useState(false);
+  const hasChanges = JSON.stringify(corridorOps) !== JSON.stringify(savedOps);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await fetch('/api/summary/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: configId, corridor_operators: corridorOps }),
+      });
+      setSavedOps(corridorOps);
+    } catch (err) { console.error('Failed to save:', err); }
+    finally { setSaving(false); }
   };
 
   const toggleOp = (corridorKey: string, op: string) => {
@@ -1199,10 +1214,10 @@ function SummaryConfigTab({ isEn }: { isEn: boolean }) {
     if (current.includes(op)) {
       next = current.filter(o => o !== op);
     } else {
-      if (current.length >= MAX_OPS_PER_CORRIDOR) return; // max 3 + GME
+      if (current.length >= MAX_OPS_PER_CORRIDOR) return;
       next = [...current, op];
     }
-    saveConfig({ ...corridorOps, [corridorKey]: next });
+    setCorridorOps({ ...corridorOps, [corridorKey]: next });
   };
 
   if (loading) return <div className="p-8 text-center text-slate-400">Loading...</div>;
@@ -1259,6 +1274,22 @@ function SummaryConfigTab({ isEn }: { isEn: boolean }) {
           {isEn ? 'Open Summary Page →' : '요약 페이지 열기 →'}
         </a>
       </div>
+
+      {/* Sticky save bar */}
+      {hasChanges && (
+        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur shadow-lg">
+          <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
+            <span className="text-sm text-slate-600 dark:text-slate-300">{isEn ? 'You have unsaved changes' : '저장되지 않은 변경사항이 있습니다'}</span>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-6 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 transition-colors"
+            >
+              {saving ? (isEn ? 'Saving...' : '저장 중...') : (isEn ? 'Save Changes' : '변경사항 저장')}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
