@@ -318,7 +318,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [gmeTrendToDate, setGmeTrendToDate] = useState('');
   const [operatorTrendFromDate, setOperatorTrendFromDate] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
-  const [daysRange, setDaysRange] = useState(14);
+  const [daysRange, setDaysRange] = useState(3);
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState('');
@@ -370,7 +370,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
 
   // Fetch data when country or date range changes
   useEffect(() => {
-    if (selectedCountry === defaultCountry && daysRange === 14) {
+    if (selectedCountry === defaultCountry && daysRange === 3) {
       setRecords(initialRecords);
       return;
     }

@@ -25,7 +25,7 @@ export default async function Home() {
 
   // Fetch 30 days of data for the default country
   const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - 14);
+  fromDate.setDate(fromDate.getDate() - 3);
   const fromDateStr = fromDate.toISOString().slice(0, 10);
 
   // Fetch all records in batches (Supabase caps at 1000 per request)

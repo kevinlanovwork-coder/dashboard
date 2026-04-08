@@ -97,13 +97,13 @@ async function scrapeSentbe(browser) {
 }
 
 // ─── Hanpass (API) ────────────────────────────────────────────────────────────
-async function scrapeHanpass() {
+async function scrapeHanpass(remittanceOption, method) {
   const res = await fetch('https://app.hanpass.com/app/v1/remittance/get-cost', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ inputAmount: String(AMOUNT), inputCurrencyCode: 'USD',
       fromCurrencyCode: 'KRW', toCurrencyCode: 'USD', toCountryCode: 'KH',
-      remittanceOption: 'CASH_PICKUP', memberSeq: '1', lang: 'en' }),
+      remittanceOption, memberSeq: '1', lang: 'en' }),
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -114,10 +114,11 @@ async function scrapeHanpass() {
   if (!total) throw new Error('총 송금액 추출 실패');
   return { operator: 'Hanpass', receiving_country: COUNTRY, receive_amount: AMOUNT,
     send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total,
-    delivery_method: 'Cash Pickup' };
+    delivery_method: method };
 }
 
 // ─── SBI ──────────────────────────────────────────────────────────────────────
+// SBI Cambodia only offers Cash Pickup on their site; we reuse the same values for Bank Deposit
 async function scrapeSbi(browser) {
   const context = await browser.newContext({
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
@@ -143,9 +144,12 @@ async function scrapeSbi(browser) {
     if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
     const feeRaw = await page.$eval('.fee-amount', el => el.textContent).catch(() => null);
     const fee = extractNumber(feeRaw) ?? 5000;
-    return { operator: 'SBI', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee,
-      delivery_method: 'Cash Pickup' };
+    const base = { operator: 'SBI', receiving_country: COUNTRY, receive_amount: AMOUNT,
+      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
+    return [
+      { ...base, delivery_method: 'Bank Deposit' },
+      { ...base, delivery_method: 'Cash Pickup' },
+    ];
   } finally { await page.close(); await context.close(); }
 }
 
@@ -197,12 +201,13 @@ const SCRAPERS = [
   // Bank Deposit
   { name: 'GME (Bank Deposit)',         fn: () => withRetry(() => scrapeGme('2', 'Bank Deposit')),                needsBrowser: false },
   { name: 'GMoneyTrans (Bank Deposit)', fn: () => scrapeGmoneytrans('Bank Account', 'Bank Deposit'),             needsBrowser: false },
-  { name: 'Hanpass (Cash Pickup)',       fn: () => withRetry(scrapeHanpass),                                       needsBrowser: false },
+  { name: 'Hanpass (Bank Deposit)',     fn: () => withRetry(() => scrapeHanpass('BANK_TRANSFER', 'Bank Deposit')),needsBrowser: false },
   { name: 'E9Pay (Bank Deposit)',       fn: (b) => withRetry(() => scrapeE9pay(b, 0, 'Bank Deposit')),           needsBrowser: true  },
   // Cash Pickup
   { name: 'GME (Cash Pickup)',          fn: () => withRetry(() => scrapeGme('1', 'Cash Pickup')),                 needsBrowser: false },
   { name: 'GMoneyTrans (Cash Pickup)',  fn: () => scrapeGmoneytrans('Cash Pickup', 'Cash Pickup'),               needsBrowser: false },
-  { name: 'SBI',                        fn: (b) => withRetry(() => scrapeSbi(b)),                                 needsBrowser: true  },
+  { name: 'Hanpass (Cash Pickup)',      fn: () => withRetry(() => scrapeHanpass('CASH_PICKUP', 'Cash Pickup')),   needsBrowser: false },
+  { name: 'SBI',                        fn: (b) => withRetry(() => scrapeSbi(b)),                                 needsBrowser: true, multi: true },
   { name: 'E9Pay (Cash Pickup)',        fn: (b) => withRetry(() => scrapeE9pay(b, 4, 'Cash Pickup')),            needsBrowser: true  },
   // Sentbe disabled — www.sentbe.com/ko redirects to corporate.sentbe.com (no web calculator since Apr 2026)
   // { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
@@ -227,11 +232,18 @@ async function main() {
   );
 
   for (let i = 0; i < settled.length; i++) {
-    const { name } = SCRAPERS[i];
+    const { name, multi } = SCRAPERS[i];
     const result = settled[i];
     if (result.status === 'fulfilled') {
-      results.push(result.value);
-      console.log(`  ✓ ${name}: 송금액 ${result.value.send_amount_krw?.toLocaleString()}원  수수료 ${result.value.service_fee?.toLocaleString()}원  합계 ${result.value.total_sending_amount?.toLocaleString()}원`);
+      if (multi && Array.isArray(result.value)) {
+        for (const r of result.value) {
+          results.push(r);
+          console.log(`  ✓ ${name} (${r.delivery_method}): 송금액 ${r.send_amount_krw?.toLocaleString()}원  수수료 ${r.service_fee?.toLocaleString()}원  합계 ${r.total_sending_amount?.toLocaleString()}원`);
+        }
+      } else {
+        results.push(result.value);
+        console.log(`  ✓ ${name}: 송금액 ${result.value.send_amount_krw?.toLocaleString()}원  수수료 ${result.value.service_fee?.toLocaleString()}원  합계 ${result.value.total_sending_amount?.toLocaleString()}원`);
+      }
     } else {
       console.error(`  ✗ ${name} 실패: ${result.reason?.message}`);
       errors.push({ name, error: result.reason?.message });
