@@ -195,7 +195,7 @@ export async function GET(req: NextRequest) {
     lastRunHour,
     overallSuccessRate: totalExpected > 0 ? Math.round((totalSuccesses / totalExpected) * 100) : 0,
     corridors,
-    recentFailures: enrichedFailures.slice(0, 100),
+    recentFailures: enrichedFailures,
     recentOutliers,
   });
 }

@@ -837,6 +837,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
   const [filterCountry, setFilterCountry] = useState('');
+  const [filterOperator, setFilterOperator] = useState('');
   const [failurePage, setFailurePage] = useState(0);
   const [outlierPage, setOutlierPage] = useState(0);
   const FAILURE_PAGE_SIZE = 10;
@@ -877,7 +878,29 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
 
   const healthCountries = [...new Set(health.corridors.map(c => c.country))].sort();
   const filteredCorridors = filterCountry ? health.corridors.filter(c => c.country === filterCountry) : health.corridors;
-  const filteredFailures = filterCountry ? health.recentFailures.filter(f => f.country === filterCountry) : health.recentFailures;
+  const allFilteredFailures = filterOperator ? health.recentFailures.filter(f => f.operator === filterOperator) : health.recentFailures;
+  const failureOperators = [...new Set(health.recentFailures.map(f => f.operator))].sort();
+
+  // Group failures by Delivery Method + Operator + Reason + Error Message, combining countries
+  const groupedFailures = (() => {
+    const map = new Map<string, { countries: Set<string>; deliveryMethod: string; operator: string; reason: string; errorMessage: string | null; count: number; latestRunHour: string }>();
+    for (const f of allFilteredFailures) {
+      const key = `${f.deliveryMethod}||${f.operator}||${f.reason}||${f.errorMessage ?? ''}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.countries.add(f.country);
+        existing.count++;
+        if (f.runHour > existing.latestRunHour) existing.latestRunHour = f.runHour;
+      } else {
+        map.set(key, { countries: new Set([f.country]), deliveryMethod: f.deliveryMethod, operator: f.operator, reason: f.reason, errorMessage: f.errorMessage, count: 1, latestRunHour: f.runHour });
+      }
+    }
+    return [...map.values()]
+      .sort((a, b) => b.latestRunHour.localeCompare(a.latestRunHour))
+      .map(g => ({ ...g, countries: [...g.countries].sort() }));
+  })();
+
+  const filteredFailures = groupedFailures;
   const filteredOutliers = filterCountry ? (health.recentOutliers ?? []).filter(o => o.country === filterCountry) : (health.recentOutliers ?? []);
   const issueCorridors = filteredCorridors.filter(c => c.operators.some(o => o.successRate < 95));
 
@@ -886,7 +909,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
       {/* Sub-tab switcher */}
       <div className="flex gap-2 text-sm">
         <button onClick={() => { setSubTab('health'); setFilterCountry(''); }} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'health' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Health' : '상태'}</button>
-        <button onClick={() => { setSubTab('failures'); setFilterCountry(''); setFailurePage(0); }} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'failures' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Recent Failures' : '최근 실패'} {filteredFailures.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs">{filteredFailures.length}</span>}</button>
+        <button onClick={() => { setSubTab('failures'); setFilterCountry(''); setFilterOperator(''); setFailurePage(0); }} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'failures' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Recent Failures' : '최근 실패'} {allFilteredFailures.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs">{allFilteredFailures.length}</span>}</button>
         <button onClick={() => { setSubTab('outliers'); setFilterCountry(''); setOutlierPage(0); }} className={`px-3 py-1.5 rounded-lg transition-colors ${subTab === 'outliers' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{isEn ? 'Outliers' : '이상치'} {filteredOutliers.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs">{filteredOutliers.length}</span>}</button>
       </div>
 
@@ -965,10 +988,10 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold">{isEn ? 'Recent Failures' : '최근 실패'} <span className="text-slate-400 font-normal">({filteredFailures.length})</span></h2>
-            <select value={filterCountry} onChange={e => { setFilterCountry(e.target.value); setFailurePage(0); }} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs">
-              <option value="">{isEn ? 'All Countries' : '전체 국가'}</option>
-              {healthCountries.map(c => <option key={c} value={c}>{c}</option>)}
+            <h2 className="text-sm font-semibold">{isEn ? 'Recent Failures' : '최근 실패'} <span className="text-slate-400 font-normal">({allFilteredFailures.length}{filteredFailures.length !== allFilteredFailures.length ? ` → ${filteredFailures.length} ${isEn ? 'grouped' : '그룹'}` : ''})</span></h2>
+            <select value={filterOperator} onChange={e => { setFilterOperator(e.target.value); setFailurePage(0); }} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs">
+              <option value="">{isEn ? 'All Operators' : '전체 운영사'}</option>
+              {failureOperators.map(op => <option key={op} value={op}>{op}</option>)}
             </select>
           </div>
         </div>
@@ -978,39 +1001,49 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
               <table className="w-full text-sm text-left">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-                    <th className="px-3 py-2.5">{isEn ? 'Time' : '시간'}</th>
-                    <th className="px-3 py-2.5">{isEn ? 'Country' : '국가'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Latest' : '최근'}</th>
+                    <th className="px-3 py-2.5">{isEn ? 'Countries' : '국가'}</th>
                     <th className="px-3 py-2.5">{isEn ? 'Delivery Method' : '입금방식'}</th>
                     <th className="px-3 py-2.5">{isEn ? 'Operator' : '운영사'}</th>
                     <th className="px-3 py-2.5">{isEn ? 'Reason' : '원인'}</th>
                     <th className="px-3 py-2.5">{isEn ? 'Error Message' : '오류 메시지'}</th>
+                    <th className="px-3 py-2.5 text-right">{isEn ? 'Count' : '횟수'}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredFailures.slice(failurePage * FAILURE_PAGE_SIZE, (failurePage + 1) * FAILURE_PAGE_SIZE).map((f, i) => (
+                  {filteredFailures.slice(failurePage * FAILURE_PAGE_SIZE, (failurePage + 1) * FAILURE_PAGE_SIZE).map((g, i) => (
                     <tr key={i} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 text-xs">
-                      <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{formatRunHour(f.runHour)}</td>
-                      <td className="px-3 py-2.5 font-medium">{f.country}</td>
-                      <td className="px-3 py-2.5 text-slate-500">{f.deliveryMethod}</td>
-                      <td className="px-3 py-2.5 text-red-600 dark:text-red-400">{f.operator}</td>
+                      <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{formatRunHour(g.latestRunHour)}</td>
+                      <td className="px-3 py-2.5 font-medium">
+                        <div className="flex flex-wrap gap-1">
+                          {g.countries.map(c => (
+                            <span key={c} className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-xs">{c}</span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-500">{g.deliveryMethod}</td>
+                      <td className="px-3 py-2.5 text-red-600 dark:text-red-400">{g.operator}</td>
                       <td className="px-3 py-2.5">
                         <span className={`px-1.5 py-0.5 rounded text-xs ${
-                          f.reason === 'website_down' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' :
-                          f.reason === 'api_error' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600' :
-                          f.reason === 'manually_deleted' ? 'bg-slate-200 dark:bg-slate-700 text-slate-500' :
-                          f.reason === 'scrape_error' ? 'bg-red-100 dark:bg-red-900/30 text-red-600' :
-                          f.reason === 'not_scraped' ? 'bg-slate-100 dark:bg-slate-800 text-slate-500' :
+                          g.reason === 'website_down' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600' :
+                          g.reason === 'api_error' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600' :
+                          g.reason === 'manually_deleted' ? 'bg-slate-200 dark:bg-slate-700 text-slate-500' :
+                          g.reason === 'scrape_error' ? 'bg-red-100 dark:bg-red-900/30 text-red-600' :
+                          g.reason === 'not_scraped' ? 'bg-slate-100 dark:bg-slate-800 text-slate-500' :
                           'bg-slate-100 dark:bg-slate-800 text-slate-400'
                         }`}>{
-                          f.reason === 'website_down' ? 'Website Down' :
-                          f.reason === 'api_error' ? 'API Error' :
-                          f.reason === 'manually_deleted' ? 'Deleted' :
-                          f.reason === 'scrape_error' ? 'Scrape Error' :
-                          f.reason === 'not_scraped' ? 'Not Scraped' :
+                          g.reason === 'website_down' ? 'Website Down' :
+                          g.reason === 'api_error' ? 'API Error' :
+                          g.reason === 'manually_deleted' ? 'Deleted' :
+                          g.reason === 'scrape_error' ? 'Scrape Error' :
+                          g.reason === 'not_scraped' ? 'Not Scraped' :
                           'Unknown'
                         }</span>
                       </td>
-                      <td className="px-3 py-2.5 text-slate-400 max-w-xs truncate" title={f.errorMessage ?? ''}>{f.errorMessage || '-'}</td>
+                      <td className="px-3 py-2.5 text-slate-400 max-w-xs truncate" title={g.errorMessage ?? ''}>{g.errorMessage || '-'}</td>
+                      <td className="px-3 py-2.5 text-right">
+                        <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded text-xs font-medium">{g.count}</span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1018,7 +1051,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
             </div>
             {filteredFailures.length > FAILURE_PAGE_SIZE && (
               <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
-                <span>{failurePage * FAILURE_PAGE_SIZE + 1}–{Math.min((failurePage + 1) * FAILURE_PAGE_SIZE, filteredFailures.length)} / {filteredFailures.length}</span>
+                <span>{failurePage * FAILURE_PAGE_SIZE + 1}–{Math.min((failurePage + 1) * FAILURE_PAGE_SIZE, filteredFailures.length)} / {filteredFailures.length}{isEn ? ' groups' : '개 그룹'} <span className="text-slate-400">({allFilteredFailures.length}{isEn ? ' total failures' : '건'})</span></span>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => setFailurePage(p => Math.max(0, p - 1))} disabled={failurePage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
                   <span className="px-2">{failurePage + 1} / {Math.ceil(filteredFailures.length / FAILURE_PAGE_SIZE)}</span>
@@ -1031,42 +1064,67 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
       </div>
       </> : <>
       {/* Outliers Skipped */}
-      {filteredOutliers.length > 0 && (
+      {(() => {
+        const outlierCountries = [...new Set((health.recentOutliers ?? []).map(o => o.country))].sort();
+        const displayOutliers = filterCountry ? filteredOutliers.filter(o => o.country === filterCountry) : filteredOutliers;
+        return (
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold">{isEn ? 'Outliers Skipped' : '이상치 스킵'} <span className="text-slate-400 font-normal">({filteredOutliers.length})</span></h2>
-          </div>
-          <>
-            <div className="space-y-1">
-              {filteredOutliers.slice(outlierPage * FAILURE_PAGE_SIZE, (outlierPage + 1) * FAILURE_PAGE_SIZE).map((o, i) => (
-                <div key={i} className="flex items-center justify-between text-xs py-2 border-b border-slate-100 dark:border-slate-800/50">
-                  <div className="flex items-center gap-3">
-                    <span className="text-slate-400">{formatRunHour(o.runHour)}</span>
-                    <span className="font-medium">{o.country}</span>
-                    <span className="text-orange-600 dark:text-orange-400">{o.operator}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-red-600 dark:text-red-400">{o.scrapedValue?.toLocaleString()}</span>
-                    <span className="text-slate-400">vs</span>
-                    <span className="font-mono text-slate-600 dark:text-slate-300">{o.medianValue?.toLocaleString()}</span>
-                    <span className="px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs">{o.deviationPct}%</span>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-semibold">{isEn ? 'Outliers Skipped' : '이상치 스킵'} <span className="text-slate-400 font-normal">({displayOutliers.length})</span></h2>
+              <select value={filterCountry} onChange={e => { setFilterCountry(e.target.value); setOutlierPage(0); }} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs">
+                <option value="">{isEn ? 'All Countries' : '전체 국가'}</option>
+                {outlierCountries.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
-            {filteredOutliers.length > FAILURE_PAGE_SIZE && (
-              <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
-                <span>{outlierPage * FAILURE_PAGE_SIZE + 1}–{Math.min((outlierPage + 1) * FAILURE_PAGE_SIZE, filteredOutliers.length)} / {filteredOutliers.length}</span>
-                <div className="flex items-center gap-1.5">
-                  <button onClick={() => setOutlierPage(p => Math.max(0, p - 1))} disabled={outlierPage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
-                  <span className="px-2">{outlierPage + 1} / {Math.ceil(filteredOutliers.length / FAILURE_PAGE_SIZE)}</span>
-                  <button onClick={() => setOutlierPage(p => Math.min(Math.ceil(filteredOutliers.length / FAILURE_PAGE_SIZE) - 1, p + 1))} disabled={outlierPage >= Math.ceil(filteredOutliers.length / FAILURE_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
-                </div>
+          </div>
+          {displayOutliers.length === 0 ? <p className="text-sm text-slate-400">{isEn ? 'No outliers found.' : '이상치 기록이 없습니다.'}</p> : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                      <th className="px-3 py-2.5">{isEn ? 'Time' : '시간'}</th>
+                      <th className="px-3 py-2.5">{isEn ? 'Country' : '국가'}</th>
+                      <th className="px-3 py-2.5">{isEn ? 'Delivery Method' : '입금방식'}</th>
+                      <th className="px-3 py-2.5">{isEn ? 'Operator' : '운영사'}</th>
+                      <th className="px-3 py-2.5 text-right">{isEn ? 'Scraped' : '스크래핑값'}</th>
+                      <th className="px-3 py-2.5 text-right">{isEn ? 'Median' : '중앙값'}</th>
+                      <th className="px-3 py-2.5 text-right">{isEn ? 'Deviation' : '편차'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayOutliers.slice(outlierPage * FAILURE_PAGE_SIZE, (outlierPage + 1) * FAILURE_PAGE_SIZE).map((o, i) => (
+                      <tr key={i} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 text-xs">
+                        <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{formatRunHour(o.runHour)}</td>
+                        <td className="px-3 py-2.5 font-medium">{o.country}</td>
+                        <td className="px-3 py-2.5 text-slate-500">{o.deliveryMethod}</td>
+                        <td className="px-3 py-2.5 text-orange-600 dark:text-orange-400">{o.operator}</td>
+                        <td className="px-3 py-2.5 text-right font-mono text-red-600 dark:text-red-400">{o.scrapedValue?.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right font-mono text-slate-600 dark:text-slate-300">{o.medianValue?.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right">
+                          <span className="px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs">{o.deviationPct}%</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </>
+              {displayOutliers.length > FAILURE_PAGE_SIZE && (
+                <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
+                  <span>{outlierPage * FAILURE_PAGE_SIZE + 1}–{Math.min((outlierPage + 1) * FAILURE_PAGE_SIZE, displayOutliers.length)} / {displayOutliers.length}</span>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => setOutlierPage(p => Math.max(0, p - 1))} disabled={outlierPage === 0} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Prev' : '이전'}</button>
+                    <span className="px-2">{outlierPage + 1} / {Math.ceil(displayOutliers.length / FAILURE_PAGE_SIZE)}</span>
+                    <button onClick={() => setOutlierPage(p => Math.min(Math.ceil(displayOutliers.length / FAILURE_PAGE_SIZE) - 1, p + 1))} disabled={outlierPage >= Math.ceil(displayOutliers.length / FAILURE_PAGE_SIZE) - 1} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">{isEn ? 'Next' : '다음'}</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
-      )}
+        );
+      })()}
       </>}
     </div>
   );
