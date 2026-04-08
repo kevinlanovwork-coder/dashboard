@@ -78,7 +78,7 @@ export default function Settings() {
 }
 
 function SettingsContent() {
-  const [activeTab, setActiveTab] = useState<'alerts' | 'fees' | 'health'>('alerts');
+  const [activeTab, setActiveTab] = useState<'alerts' | 'fees' | 'health' | 'summary'>('alerts');
   const [isDark, setIsDark] = useState(false);
   const [isEn, setIsEn] = useState(true);
 
@@ -125,9 +125,15 @@ function SettingsContent() {
             >
               {isEn ? 'Scraper Health' : '스크래퍼 상태'}
             </button>
+            <button
+              onClick={() => setActiveTab('summary')}
+              className={`flex-1 px-4 py-2 transition-colors ${activeTab === 'summary' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+            >
+              {isEn ? 'Summary Setup' : '요약 설정'}
+            </button>
           </div>
 
-          {activeTab === 'alerts' ? <AlertRulesTab isEn={isEn} /> : activeTab === 'fees' ? <ServiceFeesTab isEn={isEn} /> : <ScraperHealthTab isEn={isEn} />}
+          {activeTab === 'alerts' ? <AlertRulesTab isEn={isEn} /> : activeTab === 'fees' ? <ServiceFeesTab isEn={isEn} /> : activeTab === 'health' ? <ScraperHealthTab isEn={isEn} /> : <SummaryConfigTab isEn={isEn} />}
 
         </div>
       </div>
@@ -1126,6 +1132,133 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
         );
       })()}
       </>}
+    </div>
+  );
+}
+
+// ─── Summary Config Tab ──────────────────────────────────────────────────────
+
+const MAX_OPS_PER_CORRIDOR = 3; // + GME = 4 total
+
+function SummaryConfigTab({ isEn }: { isEn: boolean }) {
+  // corridor_operators: { "Indonesia||Bank Deposit": ["GMoneyTrans","Hanpass","E9Pay"], ... }
+  const [corridorOps, setCorridorOps] = useState<Record<string, string[]>>({});
+  const [configId, setConfigId] = useState(1);
+  const [loading, setLoading] = useState(true);
+
+  const corridorEntries = useMemo(() =>
+    Object.entries(OPERATOR_MAP)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, ops]) => {
+        const [country, method] = key.split('||');
+        return { key, country, method, operators: ops.filter(op => op !== 'GME') };
+      }),
+  []);
+
+  const fetchConfig = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/summary/config');
+      const data = await res.json();
+      setConfigId(data?.id ?? 1);
+      const co = data?.corridor_operators;
+      if (co && typeof co === 'object' && Object.keys(co).length > 0) {
+        setCorridorOps(co);
+      } else if (data?.main_operators && (data.main_operators as string[]).length > 0) {
+        // Migrate from old global config: apply to all corridors and save
+        const migrated: Record<string, string[]> = {};
+        for (const [key, ops] of Object.entries(OPERATOR_MAP)) {
+          migrated[key] = (data.main_operators as string[]).filter(op => ops.includes(op)).slice(0, MAX_OPS_PER_CORRIDOR);
+        }
+        setCorridorOps(migrated);
+        // Auto-save the migration
+        await fetch('/api/summary/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: data.id ?? 1, corridor_operators: migrated }),
+        });
+      }
+    } catch (err) { console.error('Failed to fetch summary config:', err); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchConfig(); }, [fetchConfig]);
+
+  const saveConfig = async (updated: Record<string, string[]>) => {
+    setCorridorOps(updated);
+    await fetch('/api/summary/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: configId, corridor_operators: updated }),
+    });
+  };
+
+  const toggleOp = (corridorKey: string, op: string) => {
+    const current = corridorOps[corridorKey] ?? [];
+    let next: string[];
+    if (current.includes(op)) {
+      next = current.filter(o => o !== op);
+    } else {
+      if (current.length >= MAX_OPS_PER_CORRIDOR) return; // max 3 + GME
+      next = [...current, op];
+    }
+    saveConfig({ ...corridorOps, [corridorKey]: next });
+  };
+
+  if (loading) return <div className="p-8 text-center text-slate-400">Loading...</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+        <h2 className="text-sm font-semibold mb-1">{isEn ? 'Summary Operators per Corridor' : '경로별 요약 운영사'}</h2>
+        <p className="text-xs text-slate-500 mb-4">
+          {isEn
+            ? `Select up to ${MAX_OPS_PER_CORRIDOR} operators per corridor to show alongside GME (always included). Maximum 4 operators per chart.`
+            : `각 경로별 최대 ${MAX_OPS_PER_CORRIDOR}개 운영사를 선택하세요. GME는 항상 포함됩니다. 차트당 최대 4개.`}
+        </p>
+
+        <div className="space-y-3">
+          {corridorEntries.map(({ key, country, method, operators }) => {
+            const selected = corridorOps[key] ?? [];
+            return (
+              <div key={key} className="border border-slate-200 dark:border-slate-800 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-semibold">
+                    {country} <span className="text-slate-400 font-normal">— {method}</span>
+                  </h3>
+                  <span className="text-xs text-slate-400">
+                    <span className="text-red-500 font-medium">GME</span> + {selected.length}/{MAX_OPS_PER_CORRIDOR}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                  {operators.map(op => {
+                    const checked = selected.includes(op);
+                    const disabled = !checked && selected.length >= MAX_OPS_PER_CORRIDOR;
+                    return (
+                      <label key={op} className={`inline-flex items-center gap-1.5 text-xs cursor-pointer ${disabled ? 'opacity-40' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={disabled}
+                          onChange={() => toggleOp(key, op)}
+                          className="rounded border-slate-300 dark:border-slate-600 text-blue-500 focus:ring-blue-500 h-3.5 w-3.5"
+                        />
+                        <span className={checked ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-slate-600 dark:text-slate-400'}>{op}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="text-center">
+        <a href="/summary" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
+          {isEn ? 'Open Summary Page →' : '요약 페이지 열기 →'}
+        </a>
+      </div>
     </div>
   );
 }

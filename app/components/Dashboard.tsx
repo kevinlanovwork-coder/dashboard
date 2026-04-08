@@ -299,8 +299,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [isEn, setIsEn] = useState(true);
   const [selectedCountry, setSelectedCountry] = useState(defaultCountry);
   const [selectedRunHour, setSelectedRunHour] = useState('all');
-  const [snapshotDate, setSnapshotDate] = useState('all');
-  const [snapshotTime, setSnapshotTime] = useState('all');
+  const [snapshotDate, setSnapshotDate] = useState('');
+  const [snapshotTime, setSnapshotTime] = useState('');
   const [tableSearch, setTableSearch] = useState('');
   const [tableStatus, setTableStatus] = useState('all');
   const [tableDate, setTableDate] = useState('all');
@@ -479,20 +479,27 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     [runHours]
   );
   const snapshotTimes = useMemo(() => {
-    const filtered = snapshotDate === 'all'
-      ? runHours
-      : runHours.filter(rh => rh.slice(0, 10) === snapshotDate);
+    const filtered = snapshotDate
+      ? runHours.filter(rh => rh.slice(0, 10) === snapshotDate)
+      : runHours;
     return [...filtered].reverse();
   }, [runHours, snapshotDate]);
 
+  // Auto-select latest date/time when data loads or country changes
+  useEffect(() => {
+    if (latestRunHour && (!snapshotDate || !snapshotTime)) {
+      setSnapshotDate(latestRunHour.slice(0, 10));
+      setSnapshotTime(latestRunHour);
+    }
+  }, [latestRunHour, snapshotDate, snapshotTime]);
+
   // Sync selectedRunHour from snapshotDate + snapshotTime
   useEffect(() => {
-    if (snapshotDate === 'all' && snapshotTime === 'all') {
+    if (!snapshotDate && !snapshotTime) {
       setSelectedRunHour('all');
-    } else if (snapshotTime !== 'all') {
+    } else if (snapshotTime) {
       setSelectedRunHour(snapshotTime);
-    } else {
-      // Date selected but time is "latest" — pick latest run_hour for that date
+    } else if (snapshotDate) {
       const timesForDate = runHours.filter(rh => rh.slice(0, 10) === snapshotDate);
       setSelectedRunHour(timesForDate[timesForDate.length - 1] ?? 'all');
     }
@@ -765,6 +772,11 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Summary link (public) */}
+              <a href="/summary" className="px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
+                {isEn ? 'Summary' : '전체 요약'}
+              </a>
+
               {/* Language toggle */}
               <div className="flex rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden text-sm">
                 <button
@@ -777,18 +789,17 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   onClick={() => setIsEn(false)}
                   className={`px-3 py-1.5 transition-colors ${!isEn ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                 >
-                  한국어
+                  한
                 </button>
               </div>
 
               {/* Dark / Light toggle */}
               <button
                 onClick={() => setIsDark(d => !d)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                 title={isDark ? t.lightModeTitle : t.darkModeTitle}
               >
                 {isDark ? <SunIcon /> : <MoonIcon />}
-                {isDark ? t.light : t.dark}
               </button>
 
               {/* Auth: Login / Alerts + Logout */}
@@ -843,7 +854,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                       {filteredCountries.map(c => (
                         <li key={c}>
                           <button
-                            onClick={() => { setSelectedCountry(c); setSelectedRunHour('all'); setSnapshotDate('all'); setSnapshotTime('all'); setTablePage(0); setTableSearch(''); setTableStatus('all'); setTableDeliveryMethod('all'); setTableDate('all'); setTableTime('all'); setSnapshotHiddenOps(new Set()); setCountryDropdownOpen(false); }}
+                            onClick={() => { setSelectedCountry(c); setSelectedRunHour('all'); setSnapshotDate(''); setSnapshotTime(''); setTablePage(0); setTableSearch(''); setTableStatus('all'); setTableDeliveryMethod('all'); setTableDate('all'); setTableTime('all'); setSnapshotHiddenOps(new Set()); setCountryDropdownOpen(false); }}
                             className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${c === selectedCountry ? 'bg-blue-500 text-white' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
                           >
                             {c}
@@ -878,10 +889,15 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               <span className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t.snapshotDate}</span>
               <select
                 value={snapshotDate}
-                onChange={e => { setSnapshotDate(e.target.value); setSnapshotTime('all'); }}
+                onChange={e => {
+                  const newDate = e.target.value;
+                  setSnapshotDate(newDate);
+                  const timesForDate = runHours.filter(rh => rh.slice(0, 10) === newDate);
+                  const latestTime = timesForDate[timesForDate.length - 1] ?? '';
+                  setSnapshotTime(latestTime);
+                }}
                 className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="all">{t.latestDate}</option>
                 {snapshotDates.map(d => (
                   <option key={d} value={d}>{formatDate(d)}</option>
                 ))}
@@ -896,7 +912,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 onChange={e => setSnapshotTime(e.target.value)}
                 className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="all">{t.latestTime}</option>
                 {snapshotTimes.map(rh => (
                   <option key={rh} value={rh}>{rh.slice(11, 16)}</option>
                 ))}
@@ -911,6 +926,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 onChange={e => setDaysRange(Number(e.target.value))}
                 className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
+                <option value={3}>{isEn ? '3 days' : '3일'}</option>
                 <option value={7}>{isEn ? '7 days' : '7일'}</option>
                 <option value={14}>{isEn ? '14 days' : '14일'}</option>
                 <option value={30}>{isEn ? '30 days' : '30일'}</option>
