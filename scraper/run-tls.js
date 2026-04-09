@@ -14,6 +14,30 @@ import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 const COUNTRY = 'Timor Leste';
 const AMOUNT  = 1_000;
 
+// ─── GME (API) ───────────────────────────────────────────────────────────────
+// Note: GME API requires "Timor-Leste" (with hyphen)
+async function scrapeGme(dm, method) {
+  const body = new URLSearchParams({
+    method: 'GetExRate', pCurr: 'USD', pCountryName: 'Timor-Leste',
+    collCurr: 'KRW', deliveryMethod: dm, cAmt: '', pAmt: String(AMOUNT),
+    cardOnline: 'false', calBy: 'P',
+  }).toString();
+  const res = await fetch('https://online.gmeremit.com/Default.aspx', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body, signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.errorCode !== '0') throw new Error(`GME API 오류: ${data.msg}`);
+  const total = parseFloat(data.collAmt?.toString().replace(/,/g, '') ?? '');
+  const fee   = parseFloat(data.scCharge?.toString().replace(/,/g, '') ?? '0');
+  if (!total) throw new Error('총 송금액 추출 실패');
+  return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total,
+    delivery_method: method };
+}
+
 // ─── GMoneyTrans (API — Bank Deposit) ─────────────────────────────────────────
 async function scrapeGmoneytransBankDeposit() {
   const url = 'https://mapi.gmoneytrans.net/exratenew1/ajx_calcRate.asp'
@@ -103,6 +127,8 @@ async function scrapeHanpassCashPickup() {
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
+  { name: 'GME (Bank Deposit)',             fn: () => withRetry(() => scrapeGme('2', 'Bank Deposit')),       needsBrowser: false },
+  { name: 'GME (Cash Pickup)',              fn: () => withRetry(() => scrapeGme('1', 'Cash Pickup (MoneyGram)')), needsBrowser: false },
   { name: 'GMoneyTrans (Bank Deposit)',     fn: scrapeGmoneytransBankDeposit,  needsBrowser: false },
   { name: 'GMoneyTrans (Cash Pickup)',      fn: scrapeGmoneytransCashPickup,   needsBrowser: false },
   { name: 'Hanpass (Bank Deposit)',         fn: () => withRetry(scrapeHanpassBankDeposit),  needsBrowser: false },
@@ -151,9 +177,18 @@ async function main() {
   const feeMap = await loadFees(COUNTRY);
   const adjusted = applyFeeOverrides(results, feeMap);
 
-  // GME 기준값 — delivery_method 별로 분리
-  // (GME not available yet, use null baselines)
+  // ── GME 기준값 (delivery-method-aware) ────────────────────────────────
+  const gmeBaselineMap = new Map();
+  adjusted.filter(r => r.operator === 'GME').forEach(r => {
+    gmeBaselineMap.set(r.delivery_method, r.total_sending_amount);
+  });
+  if (gmeBaselineMap.size === 0) console.warn('\n⚠️  GME 기준값 없음 — price_gap 계산 불가');
+
   const toSave = adjusted.map(r => {
+    const baseline = gmeBaselineMap.get(r.delivery_method) ?? null;
+    const priceGap = baseline && r.operator !== 'GME'
+      ? r.total_sending_amount - baseline : null;
+    const status = priceGap === null ? null : priceGap > 0 ? 'GME 유리' : '경쟁사 유리';
     return {
       run_hour:             runHour,
       operator:             r.operator,
@@ -162,9 +197,9 @@ async function main() {
       send_amount_krw:      r.send_amount_krw,
       service_fee:          r.service_fee ?? 0,
       total_sending_amount: r.total_sending_amount,
-      gme_baseline:         null,
-      price_gap:            null,
-      status:               null,
+      gme_baseline:         baseline,
+      price_gap:            priceGap,
+      status:               status,
       delivery_method:      r.delivery_method,
     };
   });

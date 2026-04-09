@@ -33,8 +33,8 @@ export const OPERATOR_MAP: Record<string, string[]> = {
   'Uzbekistan||Card Payment':  ['GME', 'GMoneyTrans', 'E9Pay', 'Coinshot', 'Hanpass'],
   'Russia||Cash Payment':      ['GME', 'GMoneyTrans', 'E9Pay'],
   'Russia||Card Payment':      ['GME', 'E9Pay'],
-  'Timor Leste||Bank Deposit':          ['GMoneyTrans', 'Hanpass'],
-  'Timor Leste||Cash Pickup (MoneyGram)': ['GMoneyTrans', 'Hanpass'],
+  'Timor Leste||Bank Deposit':          ['GME', 'GMoneyTrans', 'Hanpass'],
+  'Timor Leste||Cash Pickup (MoneyGram)': ['GME', 'GMoneyTrans', 'Hanpass'],
 };
 
 /** Delivery methods per country (derived from OPERATOR_MAP keys) */
