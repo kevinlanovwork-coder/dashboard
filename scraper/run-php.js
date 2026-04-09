@@ -168,11 +168,12 @@ async function scrapeE9pay(browser) {
     // Select delivery method (required for Philippines)
     await page.click('#select-method').catch(() => null);
     await page.waitForTimeout(500);
-    // Try Account transfer first, then BDO, then any available method
+    // Select bank account transfer method
     const methodSelectors = [
+      '#remit-methods li:has-text("계좌송금 PHP")',
+      '#remit-methods li:has-text("BDO 계좌송금")',
       '#remit-methods li:has-text("Account transfer")',
       '#remit-methods li:has-text("BDO")',
-      '#remit-methods li:has-text("Gcash")',
     ];
     for (const sel of methodSelectors) {
       const el = page.locator(sel);
