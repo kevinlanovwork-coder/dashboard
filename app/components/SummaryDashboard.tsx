@@ -106,7 +106,7 @@ function CorridorCard({ corridor, isDark, isEn }: { corridor: CorridorSummary; i
           {corridor.country} <span className="text-slate-400 font-normal">— {corridor.deliveryMethod}</span>
         </h3>
         <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-          {operators[0]?.receiveAmount?.toLocaleString()} {CURRENCY_MAP[corridor.country] ?? ''}
+          {operators[0]?.receiveAmount?.toLocaleString()} {corridor.deliveryMethod.match(/\(([A-Z]{3})\)/)?.[1] ?? CURRENCY_MAP[corridor.country] ?? ''}
         </span>
       </div>
 

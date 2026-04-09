@@ -194,7 +194,7 @@ const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
   Nepal: 'Bank Deposit', Philippines: ['Bank Deposit', 'Cash Pickup'], Malaysia: 'Bank Deposit',
   Singapore: 'Bank Deposit', Cambodia: ['Bank Deposit', 'Cash Pickup'], Japan: 'Bank Deposit',
   China: 'Alipay', Mongolia: 'Bank Deposit', Myanmar: 'Bank Deposit',
-  Pakistan: 'Bank Deposit', Laos: 'Bank Deposit', 'Sri Lanka': 'Bank Deposit', India: 'Bank Deposit',
+  Pakistan: 'Bank Deposit', Laos: ['Bank Deposit (LAK)', 'Bank Deposit (USD)'], 'Sri Lanka': 'Bank Deposit', India: 'Bank Deposit',
   'Timor Leste': ['Bank Deposit', 'Cash Pickup (MoneyGram)'],
   Uzbekistan: ['Cash Pickup', 'Card Payment'], Bangladesh: 'Bank Deposit', Russia: ['Cash Payment', 'Card Payment'], Kazakhstan: 'Cash Pickup', Kyrgyzstan: 'Cash Pickup',
 };
@@ -568,7 +568,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     const map: Record<string, { gaps: number[]; count: number }> = {};
     byCountry
       .filter(r => {
-        if (r.status === 'GME' || r.priceGap === null || r.totalSendingAmount < 700_000) return false;
+        if (r.status === 'GME' || r.priceGap === null) return false;
         const d = r.runHour.slice(0, 10);
         if (effectiveAvgFromDate && d < effectiveAvgFromDate) return false;
         if (effectiveAvgToDate && d > effectiveAvgToDate) return false;
@@ -597,7 +597,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const trendData = useMemo(() => {
     const map: Record<string, number> = {};
     byCountry
-      .filter(r => r.gmeBaseline !== null && r.gmeBaseline >= 700_000)
+      .filter(r => r.gmeBaseline !== null && r.gmeBaseline > 0)
       .forEach(r => {
         if (!map[r.runHour]) map[r.runHour] = r.gmeBaseline!;
       });
@@ -676,7 +676,13 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const expensiveCount = snapshot.filter(r => r.status === 'Expensive than GME').length;
   const totalCompetitors = snapshot.filter(r => r.status !== 'GME').length;
   const receiveBaseline = byCountry[0]?.receiveAmount ?? null;
-  const receiveCurrency = CURRENCY_MAP[selectedCountry] ?? '';
+  const receiveCurrency = (() => {
+    if (selectedDeliveryMethod) {
+      const m = selectedDeliveryMethod.match(/\(([A-Z]{3})\)/);
+      if (m) return m[1];
+    }
+    return CURRENCY_MAP[selectedCountry] ?? '';
+  })();
 
   const tableDates = useMemo(
     () => [...new Set(runHours.map(rh => rh.slice(0, 10)))].sort().reverse(),
