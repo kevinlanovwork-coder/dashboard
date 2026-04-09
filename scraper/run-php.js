@@ -259,7 +259,7 @@ async function scrapeHanpass() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ inputAmount: String(AMOUNT), inputCurrencyCode: 'PHP',
       fromCurrencyCode: 'KRW', toCurrencyCode: 'PHP', toCountryCode: 'PH',
-      memberSeq: '1', lang: 'en' }),
+      remittanceOption: 'BANK_TRANSFER', memberSeq: '1', lang: 'en' }),
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
