@@ -1,8 +1,9 @@
 /**
- * Laos (LAK) 스크래퍼 — 15,000,000 LAK 기준
- * 실행: node --env-file=.env run-lak.js
+ * Laos (USD) 스크래퍼 — 1,000 USD 기준
+ * 실행: node --env-file=.env run-lak-usd.js
  *
- * 지원 사업자: GME, GMoneyTrans, E9Pay, Hanpass
+ * 지원 사업자: GME, Hanpass, Cross
+ * 수령 방식: Bank Deposit
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
@@ -11,12 +12,13 @@ import { checkAlerts } from './lib/alerts.js';
 import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 
 const COUNTRY = 'Laos';
-const AMOUNT  = 15_000_000;
+const AMOUNT  = 1_000;
+const METHOD  = 'Bank Deposit (USD)';
 
-// ─── GME (API — Bank Deposit) ────────────────────────────────────────────────
+// ─── GME (API — Bank Deposit USD) ───────────────────────────────────────────
 async function scrapeGme() {
   const body = new URLSearchParams({
-    method: 'GetExRate', pCurr: 'LAK', pCountryName: 'Laos',
+    method: 'GetExRate', pCurr: 'USD', pCountryName: 'Laos',
     collCurr: 'KRW', deliveryMethod: '2', cAmt: '', pAmt: String(AMOUNT),
     cardOnline: 'false', calBy: 'P',
   }).toString();
@@ -31,74 +33,18 @@ async function scrapeGme() {
   const fee   = extractNumber(data.scCharge) ?? 0;
   if (!total) throw new Error('총 송금액 추출 실패');
   return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
-    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total,
+    delivery_method: METHOD };
 }
 
-// ─── GMoneyTrans (API) ────────────────────────────────────────────────────────
-async function scrapeGmoneytrans() {
-  const url = 'https://mapi.gmoneytrans.net/exratenew1/ajx_calcRate.asp'
-    + `?receive_amount=${AMOUNT}`
-    + '&payout_country=Lao+People%60s+Democratic+Republic'
-    + '&total_collected=0'
-    + '&payment_type=Bank+Account'
-    + '&currencyType=LAK';
-  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const text = await res.text();
-  const serviceCharge = parseField(text, 'serviceCharge') ?? 5000;
-  const sendAmount    = parseField(text, 'sendAmount');
-  if (!sendAmount) throw new Error(`파싱 실패: ${text.slice(0, 200)}`);
-  return { operator: 'GMoneyTrans', receiving_country: COUNTRY, receive_amount: AMOUNT,
-    send_amount_krw: sendAmount, service_fee: serviceCharge,
-    total_sending_amount: sendAmount + serviceCharge };
-}
-function parseField(text, field) {
-  const m = text.match(new RegExp(`${field}--td_clm--([\\d.]+)--td_end--`));
-  return m ? parseFloat(m[1]) : null;
-}
-
-// ─── E9Pay ────────────────────────────────────────────────────────────────────
-async function scrapeE9pay(browser) {
-  const page = await browser.newPage();
-  try {
-    await page.goto('https://www.e9pay.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(3000);
-    await page.waitForSelector('#LA_LAK', { state: 'attached', timeout: 10000 });
-    await page.evaluate(() => {
-      const radio = document.querySelector('#LA_LAK');
-      radio.checked = true;
-      radio.dispatchEvent(new Event('change', { bubbles: true }));
-      radio.dispatchEvent(new Event('click',  { bubbles: true }));
-    });
-    await page.waitForTimeout(1000);
-    await page.click('#reverse'); await page.waitForTimeout(500);
-    await page.waitForSelector('#receive-money', { timeout: 5000 });
-    await page.click('#receive-money', { clickCount: 3 });
-    await page.fill('#receive-money', String(AMOUNT));
-    await page.dispatchEvent('#receive-money', 'blur');
-    let total = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await page.waitForTimeout(1000);
-      const raw = await page.$eval('#send-money', el => el.value).catch(() => null);
-      total = extractNumber(raw);
-      if (total && total !== 1_000_000) break;
-    }
-    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    const feeRaw = await page.$eval('#remit-fee', el => el.textContent || el.value).catch(() => null);
-    const fee = extractNumber(feeRaw) ?? 0;
-    return { operator: 'E9Pay', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
-  } finally { await page.close(); }
-}
-
-// ─── Hanpass (API) ────────────────────────────────────────────────────────────
+// ─── Hanpass (API — Bank Transfer USD) ──────────────────────────────────────
 async function scrapeHanpass() {
   const res = await fetch('https://app.hanpass.com/app/v1/remittance/get-cost', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inputAmount: String(AMOUNT), inputCurrencyCode: 'LAK',
-      fromCurrencyCode: 'KRW', toCurrencyCode: 'LAK', toCountryCode: 'LA',
-      memberSeq: '1', lang: 'en' }),
+    body: JSON.stringify({ inputAmount: String(AMOUNT), inputCurrencyCode: 'USD',
+      fromCurrencyCode: 'KRW', toCurrencyCode: 'USD', toCountryCode: 'LA',
+      remittanceOption: 'BANK_TRANSFER', memberSeq: '1', lang: 'en' }),
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -108,21 +54,55 @@ async function scrapeHanpass() {
   const fee   = data.transferFee ?? 0;
   if (!total) throw new Error('총 송금액 추출 실패');
   return { operator: 'Hanpass', receiving_country: COUNTRY, receive_amount: AMOUNT,
-    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
+    send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total,
+    delivery_method: METHOD };
+}
+
+// ─── Cross (Playwright — Laos USD) ──────────────────────────────────────────
+async function scrapeCross(browser) {
+  const page = await browser.newPage();
+  try {
+    await page.goto('https://crossenf.com/remittance', { waitUntil: 'load', timeout: 30000 });
+    await page.waitForTimeout(2000);
+    await page.locator('div.relative:has(span:text("THB"))').click().catch(async () => {
+      await page.locator('div.relative').first().click();
+    });
+    await page.waitForSelector('#aside-root ul', { timeout: 10000 });
+    const searchInput = page.locator('#aside-root input');
+    await searchInput.fill('USD');
+    await page.waitForTimeout(1000);
+    await page.locator('#aside-root li:has(img[alt="LA flag"])').filter({ hasText: 'USD' }).click();
+    await page.waitForTimeout(1000);
+    const receiveInput = page.locator('input[inputmode="numeric"]').nth(1);
+    await receiveInput.click({ clickCount: 3 });
+    await receiveInput.fill(String(AMOUNT));
+    await receiveInput.press('Tab');
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.locator('input[inputmode="numeric"]').nth(0).inputValue();
+      total = extractNumber(raw);
+      if (total && total !== 1_000_000) break;
+    }
+    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    const fee = 0;
+    return { operator: 'Cross', receiving_country: COUNTRY, receive_amount: AMOUNT,
+      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee,
+      delivery_method: METHOD };
+  } finally { await page.close(); }
 }
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
-  { name: 'GME',         fn: () => withRetry(scrapeGme), needsBrowser: false },
-  { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
-  { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
-  { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
+  { name: 'GME',     fn: () => withRetry(scrapeGme),              needsBrowser: false },
+  { name: 'Hanpass', fn: () => withRetry(scrapeHanpass),          needsBrowser: false },
+  { name: 'Cross',   fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
 async function main() {
   const runHour = getRunHour();
-  console.log(`\n[${new Date().toISOString()}] Laos LAK 스크래핑 시작 — run_hour: ${runHour}\n`);
+  console.log(`\n[${new Date().toISOString()}] Laos USD 스크래핑 시작 — run_hour: ${runHour}\n`);
 
   const browser = await chromium.launch({
     headless: true,
@@ -146,7 +126,7 @@ async function main() {
     } else {
       console.error(`  ✗ ${name} 실패: ${result.reason?.message}`);
       errors.push({ name, error: result.reason?.message });
-      logFailure(runHour, COUNTRY, name, 'Bank Deposit (LAK)', result.reason?.message);
+      logFailure(runHour, COUNTRY, name, METHOD, result.reason?.message);
     }
   }
 
@@ -180,13 +160,13 @@ async function main() {
       gme_baseline:         gmeBaseline,
       price_gap:            priceGap,
       status:               status,
-      delivery_method:      'Bank Deposit (LAK)',
+      delivery_method:      r.delivery_method,
     };
   });
 
   try {
     await saveRates(toSave);
-    console.log(`\n✅ ${toSave.length}건 Supabase 저장 완료 (Laos LAK)`);
+    console.log(`\n✅ ${toSave.length}건 Supabase 저장 완료 (Laos USD)`);
     await checkAlerts(toSave, runHour);
     await seedFees(toSave);
   } catch (err) {
@@ -199,7 +179,7 @@ async function main() {
     errors.forEach(e => console.warn(`   - ${e.name}: ${e.error}`));
   }
 
-  console.log('\n── Laos LAK 15,000,000 결과 요약 ────────────────────────────────────');
+  console.log('\n── Laos USD 1,000 결과 요약 ──────────────────────────────────────────');
   console.log(`${'운영사'.padEnd(14)} ${'송금액(KRW)'.padStart(12)} ${'수수료'.padStart(8)} ${'합계'.padStart(12)} 차이`);
   console.log('─'.repeat(60));
   toSave.sort((a, b) => a.total_sending_amount - b.total_sending_amount).forEach(r => {

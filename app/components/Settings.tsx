@@ -1249,7 +1249,12 @@ function SummaryConfigTab({ isEn }: { isEn: boolean }) {
   return (
     <div className="space-y-4">
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-        <h2 className="text-sm font-semibold mb-1">{isEn ? 'Summary Operators per Corridor' : '경로별 요약 운영사'}</h2>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-sm font-semibold">{isEn ? 'Summary Operators per Corridor' : '경로별 요약 운영사'}</h2>
+          <a href="/summary" className="inline-flex items-center gap-1 px-3 py-1 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-xs hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
+            {isEn ? 'Open Summary Page →' : '요약 페이지 열기 →'}
+          </a>
+        </div>
         <p className="text-xs text-slate-500 mb-4">
           {isEn
             ? `Select up to ${MAX_OPS_PER_CORRIDOR} operators per corridor to show alongside GME (always included). Maximum 4 operators per chart.`
@@ -1293,11 +1298,6 @@ function SummaryConfigTab({ isEn }: { isEn: boolean }) {
         </div>
       </div>
 
-      <div className="text-center">
-        <a href="/summary" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
-          {isEn ? 'Open Summary Page →' : '요약 페이지 열기 →'}
-        </a>
-      </div>
 
       {/* Sticky save bar */}
       {hasChanges && (
