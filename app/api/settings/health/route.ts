@@ -5,7 +5,7 @@ import { OPERATOR_MAP } from '../../../lib/corridors';
 export const dynamic = 'force-dynamic';
 
 const EXPECTED_OPERATORS = OPERATOR_MAP;
-const BATCH = 5000;
+const BATCH = 1000;
 
 async function fetchBatched<T>(supabase: any, query: () => any): Promise<T[]> {
   let all: T[] = [];

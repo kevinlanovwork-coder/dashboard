@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import * as XLSX from 'xlsx';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -846,7 +847,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
   const [subTab, setSubTab] = useState<'health' | 'failures' | 'outliers'>('health');
   const [health, setHealth] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [days, setDays] = useState(7);
+  const [days, setDays] = useState(1);
   const [filterCountry, setFilterCountry] = useState('');
   const [filterOperator, setFilterOperator] = useState('');
   const [failurePage, setFailurePage] = useState(0);
@@ -914,6 +915,22 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
   const filteredFailures = groupedFailures;
   const filteredOutliers = filterCountry ? (health.recentOutliers ?? []).filter(o => o.country === filterCountry) : (health.recentOutliers ?? []);
   const issueCorridors = filteredCorridors.filter(c => c.operators.some(o => o.successRate < 95));
+
+  function handleDownloadFailures() {
+    const rows = allFilteredFailures.map(f => ({
+      Time: f.runHour,
+      Country: f.country,
+      'Delivery Method': f.deliveryMethod,
+      Operator: f.operator,
+      Reason: f.reason,
+      'Error Message': f.errorMessage ?? '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Failures');
+    const date = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `Scraper_Failures_${date}.xlsx`);
+  }
 
   return (
     <div className="space-y-6">
@@ -1005,6 +1022,13 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
               {failureOperators.map(op => <option key={op} value={op}>{op}</option>)}
             </select>
           </div>
+          <button
+            onClick={handleDownloadFailures}
+            disabled={allFilteredFailures.length === 0}
+            className="px-3 py-1 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 transition-colors"
+          >
+            {isEn ? 'Export Excel' : '엑셀 다운로드'}
+          </button>
         </div>
         {filteredFailures.length === 0 ? <p className="text-sm text-slate-400">{isEn ? 'No failures found.' : '실패 기록이 없습니다.'}</p> : (
           <>
