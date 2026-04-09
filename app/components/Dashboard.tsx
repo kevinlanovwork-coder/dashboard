@@ -745,7 +745,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
       Method: r.deliveryMethod ?? 'Bank Deposit',
       Country: r.receivingCountry,
       'Recv. Amount': r.receiveAmount,
-      Currency: CURRENCY_MAP[r.receivingCountry] ?? '',
+      Currency: r.deliveryMethod?.match(/\(([A-Z]{3})\)/)?.[1] ?? CURRENCY_MAP[r.receivingCountry] ?? '',
       'Send Amt (KRW)': r.sendAmountKRW,
       'Service Fee': r.serviceFee,
       'Collection Amt (KRW)': r.totalSendingAmount,
@@ -1006,7 +1006,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 <h2 className="text-sm font-semibold">{t.snapshotTitle} - {selectedCountry} ({selectedDeliveryMethod || deliveryMethods[0]})</h2>
                 <div className="flex items-center justify-between mt-0.5">
                   <p className="text-slate-500 dark:text-slate-500 text-xs">{t.snapshotSub(formatRunHour(targetRunHour))}</p>
-                  <span className="text-xs text-slate-500 dark:text-slate-500">{t.rateLegend(CURRENCY_MAP[selectedCountry] ?? '', snapshotChartData[0]?.rateIsPerKRW ?? false)}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-500">{t.rateLegend(receiveCurrency, snapshotChartData[0]?.rateIsPerKRW ?? false)}</span>
                 </div>
               </div>
               {/* Operator checkboxes (GME always shown) */}
@@ -1413,7 +1413,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                         <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">{r.deliveryMethod ?? 'Bank Deposit'}</td>
                         <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">{r.receivingCountry}</td>
                         <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-200 font-mono whitespace-nowrap">
-                          {r.receiveAmount.toLocaleString()}&nbsp;<span className="text-slate-400 dark:text-slate-500 text-xs">{CURRENCY_MAP[r.receivingCountry] ?? ''}</span>
+                          {r.receiveAmount.toLocaleString()}&nbsp;<span className="text-slate-400 dark:text-slate-500 text-xs">{r.deliveryMethod?.match(/\(([A-Z]{3})\)/)?.[1] ?? CURRENCY_MAP[r.receivingCountry] ?? ''}</span>
                         </td>
                         <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-200 font-mono whitespace-nowrap">{r.sendAmountKRW.toLocaleString('ko-KR')}</td>
                         <td className="py-2.5 px-3 text-right text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">{r.serviceFee > 0 ? r.serviceFee.toLocaleString('ko-KR') : '—'}</td>
