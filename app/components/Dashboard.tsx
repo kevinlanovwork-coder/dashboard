@@ -376,6 +376,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     }
     let cancelled = false;
     setIsLoadingRecords(true);
+    setRecords([]);
     fetch(`/api/rates?country=${encodeURIComponent(selectedCountry)}&days=${daysRange}`)
       .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
       .then(data => {
