@@ -108,10 +108,11 @@ async function scrapeCoinshot(browser) {
       if (sendAmt && sendAmt !== 1_000_000) break;
     }
     if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    // Coinshot: send amount already includes fee ("송금액은 수수료 X원이 포함된 금액입니다")
     const feeRaw = await page.locator('h5.text-left').textContent().catch(() => null);
-    const fee = extractNumber(feeRaw) ?? 2500;
+    const fee = extractNumber(feeRaw) ?? 5000;
     return { operator: 'Coinshot', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
+      send_amount_krw: sendAmt - fee, service_fee: fee, total_sending_amount: sendAmt };
   } finally { await page.close(); }
 }
 

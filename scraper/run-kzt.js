@@ -123,7 +123,8 @@ async function scrapeCoinshot(browser) {
       if (sendAmt && sendAmt !== 1_000_000) break;
     }
     if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    const fee = 8000;
+    // Coinshot: fee NOT included in sendAmt ("포함되지 않은 금액입니다")
+    const fee = 5000;
     return { operator: 'Coinshot', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee,
       delivery_method: METHOD };
