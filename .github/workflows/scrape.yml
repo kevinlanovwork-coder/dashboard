@@ -38,6 +38,8 @@ jobs:
             script: run-pkr.js
           - name: Laos LAK
             script: run-lak.js
+          - name: Laos USD
+            script: run-lak-usd.js
           - name: Sri Lanka LKR
             script: run-lkr.js
           - name: India INR
