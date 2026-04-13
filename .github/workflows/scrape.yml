@@ -64,6 +64,8 @@ jobs:
             script: run-zar.js
           - name: Canada CAD
             script: run-cad.js
+          - name: Nigeria NGN
+            script: run-ngn.js
 
     defaults:
       run:

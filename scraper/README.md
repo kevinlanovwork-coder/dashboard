@@ -17,6 +17,7 @@ scraper/
 ├── run-ghs.js          # Ghana      (GHS 5,000)
 ├── run-zar.js          # South Africa (ZAR 10,000)
 ├── run-cad.js          # Canada     (CAD 1,000)
+├── run-ngn.js          # Nigeria    (NGN 1,000,000)
 ├── scrapers/           # Shared operator modules (used by run-idr.js)
 │   ├── gme.js
 │   ├── gmoneytrans.js
@@ -48,6 +49,7 @@ scraper/
 | Ghana | run-ghs.js | GHS 5,000 | GME, GMoneyTrans |
 | South Africa | run-zar.js | ZAR 10,000 | GME, GMoneyTrans, Hanpass |
 | Canada | run-cad.js | CAD 1,000 | GME, GMoneyTrans |
+| Nigeria | run-ngn.js | NGN 1,000,000 | GME, GMoneyTrans |
 
 ## How It Runs
 

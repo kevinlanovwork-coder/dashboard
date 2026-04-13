@@ -206,6 +206,7 @@ Next.js Dashboard (Vercel)
 | Ghana | GHS | 5,000 | Bank Deposit | GME, GMoneyTrans |
 | South Africa | ZAR | 10,000 | Bank Deposit | GME, GMoneyTrans, Hanpass |
 | Canada | CAD | 1,000 | Bank Deposit | GME, GMoneyTrans |
+| Nigeria | NGN | 1,000,000 | Bank Deposit | GME, GMoneyTrans |
 
 
 ## Scraper Libraries

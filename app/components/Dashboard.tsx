@@ -190,7 +190,7 @@ const CURRENCY_MAP: Record<string, string> = {
   Pakistan: 'PKR', Laos: 'LAK', 'Sri Lanka': 'LKR', India: 'INR',
   'Timor Leste': 'USD', Uzbekistan: 'USD', 'Uzbekistan||Card Payment': 'UZS',
   Bangladesh: 'BDT', Russia: 'RUB', Kazakhstan: 'USD', Kyrgyzstan: 'USD',
-  Ghana: 'GHS', 'South Africa': 'ZAR', Canada: 'CAD',
+  Ghana: 'GHS', 'South Africa': 'ZAR', Canada: 'CAD', Nigeria: 'NGN',
 };
 
 const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
@@ -201,7 +201,7 @@ const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
   Pakistan: 'Bank Deposit', Laos: ['Bank Deposit (LAK)', 'Bank Deposit (USD)'], 'Sri Lanka': 'Bank Deposit', India: 'Bank Deposit',
   'Timor Leste': ['Bank Deposit', 'Cash Pickup (MoneyGram)'],
   Uzbekistan: ['Cash Pickup', 'Card Payment'], Bangladesh: 'Bank Deposit', Russia: ['Cash Payment', 'Card Payment'], Kazakhstan: 'Cash Pickup', Kyrgyzstan: 'Cash Pickup',
-  Ghana: 'Bank Deposit', 'South Africa': 'Bank Deposit', Canada: 'Bank Deposit',
+  Ghana: 'Bank Deposit', 'South Africa': 'Bank Deposit', Canada: 'Bank Deposit', Nigeria: 'Bank Deposit',
 };
 
 // Rate is calculated from send_amount_krw (net amount excluding service fee).
