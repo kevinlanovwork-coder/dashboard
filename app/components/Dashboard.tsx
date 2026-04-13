@@ -181,12 +181,14 @@ function statusColor(status: string) {
   return { bg: 'bg-orange-500/20', text: 'text-orange-500 dark:text-orange-400', hex: '#f97316' };
 }
 
+/** Currency by country, or by `Country||Method` for corridors where the same country has different currencies per method. */
 const CURRENCY_MAP: Record<string, string> = {
   Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Nepal: 'NPR',
   Philippines: 'PHP',  Malaysia: 'MYR', Singapore: 'SGD', Cambodia: 'USD',
   Japan: 'JPY', China: 'CNY', Mongolia: 'MNT', Myanmar: 'MMK',
   Pakistan: 'PKR', Laos: 'LAK', 'Sri Lanka': 'LKR', India: 'INR',
-  'Timor Leste': 'USD', Uzbekistan: 'USD', Bangladesh: 'BDT', Russia: 'RUB', Kazakhstan: 'USD', Kyrgyzstan: 'USD',
+  'Timor Leste': 'USD', Uzbekistan: 'USD', 'Uzbekistan||Card Payment': 'UZS',
+  Bangladesh: 'BDT', Russia: 'RUB', Kazakhstan: 'USD', Kyrgyzstan: 'USD',
 };
 
 const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
@@ -679,6 +681,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const receiveBaseline = byCountry[0]?.receiveAmount ?? null;
   const receiveCurrency = (() => {
     if (selectedDeliveryMethod) {
+      const override = CURRENCY_MAP[`${selectedCountry}||${selectedDeliveryMethod}`];
+      if (override) return override;
       const m = selectedDeliveryMethod.match(/\(([A-Z]{3})\)/);
       if (m) return m[1];
     }
@@ -746,7 +750,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
       Method: r.deliveryMethod ?? 'Bank Deposit',
       Country: r.receivingCountry,
       'Recv. Amount': r.receiveAmount,
-      Currency: r.deliveryMethod?.match(/\(([A-Z]{3})\)/)?.[1] ?? CURRENCY_MAP[r.receivingCountry] ?? '',
+      Currency: CURRENCY_MAP[`${r.receivingCountry}||${r.deliveryMethod}`] ?? r.deliveryMethod?.match(/\(([A-Z]{3})\)/)?.[1] ?? CURRENCY_MAP[r.receivingCountry] ?? '',
       'Send Amt (KRW)': r.sendAmountKRW,
       'Service Fee': r.serviceFee,
       'Collection Amt (KRW)': r.totalSendingAmount,
@@ -1414,7 +1418,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                         <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">{r.deliveryMethod ?? 'Bank Deposit'}</td>
                         <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">{r.receivingCountry}</td>
                         <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-200 font-mono whitespace-nowrap">
-                          {r.receiveAmount.toLocaleString()}&nbsp;<span className="text-slate-400 dark:text-slate-500 text-xs">{r.deliveryMethod?.match(/\(([A-Z]{3})\)/)?.[1] ?? CURRENCY_MAP[r.receivingCountry] ?? ''}</span>
+                          {r.receiveAmount.toLocaleString()}&nbsp;<span className="text-slate-400 dark:text-slate-500 text-xs">{CURRENCY_MAP[`${r.receivingCountry}||${r.deliveryMethod}`] ?? r.deliveryMethod?.match(/\(([A-Z]{3})\)/)?.[1] ?? CURRENCY_MAP[r.receivingCountry] ?? ''}</span>
                         </td>
                         <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-200 font-mono whitespace-nowrap">{r.sendAmountKRW.toLocaleString('ko-KR')}</td>
                         <td className="py-2.5 px-3 text-right text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">{r.serviceFee > 0 ? r.serviceFee.toLocaleString('ko-KR') : '—'}</td>
