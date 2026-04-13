@@ -345,19 +345,19 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     if (saved === 'dark') setIsDark(true);
 
     // Restore session if not expired; auto-logout when 8-hour timer hits
-    const expires = Number(sessionStorage.getItem('alerts-auth-expires') ?? 0);
-    const valid = sessionStorage.getItem('alerts-auth') === 'true' && Date.now() < expires;
+    const expires = Number(localStorage.getItem('alerts-auth-expires') ?? 0);
+    const valid = localStorage.getItem('alerts-auth') === 'true' && Date.now() < expires;
     if (valid) {
       setIsLoggedIn(true);
       const timer = setTimeout(() => {
-        sessionStorage.removeItem('alerts-auth');
-        sessionStorage.removeItem('alerts-auth-expires');
+        localStorage.removeItem('alerts-auth');
+        localStorage.removeItem('alerts-auth-expires');
         setIsLoggedIn(false);
       }, expires - Date.now());
       return () => clearTimeout(timer);
-    } else if (sessionStorage.getItem('alerts-auth')) {
-      sessionStorage.removeItem('alerts-auth');
-      sessionStorage.removeItem('alerts-auth-expires');
+    } else if (localStorage.getItem('alerts-auth')) {
+      localStorage.removeItem('alerts-auth');
+      localStorage.removeItem('alerts-auth-expires');
     }
   }, []);
   useEffect(() => {
@@ -840,8 +840,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   <button
                     onClick={() => {
                       if (!confirm(isEn ? 'Are you sure you want to logout?' : '로그아웃 하시겠습니까?')) return;
-                      sessionStorage.removeItem('alerts-auth');
-                      sessionStorage.removeItem('alerts-auth-expires');
+                      localStorage.removeItem('alerts-auth');
+                      localStorage.removeItem('alerts-auth-expires');
                       setIsLoggedIn(false);
                     }}
                     className="px-3 py-1.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
@@ -1550,8 +1550,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     body: JSON.stringify({ username: loginUser, password: loginPass }),
                   });
                   if (res.ok) {
-                    sessionStorage.setItem('alerts-auth', 'true');
-                    sessionStorage.setItem('alerts-auth-expires', String(Date.now() + 8 * 60 * 60 * 1000));
+                    localStorage.setItem('alerts-auth', 'true');
+                    localStorage.setItem('alerts-auth-expires', String(Date.now() + 8 * 60 * 60 * 1000));
                     setIsLoggedIn(true);
                     setShowLoginModal(false);
                   } else {
