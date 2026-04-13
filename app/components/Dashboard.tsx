@@ -855,6 +855,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   >
                     {isEn ? 'Settings' : '설정'}
                   </button>
+                  <span className="text-slate-300 dark:text-slate-600">|</span>
                   <button
                     onClick={() => { setLoginUser(''); setLoginPass(''); setLoginError(''); setShowLoginModal(true); }}
                     className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
