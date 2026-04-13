@@ -16,6 +16,7 @@ scraper/
 ├── run-mmk.js          # Myanmar    (MMK 1,000,000)
 ├── run-ghs.js          # Ghana      (GHS 5,000)
 ├── run-zar.js          # South Africa (ZAR 10,000)
+├── run-cad.js          # Canada     (CAD 1,000)
 ├── scrapers/           # Shared operator modules (used by run-idr.js)
 │   ├── gme.js
 │   ├── gmoneytrans.js
@@ -46,6 +47,7 @@ scraper/
 | Myanmar | run-mmk.js | MMK 1,000,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
 | Ghana | run-ghs.js | GHS 5,000 | GME, GMoneyTrans |
 | South Africa | run-zar.js | ZAR 10,000 | GME, GMoneyTrans, Hanpass |
+| Canada | run-cad.js | CAD 1,000 | GME, GMoneyTrans |
 
 ## How It Runs
 

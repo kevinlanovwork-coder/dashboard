@@ -61,6 +61,7 @@ Competitor websites
 | Kyrgyzstan   | USD      | 1,000 USD          | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
 | Ghana        | GHS      | 5,000 GHS          | Bank Deposit | GME, GMoneyTrans |
 | South Africa | ZAR      | 10,000 ZAR         | Bank Deposit | GME, GMoneyTrans, Hanpass |
+| Canada       | CAD      | 1,000 CAD          | Bank Deposit | GME, GMoneyTrans |
 
 ---
 

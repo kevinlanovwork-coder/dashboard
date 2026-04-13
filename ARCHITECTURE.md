@@ -205,6 +205,7 @@ Next.js Dashboard (Vercel)
 | Kyrgyzstan | USD | 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
 | Ghana | GHS | 5,000 | Bank Deposit | GME, GMoneyTrans |
 | South Africa | ZAR | 10,000 | Bank Deposit | GME, GMoneyTrans, Hanpass |
+| Canada | CAD | 1,000 | Bank Deposit | GME, GMoneyTrans |
 
 
 ## Scraper Libraries

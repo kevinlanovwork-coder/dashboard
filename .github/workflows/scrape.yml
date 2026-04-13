@@ -62,6 +62,8 @@ jobs:
             script: run-ghs.js
           - name: South Africa ZAR
             script: run-zar.js
+          - name: Canada CAD
+            script: run-cad.js
 
     defaults:
       run:
