@@ -838,7 +838,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   </a>
                   <span className="text-slate-300 dark:text-slate-600">|</span>
                   <button
-                    onClick={() => { sessionStorage.removeItem('alerts-auth'); sessionStorage.removeItem('alerts-auth-expires'); setIsLoggedIn(false); }}
+                    onClick={() => {
+                      if (!confirm(isEn ? 'Are you sure you want to logout?' : '로그아웃 하시겠습니까?')) return;
+                      sessionStorage.removeItem('alerts-auth');
+                      sessionStorage.removeItem('alerts-auth-expires');
+                      setIsLoggedIn(false);
+                    }}
                     className="px-3 py-1.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   >
                     {isEn ? 'Logout' : '로그아웃'}
