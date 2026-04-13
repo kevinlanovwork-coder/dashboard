@@ -56,7 +56,7 @@ dashboard/
 |--------|------|-------|
 | id | BIGSERIAL PK | |
 | run_hour | TEXT NOT NULL | "2026-03-27 15:00" (KST, 30-min intervals) |
-| operator | TEXT NOT NULL | GME, Sentbe, Hanpass, etc. |
+| operator | TEXT NOT NULL | GME, Hanpass, SBI, etc. |
 | receiving_country | TEXT NOT NULL | Indonesia, China, etc. |
 | receive_amount | NUMERIC NOT NULL | Fixed amount per corridor |
 | send_amount_krw | NUMERIC | Exchange amount only |
@@ -204,7 +204,6 @@ Next.js Dashboard (Vercel)
 | Kazakhstan | USD | 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
 | Kyrgyzstan | USD | 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
 
-> Sentbe disabled across all corridors since Apr 2026 (website redirected to corporate.sentbe.com).
 
 ## Scraper Libraries
 

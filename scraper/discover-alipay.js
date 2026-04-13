@@ -9,21 +9,6 @@ import { chromium } from 'playwright';
 
 const OPERATORS = [
   {
-    name: 'Sentbe',
-    url: 'https://www.sentbe.com/ko',
-    async setup(page) {
-      await page.click('button.close').catch(() => null);
-      await page.waitForTimeout(300);
-      await page.click('article.app-download-popup .dim').catch(() => null);
-      await page.waitForTimeout(500);
-      await page.waitForSelector('.receiveAmountInput .el-input-group__append', { timeout: 10000 });
-      await page.click('.receiveAmountInput .el-input-group__append');
-      await page.waitForTimeout(500);
-      await page.click('.receiveAmountInput .el-select-dropdown__item:has-text("중국")');
-      await page.waitForTimeout(2000);
-    },
-  },
-  {
     name: 'SBI',
     url: 'https://www.sbicosmoney.com/',
     async setup(page) {

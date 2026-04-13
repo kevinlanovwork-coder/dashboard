@@ -66,54 +66,6 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
-    "id": 5,
-    "timestamp": "1/30/2026 11:02:02",
-    "runHour": "2026-01-30 11:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1121302,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1121302,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1126302,
-    "gmeBaseline": 1129248,
-    "priceGap": -2946,
-    "status": "Cheaper than GME"
-  },
-  {
-    "id": 6,
-    "timestamp": "1/30/2026 11:03:31",
-    "runHour": "2026-01-30 11:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1121523,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1121523,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1126523,
-    "gmeBaseline": 1129248,
-    "priceGap": -2725,
-    "status": "Cheaper than GME"
-  },
-  {
-    "id": 7,
-    "timestamp": "1/30/2026 11:05:54",
-    "runHour": "2026-01-30 11:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1121029,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1121029,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1126029,
-    "gmeBaseline": 1129248,
-    "priceGap": -3219,
-    "status": "Cheaper than GME"
-  },
-  {
     "id": 8,
     "timestamp": "1/30/2026 11:16:02",
     "runHour": "2026-01-30 11:00",
@@ -402,22 +354,6 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
-    "id": 26,
-    "timestamp": "1/30/2026 17:02:20",
-    "runHour": "2026-01-30 17:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1121055,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1121055,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1126055,
-    "gmeBaseline": 1125690,
-    "priceGap": 365,
-    "status": "Expensive than GME"
-  },
-  {
     "id": 27,
     "timestamp": "1/30/2026 17:02:45",
     "runHour": "2026-01-30 17:00",
@@ -528,22 +464,6 @@ export const RATES_DATA: RateRecord[] = [
     "gmeBaseline": 1125690,
     "priceGap": -2929,
     "status": "Cheaper than GME"
-  },
-  {
-    "id": 34,
-    "timestamp": "1/30/2026 17:39:38",
-    "runHour": "2026-01-30 17:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1122186,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1122186,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1127186,
-    "gmeBaseline": 1125690,
-    "priceGap": 1496,
-    "status": "Expensive than GME"
   },
   {
     "id": 35,
@@ -674,22 +594,6 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
-    "id": 43,
-    "timestamp": "2/2/2026 9:53:02",
-    "runHour": "2026-02-02 09:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1132755,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1132755,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1137755,
-    "gmeBaseline": 1133467,
-    "priceGap": 4288,
-    "status": "Expensive than GME"
-  },
-  {
     "id": 44,
     "timestamp": "2/2/2026 9:53:19",
     "runHour": "2026-02-02 09:00",
@@ -816,22 +720,6 @@ export const RATES_DATA: RateRecord[] = [
     "gmeBaseline": 1139000,
     "priceGap": -4430,
     "status": "Cheaper than GME"
-  },
-  {
-    "id": 52,
-    "timestamp": "2/2/2026 10:45:42",
-    "runHour": "2026-02-02 10:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1139437,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1139437,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1144437,
-    "gmeBaseline": 1139000,
-    "priceGap": 5437,
-    "status": "Expensive than GME"
   },
   {
     "id": 53,
@@ -962,22 +850,6 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
-    "id": 61,
-    "timestamp": "2/2/2026 15:19:26",
-    "runHour": "2026-02-02 15:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1139801,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1139801,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1144801,
-    "gmeBaseline": 1137404,
-    "priceGap": 7397,
-    "status": "Expensive than GME"
-  },
-  {
     "id": 62,
     "timestamp": "2/2/2026 15:19:43",
     "runHour": "2026-02-02 15:00",
@@ -1071,22 +943,6 @@ export const RATES_DATA: RateRecord[] = [
     "totalSendingAmount": 1116690,
     "gmeBaseline": 1137404,
     "priceGap": -20714,
-    "status": "Cheaper than GME"
-  },
-  {
-    "id": 68,
-    "timestamp": "2/3/2026 10:13:29",
-    "runHour": "2026-02-03 10:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1131949,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1131949,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1136949,
-    "gmeBaseline": 1137404,
-    "priceGap": -455,
     "status": "Cheaper than GME"
   },
   {
@@ -1248,22 +1104,6 @@ export const RATES_DATA: RateRecord[] = [
     "gmeBaseline": 1137404,
     "priceGap": -9784,
     "status": "Cheaper than GME"
-  },
-  {
-    "id": 79,
-    "timestamp": "2/3/2026 10:58:35",
-    "runHour": "2026-02-03 10:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1132495,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1132495,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1137495,
-    "gmeBaseline": 1137404,
-    "priceGap": 91,
-    "status": "Expensive than GME"
   },
   {
     "id": 80,
@@ -1522,22 +1362,6 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
-    "id": 96,
-    "timestamp": "2/5/2026 15:55:28",
-    "runHour": "2026-02-05 15:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1141530,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1141530,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1146530,
-    "gmeBaseline": 1139380,
-    "priceGap": 7150,
-    "status": "Expensive than GME"
-  },
-  {
     "id": 97,
     "timestamp": "2/5/2026 15:55:49",
     "runHour": "2026-02-05 15:00",
@@ -1663,22 +1487,6 @@ export const RATES_DATA: RateRecord[] = [
     "totalSendingAmount": 1137908,
     "gmeBaseline": null,
     "priceGap": 1137908,
-    "status": "Expensive than GME"
-  },
-  {
-    "id": 105,
-    "timestamp": "2/10/2026 10:00:27",
-    "runHour": "2026-02-10 10:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1136889,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1136889,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1141889,
-    "gmeBaseline": null,
-    "priceGap": 1141889,
     "status": "Expensive than GME"
   },
   {
@@ -1826,22 +1634,6 @@ export const RATES_DATA: RateRecord[] = [
     "status": "Cheaper than GME"
   },
   {
-    "id": 115,
-    "timestamp": "2/11/2026 16:00:05",
-    "runHour": "2026-02-11 16:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1131221,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1131221,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1136221,
-    "gmeBaseline": null,
-    "priceGap": 1136221,
-    "status": "Expensive than GME"
-  },
-  {
     "id": 116,
     "timestamp": "2/11/2026 16:00:24",
     "runHour": "2026-02-11 16:00",
@@ -1952,22 +1744,6 @@ export const RATES_DATA: RateRecord[] = [
     "gmeBaseline": 1135435,
     "priceGap": -23935,
     "status": "Cheaper than GME"
-  },
-  {
-    "id": 123,
-    "timestamp": "2/12/2026 10:55:28",
-    "runHour": "2026-02-12 10:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1130441,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1130441,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1135441,
-    "gmeBaseline": 1135435,
-    "priceGap": 6,
-    "status": "Expensive than GME"
   },
   {
     "id": 124,
@@ -2111,22 +1887,6 @@ export const RATES_DATA: RateRecord[] = [
     "totalSendingAmount": 1125477,
     "gmeBaseline": 1125690,
     "priceGap": -213,
-    "status": "Cheaper than GME"
-  },
-  {
-    "id": 133,
-    "timestamp": "2/13/2026 15:09:05",
-    "runHour": "2026-02-13 15:00",
-    "operator": "Sentbe",
-    "receivingCountry": "Indonesia",
-    "receiveAmount": 13000000,
-    "sendAmountKRW": 1120587,
-    "receiveMultiplier": 1,
-    "adjustedSendingAmount": 1120587,
-    "serviceFee": 5000,
-    "totalSendingAmount": 1125587,
-    "gmeBaseline": 1125690,
-    "priceGap": -103,
     "status": "Cheaper than GME"
   },
   {

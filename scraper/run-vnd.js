@@ -2,7 +2,7 @@
  * Vietnam (VND) 스크래퍼 — 20,000,000 VND 기준
  * 실행: node --env-file=.env run-vnd.js
  *
- * 지원 사업자: GME, Sentbe, SBI, GMoneyTrans, E9Pay, Hanpass, Cross, JRF
+ * 지원 사업자: GME, SBI, GMoneyTrans, E9Pay, Hanpass, Cross, JRF
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
@@ -32,41 +32,6 @@ async function scrapeGme() {
   if (!total) throw new Error('총 송금액 추출 실패');
   return { operator: 'GME', receiving_country: COUNTRY, receive_amount: AMOUNT,
     send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
-}
-
-// ─── Sentbe ───────────────────────────────────────────────────────────────────
-async function scrapeSentbe(browser) {
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-    locale: 'ko-KR',
-  });
-  const page = await context.newPage();
-  try {
-    await page.goto('https://www.sentbe.com/ko', { waitUntil: 'networkidle', timeout: 30000 });
-    await page.click('button.close').catch(() => null);
-    await page.waitForTimeout(300);
-    await page.click('article.app-download-popup .dim').catch(() => null);
-    await page.waitForTimeout(500);
-    await page.waitForSelector('.receiveAmountInput .el-input-group__append', { timeout: 10000 });
-    await page.click('.receiveAmountInput .el-input-group__append'); await page.waitForTimeout(500);
-    // "베트남 / 동 - VND" 선택 (USD 제외)
-    await page.click('.receiveAmountInput .el-select-dropdown__item:has-text("베트남 / 동")');
-    await page.waitForTimeout(1000);
-    await page.click('#receiveAmount', { clickCount: 3 });
-    await page.fill('#receiveAmount', String(AMOUNT));
-    await page.press('#receiveAmount', 'Tab');
-    let total = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await page.waitForTimeout(1000);
-      const raw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
-      total = extractNumber(raw);
-      if (total && total !== 1_000_000) break;
-    }
-    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    const fee = 5000;
-    return { operator: 'Sentbe', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
-  } finally { await page.close(); await context.close(); }
 }
 
 // ─── SBI ──────────────────────────────────────────────────────────────────────
@@ -239,8 +204,6 @@ async function scrapeJrf(browser) {
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
   { name: 'GME',         fn: () => withRetry(scrapeGme), needsBrowser: false },
-  // Sentbe disabled — www.sentbe.com/ko redirects to corporate.sentbe.com (no web calculator since Apr 2026)
-  // { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },

@@ -2,11 +2,11 @@
  * China (CNY) 스크래퍼 — 10,000 CNY 기준
  * 실행: node --env-file=.env run-cny.js
  *
- * 지원 사업자: GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk
+ * 지원 사업자: GME, GMoneyTrans, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk
  * 수령 방식: 전체 Alipay
  *
  * 수수료 (하드코딩):
- *   E9Pay=7,000  GMoneyTrans=4,000  Sentbe=0  SBI=5,000  Hanpass=0  Coinshot=10,000
+ *   E9Pay=7,000  GMoneyTrans=4,000  SBI=5,000  Hanpass=0  Coinshot=10,000
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
@@ -62,39 +62,6 @@ async function scrapeGmoneytransApi(paymentType, deliveryMethodName) {
 function parseField(text, field) {
   const m = text.match(new RegExp(`${field}--td_clm--([\\d.]+)--td_end--`));
   return m ? parseFloat(m[1]) : null;
-}
-
-// ─── Sentbe ───────────────────────────────────────────────────────────────────
-async function scrapeSentbe(browser) {
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-    locale: 'ko-KR',
-  });
-  const page = await context.newPage();
-  try {
-    await page.goto('https://www.sentbe.com/ko', { waitUntil: 'networkidle', timeout: 30000 });
-    await page.click('button.close').catch(() => null); await page.waitForTimeout(300);
-    await page.click('article.app-download-popup .dim').catch(() => null); await page.waitForTimeout(500);
-    await page.waitForSelector('.receiveAmountInput .el-input-group__append', { timeout: 10000 });
-    await page.click('.receiveAmountInput .el-input-group__append'); await page.waitForTimeout(500);
-    await page.click('.receiveAmountInput .el-select-dropdown__item:has-text("중국")');
-    await page.waitForTimeout(1000);
-    await page.click('#receiveAmount', { clickCount: 3 });
-    await page.fill('#receiveAmount', String(AMOUNT));
-    await page.press('#receiveAmount', 'Tab');
-    let total = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await page.waitForTimeout(1000);
-      const raw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
-      total = extractNumber(raw);
-      if (total && total !== 1_000_000) break;
-    }
-    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    const fee = 0; // hardcoded
-    return { operator: 'Sentbe', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee,
-      delivery_method: 'Alipay' };
-  } finally { await page.close(); await context.close(); }
 }
 
 // ─── Hanpass (API — Alipay) ──────────────────────────────────────────────────
@@ -398,8 +365,6 @@ async function scrapeDebunk(browser) {
 const SCRAPERS = [
   { name: 'GME',                       fn: () => scrapeGmeApi('17', 'Alipay'),                          needsBrowser: false },
   { name: 'GMoneyTrans',              fn: () => scrapeGmoneytransApi('Alipay', 'Alipay'),              needsBrowser: false },
-  // Sentbe disabled — www.sentbe.com/ko redirects to corporate.sentbe.com (no web calculator since Apr 2026)
-  // { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
   { name: 'Hanpass',           fn: () => withRetry(() => scrapeHanpass({ mtoServiceCenterCode: 'ALMW-0001' }, 'Alipay')),  needsBrowser: false },
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },

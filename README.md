@@ -60,8 +60,6 @@ Competitor websites
 | Kazakhstan   | USD      | 1,000 USD          | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
 | Kyrgyzstan   | USD      | 1,000 USD          | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
 
-> Sentbe disabled across all corridors since Apr 2026 (website redirected to corporate.sentbe.com).
-
 ---
 
 ## Dashboard features
@@ -143,7 +141,6 @@ dashboard/
 |   +-- scrapers/                      # Operator scraper modules
 |   |   +-- gme.js                     # GME (Playwright)
 |   |   +-- gmoneytrans.js             # GMoneyTrans (fetch API)
-|   |   +-- sentbe.js                  # Sentbe (Playwright)
 |   |   +-- hanpass.js                 # Hanpass (fetch API)
 |   |   +-- utransfer.js               # Utransfer (Playwright)
 |   |   +-- sbi.js                     # SBI (Playwright)

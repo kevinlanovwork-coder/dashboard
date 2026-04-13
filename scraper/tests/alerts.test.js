@@ -53,13 +53,13 @@ describe('price alert direction logic', () => {
   }
 
   it('cheaper direction: matches when price_gap is below threshold', () => {
-    const record = { operator: 'Sentbe', price_gap: -3000 };
+    const record = { operator: 'Hanpass', price_gap: -3000 };
     const rule = { direction: 'cheaper', threshold_krw: -2000, operator: null };
     expect(matchesPriceRule(record, rule)).toBe(true);
   });
 
   it('cheaper direction: does not match when price_gap is above threshold', () => {
-    const record = { operator: 'Sentbe', price_gap: -1000 };
+    const record = { operator: 'Hanpass', price_gap: -1000 };
     const rule = { direction: 'cheaper', threshold_krw: -2000, operator: null };
     expect(matchesPriceRule(record, rule)).toBe(false);
   });
@@ -83,7 +83,7 @@ describe('price alert direction logic', () => {
   });
 
   it('excludes null price_gap', () => {
-    const record = { operator: 'Sentbe', price_gap: null };
+    const record = { operator: 'Hanpass', price_gap: null };
     const rule = { direction: 'cheaper', threshold_krw: -2000, operator: null };
     expect(matchesPriceRule(record, rule)).toBe(false);
   });
@@ -102,7 +102,7 @@ describe('rate alert direction logic', () => {
   }
 
   it('cheaper direction: only matches operators with negative price_gap', () => {
-    const cheaper = { operator: 'Sentbe', receive_amount: 10000, send_amount_krw: 2200000, price_gap: -5000 };
+    const cheaper = { operator: 'Hanpass', receive_amount: 10000, send_amount_krw: 2200000, price_gap: -5000 };
     const expensive = { operator: 'Moin', receive_amount: 10000, send_amount_krw: 2250000, price_gap: 3000 };
     const rule = { direction: 'cheaper', threshold_krw: 0.01, operator: null };
     const gmeRate = calcRate(10000, 2225000);

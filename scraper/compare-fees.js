@@ -9,7 +9,6 @@ import { extractNumber } from './lib/browser.js';
 import { scrape as scrapeGme_IDR }       from './scrapers/gme.js';
 import { scrape as scrapeGmt_IDR }       from './scrapers/gmoneytrans.js';
 import { scrape as scrapeWb_IDR }        from './scrapers/wirebarley.js';
-import { scrape as scrapeSentbe_IDR }    from './scrapers/sentbe.js';
 import { scrape as scrapeHanpass_IDR }   from './scrapers/hanpass.js';
 import { scrape as scrapeUtransfer_IDR } from './scrapers/utransfer.js';
 import { scrape as scrapeSbi_IDR }       from './scrapers/sbi.js';
@@ -62,8 +61,6 @@ async function scrapeWb_THB(browser) {
     return { service_fee: extractNumber(feeRaw) ?? 0 };
   } finally { await page.close(); }
 }
-
-async function scrapeSentbe_THB() { return { service_fee: 5000 }; }
 
 async function scrapeHanpass_THB(browser) {
   const page = await browser.newPage();
@@ -134,7 +131,6 @@ const SCRAPERS = [
   { name: 'GME',         idr: scrapeGme_IDR,       thb: scrapeGme_THB,       idrBrowser: true,  thbBrowser: true  },
   { name: 'GMoneyTrans', idr: scrapeGmt_IDR,       thb: scrapeGmt_THB,       idrBrowser: false, thbBrowser: false },
   { name: 'WireBarley',  idr: scrapeWb_IDR,        thb: scrapeWb_THB,        idrBrowser: true,  thbBrowser: true  },
-  { name: 'Sentbe',      idr: scrapeSentbe_IDR,    thb: scrapeSentbe_THB,    idrBrowser: true,  thbBrowser: false },
   { name: 'Hanpass',     idr: scrapeHanpass_IDR,   thb: scrapeHanpass_THB,   idrBrowser: true,  thbBrowser: true  },
   { name: 'Utransfer',   idr: scrapeUtransfer_IDR, thb: scrapeUtransfer_THB, idrBrowser: true,  thbBrowser: true  },
   { name: 'SBI',         idr: scrapeSbi_IDR,       thb: scrapeSbi_THB,       idrBrowser: true,  thbBrowser: false },

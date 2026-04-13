@@ -2,7 +2,7 @@
  * India (INR) 스크래퍼 — 100,000 INR 기준
  * 실행: node --env-file=.env run-inr.js
  *
- * 지원 사업자: WireBarley, Sentbe, GMoneyTrans, GME, Hanpass
+ * 지원 사업자: WireBarley, GMoneyTrans, GME, Hanpass
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
@@ -54,38 +54,6 @@ async function scrapeWirebarley(browser) {
     const fee = extractNumber(feeRaw) ?? 0;
     return { operator: 'WireBarley', receiving_country: COUNTRY, receive_amount: AMOUNT,
       send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
-  } finally { await page.close(); await context.close(); }
-}
-
-// ─── Sentbe ───────────────────────────────────────────────────────────────────
-async function scrapeSentbe(browser) {
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-    locale: 'ko-KR',
-  });
-  const page = await context.newPage();
-  try {
-    await page.goto('https://www.sentbe.com/ko', { waitUntil: 'networkidle', timeout: 30000 });
-    await page.click('button.close').catch(() => null); await page.waitForTimeout(300);
-    await page.click('article.app-download-popup .dim').catch(() => null); await page.waitForTimeout(500);
-    await page.waitForSelector('.receiveAmountInput .el-input-group__append', { timeout: 10000 });
-    await page.click('.receiveAmountInput .el-input-group__append'); await page.waitForTimeout(500);
-    await page.click('.receiveAmountInput .el-select-dropdown__item:has-text("인도")');
-    await page.waitForTimeout(1000);
-    await page.click('#receiveAmount', { clickCount: 3 });
-    await page.fill('#receiveAmount', String(AMOUNT));
-    await page.press('#receiveAmount', 'Tab');
-    let total = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await page.waitForTimeout(1000);
-      const raw = await page.$eval('#sendAmount', el => el.value).catch(() => null);
-      total = extractNumber(raw);
-      if (total) break;
-    }
-    if (!total) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    const fee = 0;
-    return { operator: 'Sentbe', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
   } finally { await page.close(); await context.close(); }
 }
 
@@ -158,8 +126,6 @@ async function scrapeHanpass() {
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
   { name: 'WireBarley',  fn: (b) => withRetry(() => scrapeWirebarley(b)), needsBrowser: true  },
-  // Sentbe disabled — www.sentbe.com/ko redirects to corporate.sentbe.com (no web calculator since Apr 2026)
-  // { name: 'Sentbe',      fn: (b) => withRetry(() => scrapeSentbe(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'GME',         fn: () => withRetry(scrapeGme), needsBrowser: false },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },

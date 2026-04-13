@@ -17,7 +17,6 @@ scraper/
 ├── scrapers/           # Shared operator modules (used by run-idr.js)
 │   ├── gme.js
 │   ├── gmoneytrans.js
-│   ├── sentbe.js
 │   ├── hanpass.js
 │   ├── sbi.js
 │   ├── jrf.js
@@ -35,14 +34,14 @@ scraper/
 
 | Corridor | File | Amount | Operators |
 |---|---|---|---|
-| Indonesia | run-idr.js | IDR 13,000,000 | GME, GMoneyTrans, Sentbe, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
-| Thailand | run-thb.js | THB 26,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay, Coinshot, JRF |
-| Mongolia | run-mnt.js | MNT 100,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay |
-| Vietnam | run-vnd.js | VND 5,000,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, JRF, E9Pay, Coinshot |
-| Nepal | run-npr.js | NPR 100,000 | GME, GMoneyTrans, Sentbe, Hanpass, JRF, E9Pay, Coinshot |
-| China | run-cny.js | CNY 10,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk |
-| Cambodia | run-khm.js | USD 1,000 | GME, GMoneyTrans, Sentbe, Hanpass, SBI, E9Pay |
-| Myanmar | run-mmk.js | MMK 5,000,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Indonesia | run-idr.js | IDR 13,000,000 | GME, GMoneyTrans, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
+| Thailand | run-thb.js | THB 26,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay, Coinshot, JRF |
+| Mongolia | run-mnt.js | MNT 100,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Vietnam | run-vnd.js | VND 5,000,000 | GME, GMoneyTrans, Hanpass, SBI, JRF, E9Pay, Coinshot |
+| Nepal | run-npr.js | NPR 100,000 | GME, GMoneyTrans, Hanpass, JRF, E9Pay, Coinshot |
+| China | run-cny.js | CNY 10,000 | GME, GMoneyTrans, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk |
+| Cambodia | run-khm.js | USD 1,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Myanmar | run-mmk.js | MMK 1,000,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
 
 ## How It Runs
 
@@ -102,7 +101,7 @@ Each row saved to Supabase:
 | Column | Type | Description |
 |---|---|---|
 | `run_hour` | text | ISO datetime truncated to hour |
-| `operator` | text | Operator name (GME, Sentbe, etc.) |
+| `operator` | text | Operator name (GME, Hanpass, etc.) |
 | `receiving_country` | text | Destination country |
 | `receive_amount` | numeric | Amount received in destination currency |
 | `send_amount_krw` | numeric | KRW amount excluding fee |
@@ -143,6 +142,3 @@ GMoneyTrans China uses Alipay as the payment method (`payment_type=Alipay`) beca
 
 Moin's site renders a fullscreen popup via a React portal (`#portalRoot`) that intercepts pointer events. It is dismissed with `page.evaluate(() => document.querySelector('#portalRoot div[style*="top: 21px"]')?.click())` before any interaction.
 
-### Sentbe Cambodia USD currency selector
-
-Sentbe's dropdown has both `캄보디아` (KHR) and `캄보디아 / 달러` (USD) entries. The selector uses `has-text("캄보디아 / 달러")` to avoid matching the wrong currency.

@@ -38,9 +38,9 @@ describe('applyFeeOverrides', () => {
 
   it('handles null delivery_method by defaulting to Bank Deposit', () => {
     const records = [
-      { operator: 'Sentbe', delivery_method: null, send_amount_krw: 1000000, service_fee: 0, total_sending_amount: 1000000 },
+      { operator: 'Hanpass', delivery_method: null, send_amount_krw: 1000000, service_fee: 0, total_sending_amount: 1000000 },
     ];
-    const feeMap = new Map([['Sentbe||Bank Deposit', 5000]]);
+    const feeMap = new Map([['Hanpass||Bank Deposit', 5000]]);
     const result = applyFeeOverrides(records, feeMap);
     expect(result[0].service_fee).toBe(5000);
     expect(result[0].total_sending_amount).toBe(1005000);
