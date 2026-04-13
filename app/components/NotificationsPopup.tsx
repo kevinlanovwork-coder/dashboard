@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 
 const STORAGE_KEY = 'dashboard-notifications-last-viewed';
-const ITEMS_PER_CATEGORY = 10;
 
 interface FailureItem {
   runHour: string;
@@ -41,14 +40,29 @@ interface ExpiredFeeItem {
   action: string;
 }
 
-// runHour is "YYYY-MM-DD HH:mm" (KST). Convert to ms for comparison.
+type TabKey = 'failures' | 'alerts' | 'outliers' | 'fees';
+type ColorKey = 'red' | 'blue' | 'amber' | 'purple';
+
 function runHourMs(rh: string): number {
   if (!rh) return 0;
   return new Date(rh.replace(' ', 'T')).getTime();
 }
 
+function groupByRunHour<T>(items: T[], getRh: (item: T) => string): { runHour: string; items: T[] }[] {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const rh = getRh(item) ?? '';
+    if (!map.has(rh)) map.set(rh, []);
+    map.get(rh)!.push(item);
+  }
+  return [...map.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([runHour, items]) => ({ runHour, items }));
+}
+
 export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>('failures');
   const [lastViewed, setLastViewed] = useState<number>(0);
   const [failures, setFailures] = useState<FailureItem[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -57,12 +71,10 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Load last viewed from localStorage on mount
   useEffect(() => {
     setLastViewed(Number(localStorage.getItem(STORAGE_KEY) ?? 0));
   }, []);
 
-  // Click-outside to close
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (open && dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -73,7 +85,6 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  // Fetch all 4 data sources (3 endpoints)
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -96,19 +107,28 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
 
   useEffect(() => {
     fetchAll();
-    const interval = setInterval(fetchAll, 5 * 60 * 1000); // refresh every 5 min
+    const interval = setInterval(fetchAll, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchAll]);
 
-  // "New" = newer than last viewed timestamp
   const newFailures = failures.filter(f => runHourMs(f.runHour) > lastViewed).length;
   const newAlerts = alerts.filter(a => new Date(a.notified_at).getTime() > lastViewed).length;
   const newOutliers = outliers.filter(o => runHourMs(o.runHour) > lastViewed).length;
   const newExpiredFees = expiredFees.filter(f => new Date(f.edited_at).getTime() > lastViewed).length;
   const totalNew = newFailures + newAlerts + newOutliers + newExpiredFees;
 
+  // Auto-select tab when popup opens — pick first tab with new items
+  function pickInitialTab(): TabKey {
+    if (newFailures > 0) return 'failures';
+    if (newAlerts > 0) return 'alerts';
+    if (newOutliers > 0) return 'outliers';
+    if (newExpiredFees > 0) return 'fees';
+    return 'failures';
+  }
+
   function handleToggle() {
     if (!open) {
+      setActiveTab(pickInitialTab());
       const now = Date.now();
       localStorage.setItem(STORAGE_KEY, String(now));
       setLastViewed(now);
@@ -117,7 +137,19 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
     setOpen(o => !o);
   }
 
-  const allEmpty = failures.length === 0 && alerts.length === 0 && outliers.length === 0 && expiredFees.length === 0;
+  const TABS: { key: TabKey; label: string; color: ColorKey; newCount: number }[] = [
+    { key: 'failures', label: isEn ? 'Failures' : '실패',    color: 'red',    newCount: newFailures },
+    { key: 'alerts',   label: isEn ? 'Alerts'   : '알림',    color: 'blue',   newCount: newAlerts },
+    { key: 'outliers', label: isEn ? 'Outliers' : '이상치', color: 'amber',  newCount: newOutliers },
+    { key: 'fees',     label: isEn ? 'Fee'      : '수수료', color: 'purple', newCount: newExpiredFees },
+  ];
+
+  const activeTabColors: Record<ColorKey, string> = {
+    red:    'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-b-2 border-red-500',
+    blue:   'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-b-2 border-blue-500',
+    amber:  'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-b-2 border-amber-500',
+    purple: 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-b-2 border-purple-500',
+  };
 
   return (
     <div ref={dropdownRef} className="relative">
@@ -136,71 +168,97 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
 
       {open && (
         <div className="absolute top-full right-0 mt-1 w-96 max-h-[80vh] overflow-y-auto bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl z-50">
-          <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-800">
+          <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-800 z-10">
             <h3 className="text-sm font-semibold">{isEn ? 'Notifications' : '알림'}</h3>
             {loading && <span className="text-xs text-slate-400">{isEn ? 'Loading...' : '불러오는 중...'}</span>}
           </div>
 
-          <Section
-            title={isEn ? 'Recent Failures' : '최근 실패'}
-            color="red"
-            items={failures.slice(0, ITEMS_PER_CATEGORY)}
-            renderItem={(f: FailureItem, i) => (
-              <div key={i}>
-                <div className="font-medium">{f.country} — {f.operator}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">{f.deliveryMethod} • {f.reason}</div>
-                <div className="text-xs text-slate-400 dark:text-slate-500">{f.runHour}</div>
-              </div>
-            )}
-          />
-          <Section
-            title={isEn ? 'Recent Alerts' : '최근 알림'}
-            color="blue"
-            items={alerts.slice(0, ITEMS_PER_CATEGORY)}
-            renderItem={(a: AlertItem) => (
-              <div key={a.id}>
-                <div className="font-medium">{a.receiving_country} — {a.operator}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {(a.alert_type ?? 'price') === 'rate' ? 'Rate' : 'Price'} gap: {a.price_gap > 0 ? '+' : ''}{a.price_gap.toLocaleString()}
-                </div>
-                <div className="text-xs text-slate-400 dark:text-slate-500">{new Date(a.notified_at).toLocaleString()}</div>
-              </div>
-            )}
-          />
-          <Section
-            title={isEn ? 'Outliers' : '이상치'}
-            color="amber"
-            items={outliers.slice(0, ITEMS_PER_CATEGORY)}
-            renderItem={(o: OutlierItem, i) => (
-              <div key={i}>
-                <div className="font-medium">{o.country} — {o.operator}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {o.scrapedValue?.toLocaleString()} vs median {o.medianValue?.toLocaleString()}
-                  {o.deviationPct != null && ` (${o.deviationPct}%)`}
-                </div>
-                <div className="text-xs text-slate-400 dark:text-slate-500">{o.runHour}</div>
-              </div>
-            )}
-          />
-          <Section
-            title={isEn ? 'Fee Expired' : '수수료 만료'}
-            color="purple"
-            items={expiredFees.slice(0, ITEMS_PER_CATEGORY)}
-            renderItem={(f: ExpiredFeeItem) => (
-              <div key={f.id}>
-                <div className="font-medium">{f.receiving_country} — {f.operator}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {f.delivery_method}: {f.old_fee?.toLocaleString()} → {f.new_fee?.toLocaleString()} KRW
-                </div>
-                <div className="text-xs text-slate-400 dark:text-slate-500">{new Date(f.edited_at).toLocaleString()}</div>
-              </div>
-            )}
-          />
+          {/* Tab bar */}
+          <div className="flex border-b border-slate-200 dark:border-slate-700 sticky top-[45px] bg-white dark:bg-slate-800 z-10">
+            {TABS.map(t => {
+              const isActive = activeTab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  className={`flex-1 px-2 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1 ${
+                    isActive ? activeTabColors[t.color] : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/30'
+                  }`}
+                >
+                  <span>{t.label}</span>
+                  {t.newCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold">{t.newCount}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
-          {allEmpty && (
-            <div className="px-4 py-8 text-center text-sm text-slate-400">
-              {isEn ? 'No notifications' : '알림 없음'}
-            </div>
+          {/* Tab content */}
+          {activeTab === 'failures' && (
+            <GroupedList
+              groups={groupByRunHour(failures, f => f.runHour)}
+              color="red"
+              emptyText={isEn ? 'No failures' : '실패 없음'}
+              renderItem={(f: FailureItem, i) => (
+                <div key={i}>
+                  <div className="font-medium">{f.country} — {f.operator}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{f.deliveryMethod} • {f.reason}</div>
+                  {f.errorMessage && (
+                    <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-2">{f.errorMessage}</div>
+                  )}
+                </div>
+              )}
+            />
+          )}
+
+          {activeTab === 'alerts' && (
+            <GroupedList
+              groups={groupByRunHour(alerts, a => a.run_hour)}
+              color="blue"
+              emptyText={isEn ? 'No alerts' : '알림 없음'}
+              renderItem={(a: AlertItem) => (
+                <div key={a.id}>
+                  <div className="font-medium">{a.receiving_country} — {a.operator}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {(a.alert_type ?? 'price') === 'rate' ? 'Rate' : 'Price'} gap: <span className={`font-mono ${a.price_gap < 0 ? 'text-red-500' : 'text-green-500'}`}>{a.price_gap > 0 ? '+' : ''}{a.price_gap.toLocaleString()}</span>
+                  </div>
+                </div>
+              )}
+            />
+          )}
+
+          {activeTab === 'outliers' && (
+            <GroupedList
+              groups={groupByRunHour(outliers, o => o.runHour)}
+              color="amber"
+              emptyText={isEn ? 'No outliers' : '이상치 없음'}
+              renderItem={(o: OutlierItem, i) => (
+                <div key={i}>
+                  <div className="font-medium">{o.country} — {o.operator}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {o.deliveryMethod} • {o.scrapedValue?.toLocaleString()} vs median {o.medianValue?.toLocaleString()}
+                    {o.deviationPct != null && ` (${o.deviationPct}%)`}
+                  </div>
+                </div>
+              )}
+            />
+          )}
+
+          {activeTab === 'fees' && (
+            <FlatList
+              items={expiredFees}
+              emptyText={isEn ? 'No expired fees' : '만료된 수수료 없음'}
+              renderItem={(f: ExpiredFeeItem) => (
+                <div key={f.id}>
+                  <div className="font-medium">{f.receiving_country} — {f.operator}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {f.delivery_method}: {f.old_fee?.toLocaleString()} → {f.new_fee?.toLocaleString()} KRW
+                  </div>
+                  <div className="text-xs text-slate-400 dark:text-slate-500">{new Date(f.edited_at).toLocaleString()}</div>
+                </div>
+              )}
+            />
           )}
         </div>
       )}
@@ -208,33 +266,58 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
   );
 }
 
-function Section<T>({ title, color, items, renderItem }: {
-  title: string;
-  color: 'red' | 'blue' | 'amber' | 'purple';
-  items: T[];
+function GroupedList<T>({ groups, color, emptyText, renderItem }: {
+  groups: { runHour: string; items: T[] }[];
+  color: 'red' | 'blue' | 'amber';
+  emptyText: string;
   renderItem: (item: T, idx: number) => ReactNode;
 }) {
-  if (items.length === 0) return null;
-  const colorClasses = {
-    red:    'border-l-red-500 bg-red-50 dark:bg-red-900/10 text-red-700 dark:text-red-300',
-    blue:   'border-l-blue-500 bg-blue-50 dark:bg-blue-900/10 text-blue-700 dark:text-blue-300',
-    amber:  'border-l-amber-500 bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-300',
-    purple: 'border-l-purple-500 bg-purple-50 dark:bg-purple-900/10 text-purple-700 dark:text-purple-300',
-  }[color];
+  if (groups.length === 0) return <EmptyState text={emptyText} />;
+  const headerBg: Record<'red' | 'blue' | 'amber', string> = {
+    red:   'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+    blue:  'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+    amber: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
+  };
   return (
-    <div className="border-b border-slate-100 dark:border-slate-700/50 last:border-b-0">
-      <div className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide border-l-4 ${colorClasses}`}>
-        {title} ({items.length})
-      </div>
-      <ul className="divide-y divide-slate-100 dark:divide-slate-700/50">
-        {items.map((item, i) => (
-          <li key={i} className="px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/30">
-            {renderItem(item, i)}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <>
+      {groups.map((g, gi) => (
+        <div key={gi} className="border-b border-slate-100 dark:border-slate-700/50 last:border-b-0">
+          <div className={`px-4 py-1.5 text-xs font-semibold flex justify-between ${headerBg[color]}`}>
+            <span>{g.runHour || '(no time)'}</span>
+            <span className="opacity-70">({g.items.length})</span>
+          </div>
+          <ul className="divide-y divide-slate-100 dark:divide-slate-700/50">
+            {g.items.map((item, i) => (
+              <li key={i} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                {renderItem(item, i)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </>
   );
+}
+
+function FlatList<T>({ items, emptyText, renderItem }: {
+  items: T[];
+  emptyText: string;
+  renderItem: (item: T, idx: number) => ReactNode;
+}) {
+  if (items.length === 0) return <EmptyState text={emptyText} />;
+  return (
+    <ul className="divide-y divide-slate-100 dark:divide-slate-700/50">
+      {items.map((item, i) => (
+        <li key={i} className="px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+          {renderItem(item, i)}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <div className="px-4 py-8 text-center text-sm text-slate-400">{text}</div>;
 }
 
 function BellIcon() {
