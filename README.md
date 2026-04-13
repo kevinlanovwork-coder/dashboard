@@ -46,7 +46,7 @@ Competitor websites
 | Nepal        | NPR      | 100,000 NPR        | Bank Deposit | GME, GMoneyTrans, Hanpass, JRF, E9Pay, Coinshot |
 | China        | CNY      | 10,000 CNY         | Alipay | GME, GMoneyTrans, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk |
 | Cambodia     | USD      | 1,000 USD          | Bank Deposit + Cash Pickup | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
-| Myanmar      | MMK      | 5,000,000 MMK      | Bank Deposit | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Myanmar      | MMK      | 1,000,000 MMK      | Bank Deposit | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
 | Pakistan     | PKR      | 100,000 PKR        | Bank Deposit | GME, GMoneyTrans, Hanpass, JRF |
 | Laos         | LAK      | 15,000,000 LAK     | Bank Deposit | GME, GMoneyTrans, E9Pay, Hanpass |
 | Sri Lanka    | LKR      | 230,000 LKR        | Bank Deposit | GME, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |

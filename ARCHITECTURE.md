@@ -190,7 +190,7 @@ Next.js Dashboard (Vercel)
 | Nepal | NPR | 100,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, JRF, E9Pay, Coinshot |
 | Philippines | PHP | 40,000 | Bank Deposit + Cash Pickup | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
 | Mongolia | MNT | 2,500,000 | Bank Deposit | GME, GMoneyTrans, Utransfer, Cross, E9Pay, Coinshot, Hanpass |
-| Myanmar | MMK | 5,000,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Myanmar | MMK | 1,000,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
 | Pakistan | PKR | 100,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, JRF |
 | Laos | LAK | 15,000,000 | Bank Deposit | GME, GMoneyTrans, E9Pay, Hanpass |
 | Sri Lanka | LKR | 230,000 | Bank Deposit | GME, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
