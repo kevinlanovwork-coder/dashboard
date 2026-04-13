@@ -343,7 +343,22 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   useEffect(() => {
     const saved = localStorage.getItem('dashboard-theme');
     if (saved === 'dark') setIsDark(true);
-    if (sessionStorage.getItem('alerts-auth') === 'true') setIsLoggedIn(true);
+
+    // Restore session if not expired; auto-logout when 8-hour timer hits
+    const expires = Number(sessionStorage.getItem('alerts-auth-expires') ?? 0);
+    const valid = sessionStorage.getItem('alerts-auth') === 'true' && Date.now() < expires;
+    if (valid) {
+      setIsLoggedIn(true);
+      const timer = setTimeout(() => {
+        sessionStorage.removeItem('alerts-auth');
+        sessionStorage.removeItem('alerts-auth-expires');
+        setIsLoggedIn(false);
+      }, expires - Date.now());
+      return () => clearTimeout(timer);
+    } else if (sessionStorage.getItem('alerts-auth')) {
+      sessionStorage.removeItem('alerts-auth');
+      sessionStorage.removeItem('alerts-auth-expires');
+    }
   }, []);
   useEffect(() => {
     localStorage.setItem('dashboard-theme', isDark ? 'dark' : 'light');
@@ -823,19 +838,30 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   </a>
                   <span className="text-slate-300 dark:text-slate-600">|</span>
                   <button
-                    onClick={() => { sessionStorage.removeItem('alerts-auth'); setIsLoggedIn(false); }}
+                    onClick={() => { sessionStorage.removeItem('alerts-auth'); sessionStorage.removeItem('alerts-auth-expires'); setIsLoggedIn(false); }}
                     className="px-3 py-1.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   >
                     {isEn ? 'Logout' : '로그아웃'}
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => { setLoginUser(''); setLoginPass(''); setLoginError(''); setShowLoginModal(true); }}
-                  className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  {isEn ? 'Login' : '로그인'}
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      alert(isEn ? 'You need to login' : '로그인이 필요합니다');
+                      setLoginUser(''); setLoginPass(''); setLoginError(''); setShowLoginModal(true);
+                    }}
+                    className="px-3 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                  >
+                    {isEn ? 'Settings' : '설정'}
+                  </button>
+                  <button
+                    onClick={() => { setLoginUser(''); setLoginPass(''); setLoginError(''); setShowLoginModal(true); }}
+                    className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    {isEn ? 'Login' : '로그인'}
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -1519,6 +1545,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   });
                   if (res.ok) {
                     sessionStorage.setItem('alerts-auth', 'true');
+                    sessionStorage.setItem('alerts-auth-expires', String(Date.now() + 8 * 60 * 60 * 1000));
                     setIsLoggedIn(true);
                     setShowLoginModal(false);
                   } else {

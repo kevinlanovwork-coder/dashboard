@@ -64,14 +64,24 @@ const COOLDOWN_OPTIONS = [
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
+function isSessionValid(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (sessionStorage.getItem('alerts-auth') !== 'true') return false;
+  const expires = Number(sessionStorage.getItem('alerts-auth-expires') ?? 0);
+  return Date.now() < expires;
+}
+
 export default function Settings() {
   useEffect(() => {
-    if (typeof window !== 'undefined' && sessionStorage.getItem('alerts-auth') !== 'true') {
+    if (typeof window === 'undefined') return;
+    if (!isSessionValid()) {
+      sessionStorage.removeItem('alerts-auth');
+      sessionStorage.removeItem('alerts-auth-expires');
       window.location.href = '/';
     }
   }, []);
 
-  if (typeof window !== 'undefined' && sessionStorage.getItem('alerts-auth') !== 'true') {
+  if (!isSessionValid()) {
     return null;
   }
 
