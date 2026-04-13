@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import type { RateRecord } from '@/app/lib/parseRates';
 import * as XLSX from 'xlsx';
+import NotificationsPopup from './NotificationsPopup';
 
 // ─── Translations ─────────────────────────────────────────────────────────────
 
@@ -836,6 +837,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   <a href="/settings" className="px-3 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
                     {isEn ? 'Settings' : '설정'}
                   </a>
+                  <NotificationsPopup isEn={isEn} />
                   <span className="text-slate-300 dark:text-slate-600">|</span>
                   <button
                     onClick={() => {
