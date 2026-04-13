@@ -203,6 +203,7 @@ Next.js Dashboard (Vercel)
 | Uzbekistan | UZS | 1,000,000 | Card Payment | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass |
 | Kazakhstan | USD | 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
 | Kyrgyzstan | USD | 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
+| Ghana | GHS | 5,000 | Bank Deposit | GME, GMoneyTrans |
 
 
 ## Scraper Libraries

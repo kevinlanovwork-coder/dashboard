@@ -59,6 +59,7 @@ Competitor websites
 | Uzbekistan   | UZS      | 1,000,000 UZS      | Card Payment | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass |
 | Kazakhstan   | USD      | 1,000 USD          | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
 | Kyrgyzstan   | USD      | 1,000 USD          | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
+| Ghana        | GHS      | 5,000 GHS          | Bank Deposit | GME, GMoneyTrans |
 
 ---
 
