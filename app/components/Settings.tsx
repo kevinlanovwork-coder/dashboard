@@ -72,18 +72,21 @@ function isSessionValid(): boolean {
 }
 
 export default function Settings() {
+  const [authChecked, setAuthChecked] = useState(false);
+
   useEffect(() => {
-    if (typeof window === 'undefined') return;
     if (!isSessionValid()) {
       localStorage.removeItem('alerts-auth');
       localStorage.removeItem('alerts-auth-expires');
       window.location.href = '/';
+      return;
     }
+    setAuthChecked(true);
   }, []);
 
-  if (!isSessionValid()) {
-    return null;
-  }
+  // Render nothing on server and on first client render — prevents hydration mismatch.
+  // After useEffect runs, authChecked flips to true and SettingsContent renders.
+  if (!authChecked) return null;
 
   return <SettingsContent />;
 }
