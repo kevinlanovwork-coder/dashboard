@@ -293,14 +293,24 @@ function FailuresGroupedList({ groups, isEn, emptyText }: {
             </div>
             {reasonGroups.map(([reason, items], ri) => {
               const meta = REASON_META[reason] ?? REASON_META.scrape_error;
-              // Group by country+operator, list delivery methods comma-separated
-              const byCountryOperator = new Map<string, string[]>();
+              // Step 1: methods per (country, operator)
+              const methodsPerOp = new Map<string, Set<string>>();
               for (const item of items) {
                 const key = `${item.country}||${item.operator}`;
-                if (!byCountryOperator.has(key)) byCountryOperator.set(key, []);
-                byCountryOperator.get(key)!.push(item.deliveryMethod);
+                if (!methodsPerOp.has(key)) methodsPerOp.set(key, new Set());
+                methodsPerOp.get(key)!.add(item.deliveryMethod);
               }
-              const countryOpEntries = [...byCountryOperator.entries()].sort(([a], [b]) => a.localeCompare(b));
+              // Step 2: merge operators that share country + same method set
+              type Group = { country: string; operators: string[]; methods: string[] };
+              const merged = new Map<string, Group>();
+              for (const [key, methodSet] of methodsPerOp) {
+                const [country, operator] = key.split('||');
+                const sortedMethods = [...methodSet].sort();
+                const mergeKey = `${country}||${sortedMethods.join('|')}`;
+                if (!merged.has(mergeKey)) merged.set(mergeKey, { country, operators: [], methods: sortedMethods });
+                merged.get(mergeKey)!.operators.push(operator);
+              }
+              const groupEntries = [...merged.values()].sort((a, b) => a.country.localeCompare(b.country));
               return (
                 <div key={ri}>
                   <div className={`px-4 py-1 text-xs font-medium flex justify-between ${meta.bg} ${meta.color}`}>
@@ -308,16 +318,12 @@ function FailuresGroupedList({ groups, isEn, emptyText }: {
                     <span className="opacity-70">({items.length})</span>
                   </div>
                   <ul className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                    {countryOpEntries.map(([key, methods], ci) => {
-                      const [country, operator] = key.split('||');
-                      const uniqueMethods = [...new Set(methods)].sort();
-                      return (
-                        <li key={ci} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                          <div className="font-medium">{country} — {operator}</div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">{uniqueMethods.join(', ')}</div>
-                        </li>
-                      );
-                    })}
+                    {groupEntries.map((g, ci) => (
+                      <li key={ci} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                        <div className="font-medium">{g.country} — {g.operators.sort().join(', ')}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">{g.methods.join(', ')}</div>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               );
