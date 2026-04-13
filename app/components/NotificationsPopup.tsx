@@ -48,6 +48,18 @@ function runHourMs(rh: string): number {
   return new Date(rh.replace(' ', 'T')).getTime();
 }
 
+const REASON_META: Record<string, { label: { en: string; ko: string }; color: string; bg: string }> = {
+  scrape_error:     { label: { en: 'Scrape Error',  ko: '스크랩 오류' }, color: 'text-orange-700 dark:text-orange-300', bg: 'bg-orange-100 dark:bg-orange-900/20' },
+  website_down:     { label: { en: 'Website Down',  ko: '사이트 다운' }, color: 'text-red-700 dark:text-red-300',       bg: 'bg-red-100 dark:bg-red-900/20' },
+  api_error:        { label: { en: 'API Error',     ko: 'API 오류' },    color: 'text-purple-700 dark:text-purple-300', bg: 'bg-purple-100 dark:bg-purple-900/20' },
+  not_scraped:      { label: { en: 'Not Scraped',   ko: '미실행' },      color: 'text-slate-700 dark:text-slate-300',   bg: 'bg-slate-200 dark:bg-slate-700/30' },
+  manually_deleted: { label: { en: 'Deleted',       ko: '삭제됨' },      color: 'text-slate-600 dark:text-slate-400',   bg: 'bg-slate-100 dark:bg-slate-800/50' },
+};
+function reasonLabel(r: string, isEn: boolean) {
+  const m = REASON_META[r];
+  return m ? (isEn ? m.label.en : m.label.ko) : r;
+}
+
 function groupByRunHour<T>(items: T[], getRh: (item: T) => string): { runHour: string; items: T[] }[] {
   const map = new Map<string, T[]>();
   for (const item of items) {
@@ -196,19 +208,10 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
 
           {/* Tab content */}
           {activeTab === 'failures' && (
-            <GroupedList
+            <FailuresGroupedList
               groups={groupByRunHour(failures, f => f.runHour)}
-              color="red"
+              isEn={isEn}
               emptyText={isEn ? 'No failures' : '실패 없음'}
-              renderItem={(f: FailureItem, i) => (
-                <div key={i}>
-                  <div className="font-medium">{f.country} — {f.operator}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{f.deliveryMethod} • {f.reason}</div>
-                  {f.errorMessage && (
-                    <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-2">{f.errorMessage}</div>
-                  )}
-                </div>
-              )}
             />
           )}
 
@@ -263,6 +266,54 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
         </div>
       )}
     </div>
+  );
+}
+
+function FailuresGroupedList({ groups, isEn, emptyText }: {
+  groups: { runHour: string; items: FailureItem[] }[];
+  isEn: boolean;
+  emptyText: string;
+}) {
+  if (groups.length === 0) return <EmptyState text={emptyText} />;
+  return (
+    <>
+      {groups.map((g, gi) => {
+        const byReason = new Map<string, FailureItem[]>();
+        for (const item of g.items) {
+          const r = item.reason || 'scrape_error';
+          if (!byReason.has(r)) byReason.set(r, []);
+          byReason.get(r)!.push(item);
+        }
+        const reasonGroups = [...byReason.entries()].sort((a, b) => b[1].length - a[1].length);
+        return (
+          <div key={gi} className="border-b border-slate-100 dark:border-slate-700/50 last:border-b-0">
+            <div className="px-4 py-1.5 text-xs font-semibold flex justify-between bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
+              <span>{g.runHour || '(no time)'}</span>
+              <span className="opacity-70">({g.items.length})</span>
+            </div>
+            {reasonGroups.map(([reason, items], ri) => {
+              const meta = REASON_META[reason] ?? REASON_META.scrape_error;
+              return (
+                <div key={ri}>
+                  <div className={`px-4 py-1 text-xs font-medium flex justify-between ${meta.bg} ${meta.color}`}>
+                    <span>{reasonLabel(reason, isEn)}</span>
+                    <span className="opacity-70">({items.length})</span>
+                  </div>
+                  <ul className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                    {items.map((item, i) => (
+                      <li key={i} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                        <div className="font-medium">{item.country} — {item.operator}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">{item.deliveryMethod}</div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </>
   );
 }
 
