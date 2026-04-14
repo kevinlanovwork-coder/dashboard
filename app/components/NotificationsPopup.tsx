@@ -237,12 +237,20 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
                 const fmt = (n: number) => isRate
                   ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                   : n.toLocaleString() + ' KRW';
+                const typePillBg = isRate
+                  ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                  : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300';
                 return (
                   <div key={a.id}>
-                    <div className="font-medium">{a.receiving_country} — {a.operator}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      <span>{a.receiving_country} — {a.operator}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${typePillBg}`}>
+                        {isRate ? (isEn ? 'Rate' : '환율') : (isEn ? 'Price' : '가격')}
+                      </span>
+                    </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400 flex justify-between gap-3">
                       <span>
-                        {isRate ? 'Rate' : 'Price'} gap: <span className={`font-mono ${a.price_gap < 0 ? 'text-red-500' : 'text-green-500'}`}>{a.price_gap > 0 ? '+' : ''}{fmt(a.price_gap)}</span>
+                        {isEn ? 'Gap' : '차이'}: <span className={`font-mono ${a.price_gap < 0 ? 'text-red-500' : 'text-green-500'}`}>{a.price_gap > 0 ? '+' : ''}{fmt(a.price_gap)}</span>
                       </span>
                       {a.threshold != null && (
                         <span>
