@@ -55,8 +55,6 @@ export async function loadFees(country) {
  */
 export function applyFeeOverrides(records, feeMap) {
   return records.map(r => {
-    // GME's fee always comes from its own API — skip override to prevent circular sync via seedFees()
-    if (r.operator === 'GME') return r;
     const key = `${r.operator}||${r.delivery_method ?? 'Bank Deposit'}`;
     const overrideFee = feeMap.get(key);
     if (overrideFee != null && overrideFee !== r.service_fee) {
@@ -81,23 +79,26 @@ export async function seedFees(records) {
     const country = records[0]?.receiving_country;
     if (!country) return;
 
-    // Fetch existing entries for this country
+    // Fetch existing entries for this country (include manually_edited flag)
     const { data: existing } = await supabase
       .from('service_fees')
-      .select('operator, delivery_method')
+      .select('operator, delivery_method, manually_edited')
       .eq('receiving_country', country);
 
     const existingKeys = new Set(
       (existing ?? []).map(e => `${e.operator}||${e.delivery_method}`)
     );
+    const manuallyEditedKeys = new Set(
+      (existing ?? []).filter(e => e.manually_edited).map(e => `${e.operator}||${e.delivery_method}`)
+    );
 
     const now = new Date().toISOString();
 
-    // GME: always sync fee from API to keep it up to date
+    // GME: sync fee from API — but only if not manually edited (to preserve admin overrides until expiry)
     const gmeRecords = records.filter(r => r.operator === 'GME' && r.receiving_country);
     for (const r of gmeRecords) {
       const key = `${r.operator}||${r.delivery_method ?? 'Bank Deposit'}`;
-      if (existingKeys.has(key)) {
+      if (existingKeys.has(key) && !manuallyEditedKeys.has(key)) {
         await supabase.from('service_fees')
           .update({ fee_krw: r.service_fee ?? 0, updated_at: now })
           .eq('receiving_country', country)
