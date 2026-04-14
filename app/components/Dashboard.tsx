@@ -1051,7 +1051,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           {/* Snapshot + Avg Gap */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Snapshot */}
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col">
               <div className="mb-3">
                 <h2 className="text-sm font-semibold">{t.snapshotTitle} - {selectedCountry} ({selectedDeliveryMethod || deliveryMethods[0]})</h2>
                 <div className="flex items-center justify-between mt-0.5">
@@ -1164,7 +1164,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               ) : (
                 <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.noData}</div>
               )}
-              <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
+              <div className="flex flex-wrap items-center gap-4 mt-auto pt-3 text-xs text-slate-500 dark:text-slate-500">
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />{t.gmeBaselineLegend}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.moreExpensiveLegend}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.cheaperLegend}</span>
@@ -1172,7 +1172,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             </div>
 
             {/* GME Trend + Operator Overlay */}
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="text-sm font-semibold">{t.trendTitle}</h2>
@@ -1224,7 +1224,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               )}
             </div>
             {filteredTrendData.length > 1 ? (
-              <ResponsiveContainer width="100%" height={Math.max(250, filteredSnapshotData.length * 38)}>
+              <ResponsiveContainer width="100%" height={Math.max(300, filteredSnapshotData.length * 38)}>
                 <LineChart data={filteredTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                   onClick={(e: Record<string, unknown>) => { const p = (e?.activePayload as Array<{ payload: { runHour?: string } }>)?.[0]; if (p?.payload?.runHour) jumpToDetailedData(p.payload.runHour); }}
                   style={{ cursor: 'pointer' }}
@@ -1289,7 +1289,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             ) : (
               <div className="h-48 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.insufficientData}</div>
             )}
-            <div className="flex items-center gap-4 mt-2 text-xs text-slate-500 dark:text-slate-500 flex-wrap">
+            <div className="flex items-center gap-4 mt-auto pt-2 text-xs text-slate-500 dark:text-slate-500 flex-wrap">
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />GME</span>
               {[...effectiveTrendOperators].map((op, i) => (
                 <span key={op} className="flex items-center gap-1.5">
