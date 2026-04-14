@@ -1177,102 +1177,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               </div>
             </div>
 
-            {/* Avg Gap */}
+            {/* GME Trend + Operator Overlay */}
             <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h2 className="text-sm font-semibold">{t.avgDiffTitle}</h2>
-                  <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(formatDate(effectiveAvgFromDate || avgDates[0] || ''), formatDate(effectiveAvgToDate || avgDates[avgDates.length - 1] || ''))}</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="flex items-center gap-1 text-xs">
-                    <select value={avgFromDate} onChange={e => setAvgFromDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">{isEn ? 'From' : '시작'}</option>
-                      {[...avgDates].reverse().map(d => <option key={d} value={d}>{formatDate(d)}</option>)}
-                    </select>
-                    <span className="text-slate-400">~</span>
-                    <select value={avgToDate} onChange={e => setAvgToDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">{isEn ? 'To' : '종료'}</option>
-                      {[...avgDates].reverse().map(d => <option key={d} value={d}>{formatDate(d)}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-              {/* Spacer to align chart start with snapshot (matches checkbox row height) */}
-              {snapshotOperators.length > 0 && <div className="mb-3" style={{ height: '24px' }} />}
-              {operatorStats.length > 0 ? (
-                <ResponsiveContainer width="100%" height={Math.max(300, operatorStats.length * 38)}>
-                  <BarChart data={operatorStats} layout="vertical" margin={{ top: 0, right: 70, left: 5, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
-                    <XAxis
-                      type="number"
-                      tickFormatter={v => `${v > 0 ? '+' : ''}${(v / 1000).toFixed(1)}K`}
-                      tick={{ fill: ct.tick, fontSize: 11 }}
-                      axisLine={{ stroke: ct.axisLine }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="operator"
-                      tick={(props: { x: string | number; y: string | number; payload: { value: string } }) => {
-                        const isGME = props.payload.value === 'GME';
-                        return (
-                          <text x={props.x} y={props.y} dy={4} textAnchor="end" fontSize={12}
-                            fill={isGME ? '#ef4444' : ct.yLabel}
-                            fontWeight={isGME ? 700 : 400}
-                          >
-                            {isGME ? '★ GME' : props.payload.value}
-                          </text>
-                        );
-                      }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={90}
-                    />
-                    <Tooltip content={(props) => <GapTooltip {...props} t={t} />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
-                    <ReferenceLine x={0} stroke={ct.refLine} strokeWidth={1.5} label={{ value: 'GME', position: 'top', fill: '#ef4444', fontSize: 11, fontWeight: 700 }} />
-                    <Bar dataKey="avgGap" radius={[0, 4, 4, 0]}>
-                      {operatorStats.map((entry, i) => (
-                        <Cell key={i} fill={entry.operator === 'GME' ? '#ef4444' : entry.avgGap < 0 ? '#22c55e' : '#f97316'} />
-                      ))}
-                      <LabelList
-                        dataKey="avgGap"
-                        content={(props) => {
-                          const { x, y, width, height, value } = props as { x?: string | number; y?: string | number; width?: string | number; height?: string | number; value?: string | number };
-                          const nx = Number(x), ny = Number(y), nw = Number(width), nh = Number(height), nv = Number(value);
-                          if (isNaN(nv) || isNaN(nx)) return null;
-                          const label = `${nv > 0 ? '+' : ''}${nv.toLocaleString('ko-KR')}`;
-                          const labelX = nw >= 0 ? nx + nw + 4 : nx + 4;
-                          return (
-                            <text x={labelX} y={ny + nh / 2} dy={4} fontSize={10} fill={isDark ? '#f1f5f9' : '#1e293b'} fontWeight={700} textAnchor="start">
-                              {label}
-                            </text>
-                          );
-                        }}
-                      />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : effectiveAvgFromDate && effectiveAvgToDate && effectiveAvgFromDate > effectiveAvgToDate ? (
-                <div className="h-72 flex items-center justify-center text-orange-500 dark:text-orange-400 text-sm">{t.dateRangeError}</div>
-              ) : (
-                <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.noData}</div>
-              )}
-              <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.gmeWins}</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.gmeLoses}</span>
-                <button
-                  onClick={() => setAvgGapSortDesc(d => !d)}
-                  className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
-                >
-                  {avgGapSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* GME Trend + Operator Overlay */}
-          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="text-sm font-semibold">{t.trendTitle}</h2>
@@ -1395,6 +1301,98 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 </span>
               ))}
             </div>
+          </div>
+          </div>
+
+          {/* Avg Gap */}
+          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h2 className="text-sm font-semibold">{t.avgDiffTitle}</h2>
+                  <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(formatDate(effectiveAvgFromDate || avgDates[0] || ''), formatDate(effectiveAvgToDate || avgDates[avgDates.length - 1] || ''))}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 text-xs">
+                    <select value={avgFromDate} onChange={e => setAvgFromDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">{isEn ? 'From' : '시작'}</option>
+                      {[...avgDates].reverse().map(d => <option key={d} value={d}>{formatDate(d)}</option>)}
+                    </select>
+                    <span className="text-slate-400">~</span>
+                    <select value={avgToDate} onChange={e => setAvgToDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">{isEn ? 'To' : '종료'}</option>
+                      {[...avgDates].reverse().map(d => <option key={d} value={d}>{formatDate(d)}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              {operatorStats.length > 0 ? (
+                <ResponsiveContainer width="100%" height={Math.max(300, operatorStats.length * 38)}>
+                  <BarChart data={operatorStats} layout="vertical" margin={{ top: 0, right: 70, left: 5, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
+                    <XAxis
+                      type="number"
+                      tickFormatter={v => `${v > 0 ? '+' : ''}${(v / 1000).toFixed(1)}K`}
+                      tick={{ fill: ct.tick, fontSize: 11 }}
+                      axisLine={{ stroke: ct.axisLine }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="operator"
+                      tick={(props: { x: string | number; y: string | number; payload: { value: string } }) => {
+                        const isGME = props.payload.value === 'GME';
+                        return (
+                          <text x={props.x} y={props.y} dy={4} textAnchor="end" fontSize={12}
+                            fill={isGME ? '#ef4444' : ct.yLabel}
+                            fontWeight={isGME ? 700 : 400}
+                          >
+                            {isGME ? '★ GME' : props.payload.value}
+                          </text>
+                        );
+                      }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={90}
+                    />
+                    <Tooltip content={(props) => <GapTooltip {...props} t={t} />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
+                    <ReferenceLine x={0} stroke={ct.refLine} strokeWidth={1.5} label={{ value: 'GME', position: 'top', fill: '#ef4444', fontSize: 11, fontWeight: 700 }} />
+                    <Bar dataKey="avgGap" radius={[0, 4, 4, 0]}>
+                      {operatorStats.map((entry, i) => (
+                        <Cell key={i} fill={entry.operator === 'GME' ? '#ef4444' : entry.avgGap < 0 ? '#22c55e' : '#f97316'} />
+                      ))}
+                      <LabelList
+                        dataKey="avgGap"
+                        content={(props) => {
+                          const { x, y, width, height, value } = props as { x?: string | number; y?: string | number; width?: string | number; height?: string | number; value?: string | number };
+                          const nx = Number(x), ny = Number(y), nw = Number(width), nh = Number(height), nv = Number(value);
+                          if (isNaN(nv) || isNaN(nx)) return null;
+                          const label = `${nv > 0 ? '+' : ''}${nv.toLocaleString('ko-KR')}`;
+                          const labelX = nw >= 0 ? nx + nw + 4 : nx + 4;
+                          return (
+                            <text x={labelX} y={ny + nh / 2} dy={4} fontSize={10} fill={isDark ? '#f1f5f9' : '#1e293b'} fontWeight={700} textAnchor="start">
+                              {label}
+                            </text>
+                          );
+                        }}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : effectiveAvgFromDate && effectiveAvgToDate && effectiveAvgFromDate > effectiveAvgToDate ? (
+                <div className="h-72 flex items-center justify-center text-orange-500 dark:text-orange-400 text-sm">{t.dateRangeError}</div>
+              ) : (
+                <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.noData}</div>
+              )}
+              <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.gmeWins}</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.gmeLoses}</span>
+                <button
+                  onClick={() => setAvgGapSortDesc(d => !d)}
+                  className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
+                >
+                  {avgGapSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
+                </button>
+              </div>
           </div>
 
           {/* Data Table */}
