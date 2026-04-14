@@ -315,11 +315,11 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [tablePage, setTablePage] = useState(0);
   const [tableDeliveryMethod, setTableDeliveryMethod] = useState('all');
   const [pageSize, setPageSize] = useState(20);
-  const [snapshotSortDesc, setSnapshotSortDesc] = useState(true);
+  const snapshotSortDesc = true;
   const [snapshotHiddenOps, setSnapshotHiddenOps] = useState<Set<string>>(new Set());
   const [avgFromDate, setAvgFromDate] = useState('');
   const [avgToDate, setAvgToDate] = useState('');
-  const [avgGapSortDesc, setAvgGapSortDesc] = useState(true);
+  const avgGapSortDesc = true;
   const [selectedTrendOperators, setSelectedTrendOperators] = useState<Set<string>>(new Set());
   const [gmeTrendFromDate, setGmeTrendFromDate] = useState('');
   const [gmeTrendToDate, setGmeTrendToDate] = useState('');
@@ -1168,12 +1168,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />{t.gmeBaselineLegend}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.moreExpensiveLegend}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.cheaperLegend}</span>
-                <button
-                  onClick={() => setSnapshotSortDesc(d => !d)}
-                  className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
-                >
-                  {snapshotSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
-                </button>
               </div>
             </div>
 
@@ -1386,12 +1380,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-500">
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.gmeWins}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.gmeLoses}</span>
-                <button
-                  onClick={() => setAvgGapSortDesc(d => !d)}
-                  className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
-                >
-                  {avgGapSortDesc ? '↓ Most Expensive' : '↑ Least Expensive'}
-                </button>
               </div>
           </div>
 
