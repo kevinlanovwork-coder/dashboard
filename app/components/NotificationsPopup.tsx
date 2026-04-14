@@ -278,56 +278,50 @@ function FailuresGroupedList({ groups, isEn, emptyText }: {
   return (
     <>
       {groups.map((g, gi) => {
-        const byReason = new Map<string, FailureItem[]>();
+        // Step 1: methods per (country, operator, reason)
+        const methodsPerKey = new Map<string, Set<string>>();
         for (const item of g.items) {
-          const r = item.reason || 'scrape_error';
-          if (!byReason.has(r)) byReason.set(r, []);
-          byReason.get(r)!.push(item);
+          const reason = item.reason || 'scrape_error';
+          const key = `${item.country}||${item.operator}||${reason}`;
+          if (!methodsPerKey.has(key)) methodsPerKey.set(key, new Set());
+          methodsPerKey.get(key)!.add(item.deliveryMethod);
         }
-        const reasonGroups = [...byReason.entries()].sort((a, b) => b[1].length - a[1].length);
+        // Step 2: merge operators that share country + same method set + same reason
+        type Group = { country: string; operators: string[]; methods: string[]; reason: string };
+        const merged = new Map<string, Group>();
+        for (const [key, methodSet] of methodsPerKey) {
+          const [country, operator, reason] = key.split('||');
+          const sortedMethods = [...methodSet].sort();
+          const mergeKey = `${country}||${sortedMethods.join('|')}||${reason}`;
+          if (!merged.has(mergeKey)) merged.set(mergeKey, { country, operators: [], methods: sortedMethods, reason });
+          merged.get(mergeKey)!.operators.push(operator);
+        }
+        // Sort: by reason, then country
+        const groupEntries = [...merged.values()].sort((a, b) =>
+          a.reason.localeCompare(b.reason) || a.country.localeCompare(b.country)
+        );
         return (
           <div key={gi} className="border-b border-slate-100 dark:border-slate-700/50 last:border-b-0">
             <div className="px-4 py-1.5 text-xs font-semibold flex justify-between bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
               <span>{g.runHour || '(no time)'}</span>
               <span className="opacity-70">({g.items.length})</span>
             </div>
-            {reasonGroups.map(([reason, items], ri) => {
-              const meta = REASON_META[reason] ?? REASON_META.scrape_error;
-              // Step 1: methods per (country, operator)
-              const methodsPerOp = new Map<string, Set<string>>();
-              for (const item of items) {
-                const key = `${item.country}||${item.operator}`;
-                if (!methodsPerOp.has(key)) methodsPerOp.set(key, new Set());
-                methodsPerOp.get(key)!.add(item.deliveryMethod);
-              }
-              // Step 2: merge operators that share country + same method set
-              type Group = { country: string; operators: string[]; methods: string[] };
-              const merged = new Map<string, Group>();
-              for (const [key, methodSet] of methodsPerOp) {
-                const [country, operator] = key.split('||');
-                const sortedMethods = [...methodSet].sort();
-                const mergeKey = `${country}||${sortedMethods.join('|')}`;
-                if (!merged.has(mergeKey)) merged.set(mergeKey, { country, operators: [], methods: sortedMethods });
-                merged.get(mergeKey)!.operators.push(operator);
-              }
-              const groupEntries = [...merged.values()].sort((a, b) => a.country.localeCompare(b.country));
-              return (
-                <div key={ri}>
-                  <div className={`px-4 py-1 text-xs font-medium flex justify-between ${meta.bg} ${meta.color}`}>
-                    <span>{reasonLabel(reason, isEn)}</span>
-                    <span className="opacity-70">({items.length})</span>
-                  </div>
-                  <ul className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                    {groupEntries.map((g, ci) => (
-                      <li key={ci} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                        <div className="font-medium">{g.country} — {g.operators.sort().join(', ')}</div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">{g.methods.join(', ')}</div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
+            <ul className="divide-y divide-slate-100 dark:divide-slate-700/50">
+              {groupEntries.map((grp, ci) => {
+                const meta = REASON_META[grp.reason] ?? REASON_META.scrape_error;
+                return (
+                  <li key={ci} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="font-medium">{grp.country} — {grp.operators.sort().join(', ')}</div>
+                      <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${meta.bg} ${meta.color}`}>
+                        {reasonLabel(grp.reason, isEn)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">{grp.methods.join(', ')}</div>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         );
       })}
