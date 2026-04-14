@@ -310,14 +310,14 @@ function FailuresGroupedList({ groups, isEn, emptyText }: {
               {groupEntries.map((grp, ci) => {
                 const meta = REASON_META[grp.reason] ?? REASON_META.scrape_error;
                 return (
-                  <li key={ci} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                    <div className="flex items-start justify-between gap-2">
+                  <li key={ci} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/30 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
                       <div className="font-medium">{grp.country} — {grp.operators.sort().join(', ')}</div>
-                      <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${meta.bg} ${meta.color}`}>
-                        {reasonLabel(grp.reason, isEn)}
-                      </span>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{grp.methods.join(', ')}</div>
                     </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">{grp.methods.join(', ')}</div>
+                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${meta.bg} ${meta.color}`}>
+                      {reasonLabel(grp.reason, isEn)}
+                    </span>
                   </li>
                 );
               })}
