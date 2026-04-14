@@ -182,6 +182,8 @@ function statusColor(status: string) {
   return { bg: 'bg-orange-500/20', text: 'text-orange-500 dark:text-orange-400', hex: '#f97316' };
 }
 
+const TREND_COLORS = ['#8b5cf6', '#10b981', '#f59e0b'];  // violet, emerald, amber
+
 /** Currency by country, or by `Country||Method` for corridors where the same country has different currencies per method. */
 const CURRENCY_MAP: Record<string, string> = {
   Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Nepal: 'NPR',
@@ -318,7 +320,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [avgFromDate, setAvgFromDate] = useState('');
   const [avgToDate, setAvgToDate] = useState('');
   const [avgGapSortDesc, setAvgGapSortDesc] = useState(true);
-  const [selectedTrendOperator, setSelectedTrendOperator] = useState('');
+  const [selectedTrendOperators, setSelectedTrendOperators] = useState<Set<string>>(new Set());
   const [gmeTrendFromDate, setGmeTrendFromDate] = useState('');
   const [gmeTrendToDate, setGmeTrendToDate] = useState('');
   const [operatorTrendFromDate, setOperatorTrendFromDate] = useState('');
@@ -640,23 +642,29 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     [byCountry]
   );
 
-  const effectiveTrendOperator = trendOperators.includes(selectedTrendOperator)
-    ? selectedTrendOperator
-    : '';
+  const effectiveTrendOperators = useMemo(
+    () => new Set([...selectedTrendOperators].filter(op => trendOperators.includes(op))),
+    [selectedTrendOperators, trendOperators]
+  );
 
-  // Combined trend: GME baseline + selected operator overlaid
+  // Combined trend: GME baseline + selected operators overlaid
   const combinedTrendData = useMemo(() => {
-    const opMap: Record<string, number> = {};
-    if (effectiveTrendOperator) {
+    const opMaps: Record<string, Record<string, number>> = {};
+    for (const op of effectiveTrendOperators) {
+      const map: Record<string, number> = {};
       byCountry
-        .filter(r => r.operator === effectiveTrendOperator && r.totalSendingAmount > 0)
-        .forEach(r => { if (!opMap[r.runHour]) opMap[r.runHour] = r.totalSendingAmount; });
+        .filter(r => r.operator === op && r.totalSendingAmount > 0)
+        .forEach(r => { if (!map[r.runHour]) map[r.runHour] = r.totalSendingAmount; });
+      opMaps[op] = map;
     }
-    return trendData.map(d => ({
-      ...d,
-      operatorAmount: opMap[d.runHour] ?? null,
-    }));
-  }, [trendData, byCountry, effectiveTrendOperator]);
+    return trendData.map(d => {
+      const extra: Record<string, number | null> = {};
+      for (const op of effectiveTrendOperators) {
+        extra[`op_${op}`] = opMaps[op]?.[d.runHour] ?? null;
+      }
+      return { ...d, ...extra };
+    });
+  }, [trendData, byCountry, effectiveTrendOperators]);
 
   const filteredTrendData = useMemo(
     () => combinedTrendData.filter(d => {
@@ -668,15 +676,16 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   );
 
   const operatorTrendData = useMemo(() => {
-    if (!effectiveTrendOperator) return [];
+    if (effectiveTrendOperators.size === 0) return [];
+    const firstOp = [...effectiveTrendOperators][0];
     const map: Record<string, number> = {};
     byCountry
-      .filter(r => r.operator === effectiveTrendOperator && r.totalSendingAmount > 0)
+      .filter(r => r.operator === firstOp && r.totalSendingAmount > 0)
       .forEach(r => { if (!map[r.runHour]) map[r.runHour] = r.totalSendingAmount; });
     return Object.entries(map)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([runHour, totalSendingAmount]) => ({ runHour, label: formatChartLabel(runHour), totalSendingAmount }));
-  }, [byCountry, effectiveTrendOperator]);
+  }, [byCountry, effectiveTrendOperators]);
 
   const operatorTrendDates = useMemo(
     () => [...new Set(operatorTrendData.map(d => d.runHour.slice(0, 10)))].sort().reverse(),
@@ -1270,14 +1279,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.trendSub}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <select
-                  value={effectiveTrendOperator}
-                  onChange={e => setSelectedTrendOperator(e.target.value)}
-                  className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
-                >
-                  <option value="">{isEn ? 'GME Only' : 'GME만'}</option>
-                  {trendOperators.map(op => <option key={op} value={op}>{op}</option>)}
-                </select>
                 <div className="flex items-center gap-1 text-xs">
                   <select value={gmeTrendFromDate} onChange={e => setGmeTrendFromDate(e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">{isEn ? 'From' : '시작'}</option>
@@ -1290,6 +1291,36 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   </select>
                 </div>
               </div>
+            </div>
+            {/* Operator checkboxes (max 3) */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3">
+              {trendOperators.map(op => {
+                const checked = selectedTrendOperators.has(op);
+                const disabled = !checked && selectedTrendOperators.size >= 3;
+                const sortedOps = [...effectiveTrendOperators];
+                const colorIdx = sortedOps.indexOf(op);
+                const dotColor = colorIdx >= 0 ? TREND_COLORS[colorIdx] : '#94a3b8';
+                return (
+                  <label key={op} className={`flex items-center gap-1 text-xs cursor-pointer select-none ${disabled ? 'opacity-40' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => {
+                        const next = new Set(selectedTrendOperators);
+                        if (next.has(op)) next.delete(op); else next.add(op);
+                        setSelectedTrendOperators(next);
+                      }}
+                      className="rounded w-3 h-3 accent-blue-500"
+                    />
+                    <span className="w-2 h-2 rounded-full inline-block" style={{ background: dotColor }} />
+                    <span className="text-slate-600 dark:text-slate-300">{op}</span>
+                  </label>
+                );
+              })}
+              {selectedTrendOperators.size >= 3 && (
+                <span className="text-[10px] text-slate-400 ml-1">({isEn ? 'max 3' : '최대 3'})</span>
+              )}
             </div>
             {filteredTrendData.length > 1 ? (
               <ResponsiveContainer width="100%" height={250}>
@@ -1321,7 +1352,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                           <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{label}</p>
                           {payload.map((p, i) => (
                             <p key={i} className="font-mono" style={{ color: p.color }}>
-                              {p.name === 'gmeBaseline' ? 'GME' : effectiveTrendOperator}: {formatKRW(p.value as number, t)}
+                              {p.name === 'gmeBaseline' ? 'GME' : String(p.name ?? '').replace(/^op_/, '')}: {formatKRW(p.value as number, t)}
                             </p>
                           ))}
                         </div>
@@ -1337,18 +1368,19 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     dot={{ fill: '#ef4444', r: 2, strokeWidth: 0 }}
                     activeDot={{ r: 5, fill: '#f87171', strokeWidth: 0 }}
                   />
-                  {effectiveTrendOperator && (
+                  {[...effectiveTrendOperators].map((op, i) => (
                     <Line
+                      key={op}
                       type="monotone"
-                      dataKey="operatorAmount"
-                      name="operatorAmount"
-                      stroke="#8b5cf6"
+                      dataKey={`op_${op}`}
+                      name={op}
+                      stroke={TREND_COLORS[i % TREND_COLORS.length]}
                       strokeWidth={2}
-                      dot={{ fill: '#8b5cf6', r: 2, strokeWidth: 0 }}
-                      activeDot={{ r: 5, fill: '#a78bfa', strokeWidth: 0 }}
+                      dot={{ fill: TREND_COLORS[i % TREND_COLORS.length], r: 2, strokeWidth: 0 }}
+                      activeDot={{ r: 5, fill: TREND_COLORS[i % TREND_COLORS.length], strokeWidth: 0 }}
                       connectNulls
                     />
-                  )}
+                  ))}
                 </LineChart>
               </ResponsiveContainer>
             ) : effectiveGmeTrendFromDate && effectiveGmeTrendToDate && effectiveGmeTrendFromDate > effectiveGmeTrendToDate ? (
@@ -1356,11 +1388,13 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             ) : (
               <div className="h-48 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.insufficientData}</div>
             )}
-            <div className="flex items-center gap-4 mt-2 text-xs text-slate-500 dark:text-slate-500">
+            <div className="flex items-center gap-4 mt-2 text-xs text-slate-500 dark:text-slate-500 flex-wrap">
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />GME</span>
-              {effectiveTrendOperator && (
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-violet-500 inline-block" />{effectiveTrendOperator}</span>
-              )}
+              {[...effectiveTrendOperators].map((op, i) => (
+                <span key={op} className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: TREND_COLORS[i % TREND_COLORS.length] }} />{op}
+                </span>
+              ))}
             </div>
           </div>
 
