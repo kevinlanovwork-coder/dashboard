@@ -1313,7 +1313,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                       }}
                       className="rounded w-3 h-3 accent-blue-500"
                     />
-                    <span className="w-2 h-2 rounded-full inline-block" style={{ background: dotColor }} />
                     <span className="text-slate-600 dark:text-slate-300">{op}</span>
                   </label>
                 );
