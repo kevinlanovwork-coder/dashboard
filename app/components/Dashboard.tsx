@@ -1197,9 +1197,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               {trendOperators.map(op => {
                 const checked = selectedTrendOperators.has(op);
                 const disabled = !checked && selectedTrendOperators.size >= 3;
-                const sortedOps = [...effectiveTrendOperators];
-                const colorIdx = sortedOps.indexOf(op);
-                const dotColor = colorIdx >= 0 ? TREND_COLORS[colorIdx] : '#94a3b8';
                 return (
                   <label key={op} className={`flex items-center gap-1 text-xs cursor-pointer select-none ${disabled ? 'opacity-40' : ''}`}>
                     <input
@@ -1217,8 +1214,13 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   </label>
                 );
               })}
-              {selectedTrendOperators.size >= 3 && (
-                <span className="text-[10px] text-slate-400 ml-1">({isEn ? 'max 3' : '최대 3'})</span>
+              {selectedTrendOperators.size > 0 && (
+                <button
+                  onClick={() => setSelectedTrendOperators(new Set())}
+                  className="ml-auto text-[11px] text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                >
+                  {isEn ? 'Clear all' : '전체 해제'}
+                </button>
               )}
             </div>
             {filteredTrendData.length > 1 ? (
