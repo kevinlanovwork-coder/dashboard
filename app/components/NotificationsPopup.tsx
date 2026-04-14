@@ -48,6 +48,17 @@ function runHourMs(rh: string): number {
   return new Date(rh.replace(' ', 'T')).getTime();
 }
 
+function FormattedRunHour({ rh }: { rh: string }) {
+  if (!rh) return <span>(no time)</span>;
+  const [date, time] = rh.split(' ');
+  return (
+    <>
+      <span>{date.replace(/-/g, '/')}</span>
+      <span className="ml-3">{time ?? ''}</span>
+    </>
+  );
+}
+
 const REASON_META: Record<string, { label: { en: string; ko: string }; color: string; bg: string }> = {
   scrape_error:     { label: { en: 'Scrape Error',  ko: '스크랩 오류' }, color: 'text-orange-700 dark:text-orange-300', bg: 'bg-orange-100 dark:bg-orange-900/20' },
   website_down:     { label: { en: 'Website Down',  ko: '사이트 다운' }, color: 'text-red-700 dark:text-red-300',       bg: 'bg-red-100 dark:bg-red-900/20' },
@@ -303,7 +314,7 @@ function FailuresGroupedList({ groups, isEn, emptyText }: {
         return (
           <div key={gi} className="border-b border-slate-100 dark:border-slate-700/50 last:border-b-0">
             <div className="px-4 py-1.5 text-xs font-semibold flex justify-between bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
-              <span>{g.runHour || '(no time)'}</span>
+              <span><FormattedRunHour rh={g.runHour} /></span>
               <span className="opacity-70">({g.items.length})</span>
             </div>
             <ul className="divide-y divide-slate-100 dark:divide-slate-700/50">
@@ -346,7 +357,7 @@ function GroupedList<T>({ groups, color, emptyText, renderItem }: {
       {groups.map((g, gi) => (
         <div key={gi} className="border-b border-slate-100 dark:border-slate-700/50 last:border-b-0">
           <div className={`px-4 py-1.5 text-xs font-semibold flex justify-between ${headerBg[color]}`}>
-            <span>{g.runHour || '(no time)'}</span>
+            <span><FormattedRunHour rh={g.runHour} /></span>
             <span className="opacity-70">({g.items.length})</span>
           </div>
           <ul className="divide-y divide-slate-100 dark:divide-slate-700/50">
