@@ -284,25 +284,21 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
           )}
 
           {activeTab === 'fees' && (
-            <FlatList
-              items={expiredFees}
-              emptyText={isEn ? 'No expired fees' : '만료된 수수료 없음'}
-              renderItem={(f: ExpiredFeeItem) => {
+            <GroupedList
+              groups={groupByRunHour(expiredFees, f => {
                 const d = new Date(f.edited_at);
-                const date = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
-                const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                return (
-                  <div key={f.id}>
-                    <div className="font-medium">{f.receiving_country} — {f.operator}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
-                      {f.delivery_method}: {f.old_fee?.toLocaleString()} → {f.new_fee?.toLocaleString()} KRW
-                    </div>
-                    <div className="text-xs text-slate-400 dark:text-slate-500">
-                      <span>{date}</span><span className="ml-3">{time}</span>
-                    </div>
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+              })}
+              color="purple"
+              emptyText={isEn ? 'No expired fees' : '만료된 수수료 없음'}
+              renderItem={(f: ExpiredFeeItem) => (
+                <div key={f.id}>
+                  <div className="font-medium">{f.receiving_country} — {f.operator}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {f.delivery_method}: {f.old_fee?.toLocaleString()} → {f.new_fee?.toLocaleString()} KRW
                   </div>
-                );
-              }}
+                </div>
+              )}
             />
           )}
         </div>
@@ -373,15 +369,16 @@ function FailuresGroupedList({ groups, isEn, emptyText }: {
 
 function GroupedList<T>({ groups, color, emptyText, renderItem }: {
   groups: { runHour: string; items: T[] }[];
-  color: 'red' | 'blue' | 'amber';
+  color: 'red' | 'blue' | 'amber' | 'purple';
   emptyText: string;
   renderItem: (item: T, idx: number) => ReactNode;
 }) {
   if (groups.length === 0) return <EmptyState text={emptyText} />;
-  const headerBg: Record<'red' | 'blue' | 'amber', string> = {
-    red:   'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
-    blue:  'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
-    amber: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
+  const headerBg: Record<'red' | 'blue' | 'amber' | 'purple', string> = {
+    red:    'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+    blue:   'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+    amber:  'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
+    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
   };
   return (
     <>
