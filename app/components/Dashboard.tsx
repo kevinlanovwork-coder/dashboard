@@ -1222,7 +1222,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               )}
             </div>
             {filteredTrendData.length > 1 ? (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={Math.max(250, filteredSnapshotData.length * 38)}>
                 <LineChart data={filteredTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                   onClick={(e: Record<string, unknown>) => { const p = (e?.activePayload as Array<{ payload: { runHour?: string } }>)?.[0]; if (p?.payload?.runHour) jumpToDetailedData(p.payload.runHour); }}
                   style={{ cursor: 'pointer' }}
