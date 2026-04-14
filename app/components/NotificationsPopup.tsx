@@ -240,13 +240,14 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
                 return (
                   <div key={a.id}>
                     <div className="font-medium">{a.receiving_country} — {a.operator}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
-                      {isRate ? 'Rate' : 'Price'} gap: <span className={`font-mono ${a.price_gap < 0 ? 'text-red-500' : 'text-green-500'}`}>{a.price_gap > 0 ? '+' : ''}{fmt(a.price_gap)}</span>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 flex justify-between gap-3">
+                      <span>
+                        {isRate ? 'Rate' : 'Price'} gap: <span className={`font-mono ${a.price_gap < 0 ? 'text-red-500' : 'text-green-500'}`}>{a.price_gap > 0 ? '+' : ''}{fmt(a.price_gap)}</span>
+                      </span>
                       {a.threshold != null && (
-                        <>
-                          <span className="mx-1.5 text-slate-400 dark:text-slate-500">•</span>
+                        <span>
                           {isEn ? 'Threshold' : '임계값'}: <span className="font-mono">{a.threshold > 0 ? '+' : ''}{fmt(a.threshold)}</span>
-                        </>
+                        </span>
                       )}
                     </div>
                   </div>
