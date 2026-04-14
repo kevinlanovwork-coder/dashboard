@@ -287,15 +287,22 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
             <FlatList
               items={expiredFees}
               emptyText={isEn ? 'No expired fees' : '만료된 수수료 없음'}
-              renderItem={(f: ExpiredFeeItem) => (
-                <div key={f.id}>
-                  <div className="font-medium">{f.receiving_country} — {f.operator}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {f.delivery_method}: {f.old_fee?.toLocaleString()} → {f.new_fee?.toLocaleString()} KRW
+              renderItem={(f: ExpiredFeeItem) => {
+                const d = new Date(f.edited_at);
+                const date = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+                const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                return (
+                  <div key={f.id}>
+                    <div className="font-medium">{f.receiving_country} — {f.operator}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      {f.delivery_method}: {f.old_fee?.toLocaleString()} → {f.new_fee?.toLocaleString()} KRW
+                    </div>
+                    <div className="text-xs text-slate-400 dark:text-slate-500">
+                      <span>{date}</span><span className="ml-3">{time}</span>
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-400 dark:text-slate-500">{new Date(f.edited_at).toLocaleString()}</div>
-                </div>
-              )}
+                );
+              }}
             />
           )}
         </div>
