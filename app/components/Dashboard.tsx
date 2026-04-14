@@ -28,6 +28,8 @@ const EN = {
   snapshotSub: (time: string) => `as of ${time} (KRW, lower is better)`,
   noData: 'No data',
   gmeBaselineLegend: 'GME (baseline)',
+  gmeRankTitle: 'GME Competitive Position',
+  gmeRankSub: 'GME price rank over time (1st = cheapest)',
   moreExpensiveLegend: 'More expensive than GME',
   cheaperLegend: 'Cheaper than GME',
   rateLegend: (curr: string, perKRW: boolean) => perKRW ? `( ) = Exchange rate (${curr} per 1 KRW)` : `( ) = Exchange rate (KRW per 1 ${curr})`,
@@ -95,6 +97,8 @@ const KO = {
   snapshotSub: (time: string) => `${time} 기준 (KRW, 낮을수록 유리)`,
   noData: '데이터 없음',
   gmeBaselineLegend: 'GME (기준)',
+  gmeRankTitle: 'GME 경쟁 순위',
+  gmeRankSub: '시간에 따른 GME 가격 순위 (1위 = 최저가)',
   moreExpensiveLegend: 'GME보다 비쌈',
   cheaperLegend: 'GME보다 저렴',
   rateLegend: (curr: string, perKRW: boolean) => perKRW ? `( ) = 환율 (1 KRW 기준 ${curr})` : `( ) = 환율 (1 ${curr} 기준 KRW)`,
@@ -631,6 +635,24 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
       .map(([runHour, gmeBaseline]) => ({ runHour, label: formatChartLabel(runHour), gmeBaseline }));
   }, [byCountry]);
 
+  const gmeRankData = useMemo(() => {
+    const runHourMap = new Map<string, { operator: string; total: number }[]>();
+    byCountry
+      .filter(r => r.totalSendingAmount > 0)
+      .forEach(r => {
+        if (!runHourMap.has(r.runHour)) runHourMap.set(r.runHour, []);
+        runHourMap.get(r.runHour)!.push({ operator: r.operator, total: r.totalSendingAmount });
+      });
+    const result: { runHour: string; label: string; rank: number; total: number }[] = [];
+    for (const [runHour, operators] of runHourMap) {
+      operators.sort((a, b) => a.total - b.total);
+      const gmeIdx = operators.findIndex(o => o.operator === 'GME');
+      if (gmeIdx === -1) continue;
+      result.push({ runHour, label: formatChartLabel(runHour), rank: gmeIdx + 1, total: operators.length });
+    }
+    return result.sort((a, b) => a.runHour.localeCompare(b.runHour));
+  }, [byCountry]);
+
   const gmeTrendDates = useMemo(
     () => [...new Set(trendData.map(d => d.runHour.slice(0, 10)))].sort().reverse(),
     [trendData]
@@ -638,6 +660,15 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
 
   const effectiveGmeTrendFromDate = gmeTrendDates.includes(gmeTrendFromDate) ? gmeTrendFromDate : '';
   const effectiveGmeTrendToDate = gmeTrendDates.includes(gmeTrendToDate) ? gmeTrendToDate : '';
+
+  const filteredRankData = useMemo(
+    () => gmeRankData.filter(d => {
+      if (effectiveGmeTrendFromDate && d.runHour < effectiveGmeTrendFromDate) return false;
+      if (effectiveGmeTrendToDate && d.runHour > effectiveGmeTrendToDate + 'T23:59') return false;
+      return true;
+    }),
+    [gmeRankData, effectiveGmeTrendFromDate, effectiveGmeTrendToDate]
+  );
 
   const trendOperators = useMemo(
     () => [...new Set(byCountry.filter(r => r.status !== 'GME').map(r => r.operator))].sort(),
@@ -1316,6 +1347,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           </div>
           </div>
 
+          {/* Avg Gap + Rank */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Avg Gap */}
           <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
               <div className="flex items-start justify-between mb-3">
@@ -1399,6 +1432,64 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.gmeWins}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.gmeLoses}</span>
               </div>
+          </div>
+
+          {/* GME Competitive Position */}
+          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col">
+            <div className="mb-3">
+              <h2 className="text-sm font-semibold">{t.gmeRankTitle}</h2>
+              <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.gmeRankSub}</p>
+            </div>
+            {filteredRankData.length > 1 ? (
+              <ResponsiveContainer width="100%" height={Math.max(300, operatorStats.length * 38)}>
+                <LineChart data={filteredRankData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: ct.tick, fontSize: 11 }}
+                    axisLine={{ stroke: ct.axisLine }}
+                    tickLine={false}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    reversed
+                    domain={[1, 'dataMax']}
+                    allowDecimals={false}
+                    tick={{ fill: ct.tick, fontSize: 11 }}
+                    axisLine={{ stroke: ct.axisLine }}
+                    tickLine={false}
+                    width={30}
+                    tickFormatter={(v: number) => `#${v}`}
+                  />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      const d = payload[0]?.payload as { rank: number; total: number };
+                      return (
+                        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm shadow-xl">
+                          <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{label}</p>
+                          <p className="font-mono text-red-500 font-bold">#{d.rank} <span className="text-slate-400 font-normal text-xs">{isEn ? `of ${d.total} operators` : `${d.total}개 중`}</span></p>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="rank"
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    dot={{ fill: '#ef4444', r: 2, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#f87171', strokeWidth: 0 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">{t.insufficientData}</div>
+            )}
+            <div className="flex items-center gap-4 mt-auto pt-2 text-xs text-slate-500 dark:text-slate-500">
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />GME {isEn ? 'Rank' : '순위'}</span>
+            </div>
+          </div>
           </div>
 
           {/* Data Table */}
