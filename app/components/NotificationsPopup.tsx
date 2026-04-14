@@ -18,6 +18,7 @@ interface AlertItem {
   operator: string;
   alert_type?: string;
   price_gap: number;
+  threshold?: number | null;
   notified_at: string;
 }
 interface OutlierItem {
@@ -231,14 +232,26 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
               groups={groupByRunHour(alerts, a => a.run_hour)}
               color="blue"
               emptyText={isEn ? 'No alerts' : '알림 없음'}
-              renderItem={(a: AlertItem) => (
-                <div key={a.id}>
-                  <div className="font-medium">{a.receiving_country} — {a.operator}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {(a.alert_type ?? 'price') === 'rate' ? 'Rate' : 'Price'} gap: <span className={`font-mono ${a.price_gap < 0 ? 'text-red-500' : 'text-green-500'}`}>{a.price_gap > 0 ? '+' : ''}{a.price_gap.toLocaleString()}</span>
+              renderItem={(a: AlertItem) => {
+                const isRate = (a.alert_type ?? 'price') === 'rate';
+                const fmt = (n: number) => isRate
+                  ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  : n.toLocaleString() + ' KRW';
+                return (
+                  <div key={a.id}>
+                    <div className="font-medium">{a.receiving_country} — {a.operator}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      {isRate ? 'Rate' : 'Price'} gap: <span className={`font-mono ${a.price_gap < 0 ? 'text-red-500' : 'text-green-500'}`}>{a.price_gap > 0 ? '+' : ''}{fmt(a.price_gap)}</span>
+                      {a.threshold != null && (
+                        <>
+                          <span className="mx-1.5 text-slate-400 dark:text-slate-500">•</span>
+                          {isEn ? 'Threshold' : '임계값'}: <span className="font-mono">{a.threshold > 0 ? '+' : ''}{fmt(a.threshold)}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              }}
             />
           )}
 
