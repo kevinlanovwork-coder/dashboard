@@ -96,12 +96,12 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setLastViewed(Number(localStorage.getItem(STORAGE_KEY) ?? 0));
-  }, []);
-
-  useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (open && dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        // Mark as viewed when closing via click-outside
+        const now = Date.now();
+        localStorage.setItem(STORAGE_KEY, String(now));
+        setLastViewed(now);
         setOpen(false);
       }
     }
@@ -130,8 +130,9 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
   }, []);
 
   useEffect(() => {
+    setLastViewed(Number(localStorage.getItem(STORAGE_KEY) ?? 0));
     fetchAll();
-    const interval = setInterval(fetchAll, 5 * 60 * 1000);
+    const interval = setInterval(fetchAll, 2 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchAll]);
 
@@ -153,10 +154,12 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
   function handleToggle() {
     if (!open) {
       setActiveTab(pickInitialTab());
+      fetchAll();
+    } else {
+      // Mark as viewed when CLOSING the popup
       const now = Date.now();
       localStorage.setItem(STORAGE_KEY, String(now));
       setLastViewed(now);
-      fetchAll();
     }
     setOpen(o => !o);
   }
