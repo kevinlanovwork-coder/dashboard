@@ -293,7 +293,12 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
               emptyText={isEn ? 'No expired fees' : '만료된 수수료 없음'}
               renderItem={(f: ExpiredFeeItem) => (
                 <div key={f.id}>
-                  <div className="font-medium">{f.receiving_country} — {f.operator}</div>
+                  <div className="font-medium flex items-center justify-between gap-2">
+                    <span>{f.receiving_country} — {f.operator}</span>
+                    <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                      {isEn ? 'Expired' : '만료'}
+                    </span>
+                  </div>
                   <div className="text-xs text-slate-500 dark:text-slate-400">
                     {f.delivery_method}: {f.old_fee?.toLocaleString()} → {f.new_fee?.toLocaleString()} KRW
                   </div>
