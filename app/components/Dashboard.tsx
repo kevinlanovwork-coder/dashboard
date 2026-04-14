@@ -18,6 +18,7 @@ const EN = {
   latestSnapshot: 'Latest Snapshot',
   receiveBaseline: 'Receive Baseline',
   latestGMEBaseline: 'Latest GME Baseline',
+  latestGMERate: 'Latest GME Rate',
   depositMethod: 'Deposit Method',
   cheaperCompetitors: 'Cheaper Competitors',
   basedOnSnapshot: 'Based on snapshot',
@@ -84,6 +85,7 @@ const KO = {
   latestSnapshot: '최신 스냅샷',
   receiveBaseline: '수령 기준액',
   latestGMEBaseline: '최신 GME 기준가',
+  latestGMERate: '최신 GME 환율',
   depositMethod: '입금 방식',
   cheaperCompetitors: '더 저렴한 경쟁사',
   basedOnSnapshot: '스냅샷 기준',
@@ -706,6 +708,14 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const expensiveCount = snapshot.filter(r => r.status === 'Expensive than GME').length;
   const totalCompetitors = snapshot.filter(r => r.status !== 'GME').length;
   const receiveBaseline = byCountry[0]?.receiveAmount ?? null;
+  const gmeRate = (() => {
+    const gme = snapshot.find(r => r.status === 'GME');
+    if (!gme || !gme.sendAmountKRW || !gme.receiveAmount) return null;
+    const raw = gme.receiveAmount / rateExchangeKRW(gme);
+    const isPerKRW = raw >= 1;
+    const rate = parseFloat((isPerKRW ? raw : rateExchangeKRW(gme) / gme.receiveAmount).toFixed(2));
+    return { rate, isPerKRW };
+  })();
   const receiveCurrency = (() => {
     if (selectedDeliveryMethod) {
       const override = CURRENCY_MAP[`${selectedCountry}||${selectedDeliveryMethod}`];
@@ -1014,7 +1024,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           {/* KPI Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left group — aligns with Snapshot Comparison below */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <KPICard
                 title={t.receiveBaseline}
                 value={receiveBaseline ? `${receiveBaseline.toLocaleString()} ${receiveCurrency}` : '-'}
@@ -1025,6 +1035,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 value={latestGMEBaseline ? `${latestGMEBaseline.toLocaleString('ko-KR')}${t.won}` : '-'}
                 sub={latestRunHour ? formatRunHour(latestRunHour) : ''}
                 color="text-blue-600 dark:text-blue-400"
+              />
+              <KPICard
+                title={t.latestGMERate}
+                value={gmeRate ? gmeRate.rate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                sub={gmeRate ? (gmeRate.isPerKRW ? `${receiveCurrency} per 1 KRW` : `KRW per 1 ${receiveCurrency}`) : ''}
+                color="text-emerald-600 dark:text-emerald-400"
               />
             </div>
             {/* Right group — aligns with Avg Price Difference below */}
