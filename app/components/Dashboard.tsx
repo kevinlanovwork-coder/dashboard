@@ -1217,7 +1217,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               {selectedTrendOperators.size > 0 && (
                 <button
                   onClick={() => setSelectedTrendOperators(new Set())}
-                  className="ml-auto text-[11px] text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                  className="ml-auto px-2 py-0.5 text-[11px] rounded border border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-red-50 hover:border-red-300 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:border-red-700 dark:hover:text-red-400 transition-colors"
                 >
                   {isEn ? 'Clear all' : '전체 해제'}
                 </button>
