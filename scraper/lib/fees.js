@@ -94,20 +94,24 @@ export async function seedFees(records) {
 
     const now = new Date().toISOString();
 
-    // GME: sync fee from API — but only if not manually edited (to preserve admin overrides until expiry)
-    const gmeRecords = records.filter(r => r.operator === 'GME' && r.receiving_country);
-    for (const r of gmeRecords) {
+    // API-based operators whose fees are dynamic and authoritative — sync every run
+    const API_OPERATORS = new Set(['GME', 'GMoneyTrans', 'Hanpass']);
+
+    // Sync API operators' fees — skip if manually edited (preserve admin overrides until expiry)
+    for (const r of records.filter(r => API_OPERATORS.has(r.operator) && r.receiving_country)) {
       const key = `${r.operator}||${r.delivery_method ?? 'Bank Deposit'}`;
-      if (existingKeys.has(key) && !manuallyEditedKeys.has(key)) {
-        await supabase.from('service_fees')
-          .update({ fee_krw: r.service_fee ?? 0, updated_at: now })
-          .eq('receiving_country', country)
-          .eq('operator', 'GME')
-          .eq('delivery_method', r.delivery_method ?? 'Bank Deposit');
+      if (existingKeys.has(key)) {
+        if (!manuallyEditedKeys.has(key)) {
+          await supabase.from('service_fees')
+            .update({ fee_krw: r.service_fee ?? 0, updated_at: now })
+            .eq('receiving_country', country)
+            .eq('operator', r.operator)
+            .eq('delivery_method', r.delivery_method ?? 'Bank Deposit');
+        }
       }
     }
 
-    // Only insert rows that don't already exist
+    // Insert new entries for operators that don't have a row yet (all operators)
     const newRows = records
       .filter(r => r.operator && r.receiving_country)
       .filter(r => !existingKeys.has(`${r.operator}||${r.delivery_method ?? 'Bank Deposit'}`))
