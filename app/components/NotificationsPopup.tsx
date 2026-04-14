@@ -242,9 +242,9 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
                   : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300';
                 return (
                   <div key={a.id}>
-                    <div className="font-medium flex items-center gap-2">
+                    <div className="font-medium flex items-center justify-between gap-2">
                       <span>{a.receiving_country} — {a.operator}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${typePillBg}`}>
+                      <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${typePillBg}`}>
                         {isRate ? (isEn ? 'Rate' : '환율') : (isEn ? 'Price' : '가격')}
                       </span>
                     </div>
