@@ -55,6 +55,8 @@ export async function loadFees(country) {
  */
 export function applyFeeOverrides(records, feeMap) {
   return records.map(r => {
+    // GME's fee always comes from its own API — skip override to prevent circular sync via seedFees()
+    if (r.operator === 'GME') return r;
     const key = `${r.operator}||${r.delivery_method ?? 'Bank Deposit'}`;
     const overrideFee = feeMap.get(key);
     if (overrideFee != null && overrideFee !== r.service_fee) {
