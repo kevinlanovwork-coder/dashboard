@@ -272,9 +272,11 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
               renderItem={(o: OutlierItem, i) => (
                 <div key={i}>
                   <div className="font-medium">{o.country} — {o.operator}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {o.deliveryMethod} • {o.scrapedValue?.toLocaleString()} vs median {o.medianValue?.toLocaleString()}
-                    {o.deviationPct != null && ` (${o.deviationPct}%)`}
+                  <div className="text-xs text-slate-500 dark:text-slate-400 flex justify-between gap-3">
+                    <span>{o.deliveryMethod}: {o.scrapedValue?.toLocaleString()}</span>
+                    {o.deviationPct != null && (
+                      <span className="text-amber-600 dark:text-amber-400 font-mono">({isEn ? 'Error rate' : '오차율'}: {o.deviationPct}%)</span>
+                    )}
                   </div>
                 </div>
               )}
