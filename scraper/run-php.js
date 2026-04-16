@@ -124,9 +124,7 @@ async function scrapeCross(browser) {
     await page.waitForTimeout(3000);
 
     // Open receiving currency dropdown (default may show THB or other currency)
-    await page.locator('div.relative:has(span:text("THB"))').click().catch(async () => {
-      await page.locator('div.relative').first().click();
-    });
+    await page.locator('div.cursor-pointer.group').click();
     await page.waitForSelector('#aside-root ul', { state: 'visible', timeout: 15000 });
     const searchInput = page.locator('#aside-root input');
     await searchInput.fill('PHP');

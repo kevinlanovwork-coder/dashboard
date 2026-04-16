@@ -159,9 +159,7 @@ async function scrapeCross(browser) {
     await page.goto('https://crossenf.com/remittance', { waitUntil: 'load', timeout: 30000 });
     await page.waitForTimeout(2000);
     // Open currency dropdown (default shows THB or other)
-    await page.locator('div.relative:has(span:text("THB"))').click().catch(async () => {
-      await page.locator('div.relative').first().click();
-    });
+    await page.locator('div.cursor-pointer.group').click();
     await page.waitForSelector('#aside-root ul', { timeout: 10000 });
     // Type "USD" to filter — searching "Kyrgyzstan" doesn't show results
     const searchInput = page.locator('#aside-root input');

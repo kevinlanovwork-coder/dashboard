@@ -18,9 +18,7 @@ export async function scrape(browser) {
 
     // ── 수신 국가: Indonesia (IDR) 선택 ────────────────────────────────
     // 수신 통화 드롭다운 열기 (기본값 THB)
-    await page.locator('div.relative:has(span:text("THB"))').click().catch(async () => {
-      await page.locator('div.relative').first().click();
-    });
+    await page.locator('div.cursor-pointer.group').click();
     await page.waitForSelector('#aside-root ul', { timeout: 10000 });
     const searchInput = page.locator('#aside-root input');
     await searchInput.fill('IDR');
@@ -46,7 +44,16 @@ export async function scrape(browser) {
     }
     if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
 
-    const fee = 5000;
+    // 수수료 추출 (프로모션으로 0원일 수 있음)
+    const fee = await page.evaluate(() => {
+      const row = [...document.querySelectorAll('div')].find(d =>
+        d.className?.includes('border-t') && d.textContent?.includes('Fee')
+      );
+      if (!row) return 0;
+      const spans = row.querySelectorAll('span');
+      const last = spans[spans.length - 1]?.textContent || '0';
+      return parseInt(last.replace(/[^0-9]/g, ''), 10) || 0;
+    });
 
     return {
       operator: OPERATOR,
