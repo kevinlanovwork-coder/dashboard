@@ -1636,8 +1636,16 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col">
             <div className="mb-3">
               <h2 className="text-sm font-semibold">{t.gmeRankTitle}</h2>
-              <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.gmeRankSub}</p>
             </div>
+            {isReceiveComparison ? (
+              <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">
+                {isEn
+                  ? `Data is not available for ${selectedCountry} — ${selectedDeliveryMethod || deliveryMethods[0]}`
+                  : `${selectedCountry} — ${selectedDeliveryMethod || deliveryMethods[0]} 데이터 없음`}
+              </div>
+            ) : (
+            <>
+            <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5 -mt-2 mb-3">{t.gmeRankSub}</p>
             {filteredRankData.length > 1 ? (
               <ResponsiveContainer width="100%" height={Math.max(300, operatorStats.length * 38)}>
                 <LineChart data={filteredRankData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
@@ -1687,6 +1695,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             <div className="flex items-center gap-4 mt-auto pt-2 text-xs text-slate-500 dark:text-slate-500">
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />GME {isEn ? 'Rank' : '순위'}</span>
             </div>
+            </>
+            )}
           </div>
           </div>
 
