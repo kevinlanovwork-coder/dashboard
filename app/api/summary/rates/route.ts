@@ -95,20 +95,33 @@ export async function GET(req: NextRequest) {
 
     // GME baseline
     const gmeRecord = snapshotRecords.find(r => r.operator === 'GME');
-    const gmeBaseline = gmeRecord?.total_sending_amount ?? null;
+    const isReceiveComparison = country === 'Russia' && deliveryMethod === 'Card Payment';
+    const gmeBaseline = isReceiveComparison
+      ? (gmeRecord?.receive_amount ?? null)
+      : (gmeRecord?.total_sending_amount ?? null);
 
     // Build operator snapshot data — only include operators selected for this corridor
     const operators = snapshotRecords
       .filter(r => corridorTargetOps.includes(r.operator) && expectedOps.includes(r.operator))
       .map(r => {
-        const priceGap = r.operator !== 'GME' && gmeBaseline
-          ? r.total_sending_amount - gmeBaseline : null;
-        const status = r.operator === 'GME' ? 'GME'
-          : priceGap === null ? 'Expensive than GME'
-          : priceGap > 0 ? 'Expensive than GME' : 'Cheaper than GME';
+        let priceGap: number | null;
+        let status: string;
+        if (isReceiveComparison && r.operator !== 'GME' && gmeRecord) {
+          priceGap = r.receive_amount - gmeRecord.receive_amount;
+          status = priceGap > 0 ? 'Cheaper than GME' : 'Expensive than GME';
+        } else if (r.operator !== 'GME' && gmeBaseline) {
+          priceGap = r.total_sending_amount - gmeBaseline;
+          status = priceGap > 0 ? 'Expensive than GME' : 'Cheaper than GME';
+        } else if (r.operator === 'GME') {
+          priceGap = null;
+          status = 'GME';
+        } else {
+          priceGap = null;
+          status = 'Expensive than GME';
+        }
         return {
           operator: r.operator,
-          totalSendingAmount: r.total_sending_amount,
+          totalSendingAmount: isReceiveComparison ? r.receive_amount : r.total_sending_amount,
           sendAmountKRW: r.send_amount_krw,
           receiveAmount: r.receive_amount,
           serviceFee: r.service_fee ?? 0,
@@ -116,7 +129,9 @@ export async function GET(req: NextRequest) {
           status,
         };
       })
-      .sort((a, b) => b.totalSendingAmount - a.totalSendingAmount);
+      .sort((a, b) => isReceiveComparison
+        ? a.totalSendingAmount - b.totalSendingAmount
+        : b.totalSendingAmount - a.totalSendingAmount);
 
     if (operators.length === 0) continue;
 

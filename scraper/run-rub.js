@@ -64,10 +64,8 @@ function parseField(text, field) {
   return m ? parseFloat(m[1]) : null;
 }
 
-// ─── E9Pay (browser) ────────────────────────────────────────────────────────
-// Cash Payment: reverse mode works (input receive amount)
-// Card Payment: reverse mode disabled — use send-amount probe approach
-async function scrapeE9pay(browser, methodIndex, deliveryMethodName, useReverse) {
+// ─── E9Pay Cash (browser — reverse mode) ────────────────────────────────────
+async function scrapeE9payCash(browser) {
   const page = await browser.newPage();
   try {
     await page.goto('https://www.e9pay.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -82,92 +80,110 @@ async function scrapeE9pay(browser, methodIndex, deliveryMethodName, useReverse)
     });
     await page.waitForTimeout(2000);
 
-    // Select delivery method
-    await page.evaluate((idx) => {
-      const li = document.querySelectorAll('#remit-methods li')[idx];
+    // Select Cash Payment (index 1)
+    await page.evaluate(() => {
+      const li = document.querySelectorAll('#remit-methods li')[1];
       if (li) li.querySelector('a')?.click();
-    }, methodIndex);
+    });
     await page.waitForTimeout(1500);
 
     // Read fee from method_map
-    const feeFromMap = await page.evaluate((idx) => {
-      if (typeof method_map !== 'undefined' && method_map['RU_RUB']?.[idx]) {
-        return Number(method_map['RU_RUB'][idx].REMIT_FEE);
+    const feeFromMap = await page.evaluate(() => {
+      if (typeof method_map !== 'undefined' && method_map['RU_RUB']?.[1]) {
+        return Number(method_map['RU_RUB'][1].REMIT_FEE);
       }
       return null;
-    }, methodIndex);
+    });
 
-    if (useReverse) {
-      // Reverse mode — input receive amount directly
-      await page.click('#reverse'); await page.waitForTimeout(500);
-      await page.waitForSelector('#receive-money', { timeout: 5000 });
-      await page.click('#receive-money', { clickCount: 3 });
-      await page.fill('#receive-money', String(AMOUNT));
-      await page.dispatchEvent('#receive-money', 'blur');
+    // Reverse mode — input receive amount directly
+    await page.click('#reverse'); await page.waitForTimeout(500);
+    await page.waitForSelector('#receive-money', { timeout: 5000 });
+    await page.click('#receive-money', { clickCount: 3 });
+    await page.fill('#receive-money', String(AMOUNT));
+    await page.dispatchEvent('#receive-money', 'blur');
 
-      let total = null;
-      for (let attempt = 0; attempt < 10; attempt++) {
-        await page.waitForTimeout(1000);
-        const raw = await page.$eval('#send-money', el => el.value).catch(() => null);
-        total = extractNumber(raw);
-        if (total && total !== 1_000_000) break;
-      }
-      if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-
-      const feeRaw = await page.$eval('#remit-fee', el => el.textContent || el.value).catch(() => null);
-      const fee = extractNumber(feeRaw) ?? feeFromMap ?? 0;
-
-      return { operator: 'E9Pay', receiving_country: COUNTRY, receive_amount: AMOUNT,
-        send_amount_krw: total, service_fee: fee,
-        total_sending_amount: total + fee,
-        delivery_method: deliveryMethodName };
-    } else {
-      // Send-amount probe approach (Card Payment — reverse disabled)
-      const fee = feeFromMap ?? 0;
-      await page.fill('#send-money', '200000');
-      await page.press('#send-money', 'Tab');
-      let probeRecv = null;
-      for (let attempt = 0; attempt < 10; attempt++) {
-        await page.waitForTimeout(1000);
-        const raw = await page.$eval('#receive-money', el => el.value).catch(() => null);
-        probeRecv = extractNumber(raw);
-        if (probeRecv && probeRecv > 0) break;
-      }
-      if (!probeRecv) throw new Error('환율 계산 대기 초과');
-
-      const netSend = 200000 - fee;
-      const rate = probeRecv / netSend;
-      const targetNetSend = Math.round(AMOUNT / rate);
-      const targetSend = targetNetSend + fee;
-
-      await page.fill('#send-money', String(targetSend));
-      await page.press('#send-money', 'Tab');
-      let finalRecv = null;
-      for (let attempt = 0; attempt < 10; attempt++) {
-        await page.waitForTimeout(1000);
-        const raw = await page.$eval('#receive-money', el => el.value).catch(() => null);
-        finalRecv = extractNumber(raw);
-        if (finalRecv && finalRecv > 0) break;
-      }
-      if (!finalRecv) throw new Error('최종 수취액 계산 대기 초과');
-
-      return { operator: 'E9Pay', receiving_country: COUNTRY, receive_amount: finalRecv,
-        send_amount_krw: targetSend - fee, service_fee: fee,
-        total_sending_amount: targetSend,
-        delivery_method: deliveryMethodName };
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.$eval('#send-money', el => el.value).catch(() => null);
+      total = extractNumber(raw);
+      if (total && total !== 1_000_000) break;
     }
+    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+
+    const feeRaw = await page.$eval('#remit-fee', el => el.textContent || el.value).catch(() => null);
+    const fee = extractNumber(feeRaw) ?? feeFromMap ?? 0;
+
+    return { operator: 'E9Pay', receiving_country: COUNTRY, receive_amount: AMOUNT,
+      send_amount_krw: total, service_fee: fee,
+      total_sending_amount: total + fee,
+      delivery_method: 'Cash Payment' };
   } finally { await page.close(); }
 }
 
-// ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
-const SCRAPERS = [
+// ─── E9Pay Card (browser — GME 송금액 기준 수취액 비교) ──────────────────────
+// GME Card의 send_amount_krw(수수료 제외 순수 송금액)를 입력하여 E9Pay의 수취 RUB를 비교
+async function scrapeE9payCard(browser, gmeSendAmountKRW) {
+  const page = await browser.newPage();
+  try {
+    await page.goto('https://www.e9pay.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(3000);
+
+    // Select Russia
+    await page.evaluate(() => {
+      const radio = document.getElementById('RU_RUB');
+      radio.checked = true;
+      radio.dispatchEvent(new Event('change', { bubbles: true }));
+      radio.click();
+    });
+    await page.waitForTimeout(2000);
+
+    // Select Card Payment (index 0)
+    await page.evaluate(() => {
+      const li = document.querySelectorAll('#remit-methods li')[0];
+      if (li) li.querySelector('a')?.click();
+    });
+    await page.waitForTimeout(1500);
+
+    // Read fee from method_map
+    const feeFromMap = await page.evaluate(() => {
+      if (typeof method_map !== 'undefined' && method_map['RU_RUB']?.[0]) {
+        return Number(method_map['RU_RUB'][0].REMIT_FEE);
+      }
+      return 0;
+    });
+
+    // Input GME's send amount (fee excluded) — E9Pay exchanges the full amount
+    await page.fill('#send-money', String(gmeSendAmountKRW));
+    await page.press('#send-money', 'Tab');
+
+    let receiveRUB = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.$eval('#receive-money', el => el.value).catch(() => null);
+      receiveRUB = extractNumber(raw);
+      if (receiveRUB && receiveRUB > 0) break;
+    }
+    if (!receiveRUB) throw new Error('수취액 계산 대기 초과');
+
+    const feeRaw = await page.$eval('#remit-fee', el => el.textContent || el.value).catch(() => null);
+    const fee = extractNumber(feeRaw) ?? feeFromMap ?? 0;
+
+    return { operator: 'E9Pay', receiving_country: COUNTRY, receive_amount: receiveRUB,
+      send_amount_krw: gmeSendAmountKRW, service_fee: fee,
+      total_sending_amount: gmeSendAmountKRW + fee,
+      delivery_method: 'Card Payment' };
+  } finally { await page.close(); }
+}
+
+// ─── 스크래퍼 목록 (Phase 1 — GME Card 결과 불필요) ──────────────────────────
+const PHASE1_SCRAPERS = [
   // Cash Payment
-  { name: 'GME (Cash)',         fn: () => scrapeGmeApi('1', 'Cash Payment'),                  needsBrowser: false },
-  { name: 'GMoneyTrans (Cash)', fn: scrapeGmoneytrans,                                        needsBrowser: false },
-  { name: 'E9Pay (Cash)',       fn: (b) => withRetry(() => scrapeE9pay(b, 1, 'Cash Payment', true)),   needsBrowser: true },
-  // Card Payment
-  { name: 'GME (Card)',         fn: () => scrapeGmeApi('14', 'Card Payment'),                    needsBrowser: false },
-  { name: 'E9Pay (Card)',       fn: (b) => withRetry(() => scrapeE9pay(b, 0, 'Card Payment', false)),  needsBrowser: true },
+  { name: 'GME (Cash)',         fn: () => scrapeGmeApi('1', 'Cash Payment'),                         needsBrowser: false },
+  { name: 'GMoneyTrans (Cash)', fn: scrapeGmoneytrans,                                               needsBrowser: false },
+  { name: 'E9Pay (Cash)',       fn: (b) => withRetry(() => scrapeE9payCash(b)),                      needsBrowser: true },
+  // Card Payment — GME only (E9Pay Card는 Phase 2에서 실행)
+  { name: 'GME (Card)',         fn: () => scrapeGmeApi('14', 'Card Payment'),                        needsBrowser: false },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
@@ -183,13 +199,14 @@ async function main() {
   const results = [];
   const errors  = [];
 
-  console.log(`  모든 스크래퍼 병렬 실행 중... (${SCRAPERS.length}개)\n`);
+  // ── Phase 1: GME + 기타 스크래퍼 병렬 실행 ──────────────────────────────
+  console.log(`  Phase 1: 스크래퍼 병렬 실행 중... (${PHASE1_SCRAPERS.length}개)\n`);
   const settled = await Promise.allSettled(
-    SCRAPERS.map(({ fn, needsBrowser }) => (needsBrowser ? fn(browser) : fn()))
+    PHASE1_SCRAPERS.map(({ fn, needsBrowser }) => (needsBrowser ? fn(browser) : fn()))
   );
 
   for (let i = 0; i < settled.length; i++) {
-    const { name } = SCRAPERS[i];
+    const { name } = PHASE1_SCRAPERS[i];
     const result = settled[i];
     if (result.status === 'fulfilled') {
       results.push(result.value);
@@ -199,6 +216,25 @@ async function main() {
       errors.push({ name, error: result.reason?.message });
       logFailure(runHour, COUNTRY, name, result.reason?.delivery_method ?? 'Cash Payment', result.reason?.message);
     }
+  }
+
+  // ── Phase 2: E9Pay Card — GME Card의 send_amount_krw를 입력으로 사용 ─────
+  const gmeCard = results.find(r => r.operator === 'GME' && r.delivery_method === 'Card Payment');
+  if (gmeCard) {
+    console.log(`\n  Phase 2: E9Pay Card 실행 (GME 송금액 ${gmeCard.send_amount_krw.toLocaleString()}원, 수수료 제외)\n`);
+    try {
+      const e9payCard = await withRetry(() => scrapeE9payCard(browser, gmeCard.send_amount_krw));
+      results.push(e9payCard);
+      console.log(`  ✓ E9Pay (Card): 수취액 ${e9payCard.receive_amount?.toLocaleString()} RUB  수수료 ${e9payCard.service_fee?.toLocaleString()}원  합계 ${e9payCard.total_sending_amount?.toLocaleString()}원`);
+    } catch (err) {
+      console.error(`  ✗ E9Pay (Card) 실패: ${err.message}`);
+      errors.push({ name: 'E9Pay (Card)', error: err.message });
+      logFailure(runHour, COUNTRY, 'E9Pay', 'Card Payment', err.message);
+    }
+  } else {
+    console.warn('\n  ⚠️  GME Card 실패로 E9Pay Card 스킵 (기준 송금액 없음)');
+    errors.push({ name: 'E9Pay (Card)', error: 'GME Card 실패로 스킵' });
+    logFailure(runHour, COUNTRY, 'E9Pay', 'Card Payment', 'GME Card 실패로 스킵');
   }
 
   await browser.close();
@@ -222,9 +258,16 @@ async function main() {
 
   const toSave = adjusted.map(r => {
     const baseline = gmeBaselineMap.get(r.delivery_method) ?? null;
-    const priceGap = baseline && r.operator !== 'GME'
-      ? r.total_sending_amount - baseline : null;
-    const status = priceGap === null ? null : priceGap > 0 ? 'GME 유리' : '경쟁사 유리';
+    let priceGap, status;
+
+    if (baseline && r.operator !== 'GME') {
+      priceGap = r.total_sending_amount - baseline;
+      status = priceGap > 0 ? 'GME 유리' : '경쟁사 유리';
+    } else {
+      priceGap = null;
+      status = null;
+    }
+
     return {
       run_hour:             runHour,
       operator:             r.operator,

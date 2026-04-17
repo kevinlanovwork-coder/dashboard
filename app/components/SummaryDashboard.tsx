@@ -74,6 +74,7 @@ function CorridorCard({ corridor, isDark, isEn }: { corridor: CorridorSummary; i
     yLabel:   isDark ? '#cbd5e1' : '#475569',
   };
 
+  const isReceiveComparison = corridor.country === 'Russia' && corridor.deliveryMethod === 'Card Payment';
   const { operators, gmeBaseline } = corridor;
   const chartHeight = Math.max(120, operators.length * 40);
 
@@ -98,7 +99,7 @@ function CorridorCard({ corridor, isDark, isEn }: { corridor: CorridorSummary; i
   return (
     <a
       href={`/?country=${encodeURIComponent(corridor.country)}`}
-      className="block bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-lg transition-all cursor-pointer"
+      className={`block rounded-xl overflow-hidden hover:shadow-lg transition-all cursor-pointer ${isReceiveComparison ? 'bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 hover:border-amber-400 dark:hover:border-amber-600' : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600'}`}
     >
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -122,7 +123,9 @@ function CorridorCard({ corridor, isDark, isEn }: { corridor: CorridorSummary; i
             <XAxis
               type="number"
               domain={[domainMin, domainMax]}
-              tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}K`}
+              tickFormatter={isReceiveComparison
+                ? (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                : (v: number) => `${(v / 1000).toFixed(0)}K`}
               tick={{ fontSize: 10, fill: ct.tick }}
               axisLine={{ stroke: ct.axisLine }}
               tickLine={false}
@@ -153,10 +156,10 @@ function CorridorCard({ corridor, isDark, isEn }: { corridor: CorridorSummary; i
                 return (
                   <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 shadow-lg text-xs">
                     <p className="font-semibold mb-1">{d.operator}</p>
-                    <p>{isEn ? 'Collection' : '합계'}: {d.totalSendingAmount.toLocaleString()} KRW</p>
+                    <p>{isReceiveComparison ? (isEn ? 'Receive' : '수령액') : (isEn ? 'Collection' : '합계')}: {d.totalSendingAmount.toLocaleString()} {isReceiveComparison ? 'RUB' : 'KRW'}</p>
                     {d.priceGap !== null && (
-                      <p className={d.priceGap > 0 ? 'text-orange-500' : 'text-green-500'}>
-                        {isEn ? 'Gap' : '차이'}: {d.priceGap > 0 ? '+' : ''}{d.priceGap.toLocaleString()} KRW
+                      <p className={isReceiveComparison ? (d.priceGap > 0 ? 'text-green-500' : 'text-orange-500') : (d.priceGap > 0 ? 'text-orange-500' : 'text-green-500')}>
+                        {isEn ? 'Gap' : '차이'}: {d.priceGap > 0 ? '+' : ''}{d.priceGap.toLocaleString()} {isReceiveComparison ? 'RUB' : 'KRW'}
                       </p>
                     )}
                   </div>

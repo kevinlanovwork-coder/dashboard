@@ -59,19 +59,41 @@ export async function GET(req: NextRequest) {
     }
   });
 
+  // Build GME receive amount map for receive-comparison corridors (Russia Card Payment)
+  const gmeReceiveMap = new Map<string, number>();
+  data.forEach((r: Record<string, unknown>) => {
+    if (r.operator === 'GME' && r.receive_amount) {
+      const key = `${r.run_hour}||${r.delivery_method}`;
+      gmeReceiveMap.set(key, r.receive_amount as number);
+    }
+  });
+
   const records = data.map((r: Record<string, unknown>) => {
     const dmKey = `${r.run_hour}||${r.delivery_method}`;
     const gmeBaseline = gmeBaselineMap.get(dmKey) ?? gmeBaselineMap.get(r.run_hour as string) ?? null;
-    const priceGap = r.operator !== 'GME' && gmeBaseline
-      ? (r.total_sending_amount as number) - gmeBaseline
-      : null;
-    const status = r.operator === 'GME'
-      ? 'GME'
-      : priceGap === null
-        ? 'Expensive than GME'
-        : priceGap > 0
-          ? 'Expensive than GME'
-          : 'Cheaper than GME';
+
+    // Russia Card Payment: receive-amount comparison (higher RUB = better)
+    const isReceiveComparison = r.receiving_country === 'Russia'
+      && r.delivery_method === 'Card Payment'
+      && r.operator !== 'GME';
+    const gmeReceive = gmeReceiveMap.get(dmKey);
+
+    let priceGap: number | null;
+    let status: string;
+
+    if (isReceiveComparison && gmeReceive) {
+      priceGap = (r.receive_amount as number) - gmeReceive;
+      status = priceGap > 0 ? 'Cheaper than GME' : 'Expensive than GME';
+    } else if (r.operator !== 'GME' && gmeBaseline) {
+      priceGap = (r.total_sending_amount as number) - gmeBaseline;
+      status = priceGap > 0 ? 'Expensive than GME' : 'Cheaper than GME';
+    } else if (r.operator === 'GME') {
+      priceGap = null;
+      status = 'GME';
+    } else {
+      priceGap = null;
+      status = 'Expensive than GME';
+    }
 
     return {
       id: r.id as number,

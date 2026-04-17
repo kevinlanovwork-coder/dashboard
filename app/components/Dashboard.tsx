@@ -26,6 +26,14 @@ const EN = {
   pricierThanGME: 'Services pricier than GME',
   snapshotTitle: 'Collection Amount',
   snapshotSub: (time: string) => `as of ${time} (KRW, lower is better)`,
+  receiveSnapshotTitle: 'Receiving Amount',
+  receiveSnapshotSub: (time: string) => `as of ${time} (RUB, higher is better)`,
+  receiveMoreLegend: 'More RUB than GME',
+  receiveLessLegend: 'Less RUB than GME',
+  receiveTrendTitle: 'Receiving Amount Trend',
+  receiveTrendSub: 'GME vs competitor receiving amount over time (RUB)',
+  receiveLabel: 'Receive:',
+  receiveUnit: ' RUB',
   noData: 'No data',
   gmeBaselineLegend: 'GME (baseline)',
   gmeRankTitle: 'GME Competitive Position',
@@ -34,7 +42,7 @@ const EN = {
   cheaperLegend: 'Cheaper than GME',
   rateLegend: (curr: string, perKRW: boolean) => perKRW ? `( ) = Exchange rate (${curr} per 1 KRW)` : `( ) = Exchange rate (KRW per 1 ${curr})`,
   avgDiffTitle: 'Avg. Price Difference by Operator',
-  avgDiffSub: (from: string, to: string) => from && to && from !== to ? `Daily avg. from ${from} to ${to} (vs GME, KRW)` : `Daily avg. for ${to || from} (vs GME, KRW)`,
+  avgDiffSub: (from: string, to: string, unit?: string) => from && to && from !== to ? `Daily avg. from ${from} to ${to} (vs GME, ${unit || 'KRW'})` : `Daily avg. for ${to || from} (vs GME, ${unit || 'KRW'})`,
   gmeWins: 'More expensive than GME (GME wins)',
   gmeLoses: 'Cheaper than GME (GME loses)',
   trendTitle: 'Collection Amount Trend',
@@ -95,6 +103,14 @@ const KO = {
   pricierThanGME: 'GME보다 비싼 서비스',
   snapshotTitle: '수금액',
   snapshotSub: (time: string) => `${time} 기준 (KRW, 낮을수록 유리)`,
+  receiveSnapshotTitle: '수령액',
+  receiveSnapshotSub: (time: string) => `${time} 기준 (RUB, 높을수록 유리)`,
+  receiveMoreLegend: 'GME보다 수령액 많음',
+  receiveLessLegend: 'GME보다 수령액 적음',
+  receiveTrendTitle: '수령액 추이',
+  receiveTrendSub: 'GME vs 경쟁사 수령액 변화 (RUB)',
+  receiveLabel: '수령액:',
+  receiveUnit: ' RUB',
   noData: '데이터 없음',
   gmeBaselineLegend: 'GME (기준)',
   gmeRankTitle: 'GME 경쟁 순위',
@@ -103,7 +119,7 @@ const KO = {
   cheaperLegend: 'GME보다 저렴',
   rateLegend: (curr: string, perKRW: boolean) => perKRW ? `( ) = 환율 (1 KRW 기준 ${curr})` : `( ) = 환율 (1 ${curr} 기준 KRW)`,
   avgDiffTitle: '운영사별 평균 가격 차이',
-  avgDiffSub: (from: string, to: string) => from && to && from !== to ? `${from} ~ ${to} 일별 평균 (GME 기준, KRW)` : `${to || from} 일별 평균 (GME 기준, KRW)`,
+  avgDiffSub: (from: string, to: string, unit?: string) => from && to && from !== to ? `${from} ~ ${to} 일별 평균 (GME 기준, ${unit || 'KRW'})` : `${to || from} 일별 평균 (GME 기준, ${unit || 'KRW'})`,
   gmeWins: 'GME보다 비쌈 (GME 유리)',
   gmeLoses: 'GME보다 저렴 (GME 불리)',
   trendTitle: '수금액 추이',
@@ -253,17 +269,24 @@ function KPICard({
 
 // ─── Tooltips ─────────────────────────────────────────────────────────────────
 
-function SnapshotTooltip({ active, payload, t }: { active?: boolean; payload?: readonly { payload: RateRecord }[]; t: T }) {
+function SnapshotTooltip({ active, payload, t, isReceiveComparison }: { active?: boolean; payload?: readonly { payload: RateRecord }[]; t: T; isReceiveComparison?: boolean }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   const sc = statusColor(d.status);
   return (
     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm shadow-xl">
       <p className="font-semibold text-slate-900 dark:text-slate-100 mb-1">{d.operator}</p>
-      <p className="text-slate-600 dark:text-slate-300">{t.totalSendLabel} <span className="font-mono">{formatKRW(d.totalSendingAmount, t)}</span></p>
+      {isReceiveComparison ? (
+        <p className="text-slate-600 dark:text-slate-300">{t.receiveLabel} <span className="font-mono">{d.receiveAmount.toLocaleString('ko-KR')}{t.receiveUnit}</span></p>
+      ) : (
+        <p className="text-slate-600 dark:text-slate-300">{t.totalSendLabel} <span className="font-mono">{formatKRW(d.totalSendingAmount, t)}</span></p>
+      )}
       {d.priceGap !== null && d.status !== 'GME' && (
-        <p className={d.priceGap < 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}>
-          {t.vsGME} <span className="font-mono">{d.priceGap > 0 ? '+' : ''}{d.priceGap.toLocaleString('ko-KR')}{t.won}</span>
+        <p className={isReceiveComparison
+          ? (d.priceGap > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400')
+          : (d.priceGap < 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400')
+        }>
+          {t.vsGME} <span className="font-mono">{d.priceGap > 0 ? '+' : ''}{d.priceGap.toLocaleString('ko-KR')}{isReceiveComparison ? t.receiveUnit : t.won}</span>
         </p>
       )}
       <span className={`inline-block px-2 py-0.5 rounded-full text-xs mt-1.5 ${sc.bg} ${sc.text}`}>
@@ -471,6 +494,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
 
   const hasMultipleMethods = deliveryMethods.length > 1;
 
+  // Russia Card Payment: compare by receive amount (RUB) instead of send amount (KRW)
+  const RECEIVE_COMPARISON_CORRIDORS = new Set(['Russia||Card Payment']);
+  const isReceiveComparison = RECEIVE_COMPARISON_CORRIDORS.has(
+    `${selectedCountry}||${selectedDeliveryMethod || deliveryMethods[0]}`
+  );
+
   useEffect(() => {
     setSelectedDeliveryMethod(
       deliveryMethods.includes('Bank Deposit') ? 'Bank Deposit' : deliveryMethods[0]
@@ -539,15 +568,26 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const snapshot = useMemo(
     () => byCountry
       .filter(r => r.runHour === targetRunHour)
-      .sort((a, b) => snapshotSortDesc
-        ? b.totalSendingAmount - a.totalSendingAmount
-        : a.totalSendingAmount - b.totalSendingAmount),
-    [byCountry, targetRunHour, snapshotSortDesc]
+      .sort((a, b) => {
+        if (isReceiveComparison) {
+          // Higher receive = better, so default ascending puts worst first (lower at top → higher at bottom)
+          return snapshotSortDesc
+            ? a.receiveAmount - b.receiveAmount
+            : b.receiveAmount - a.receiveAmount;
+        }
+        return snapshotSortDesc
+          ? b.totalSendingAmount - a.totalSendingAmount
+          : a.totalSendingAmount - b.totalSendingAmount;
+      }),
+    [byCountry, targetRunHour, snapshotSortDesc, isReceiveComparison]
   );
 
   const snapshotGMEBaseline = useMemo(
-    () => snapshot.find(r => r.status === 'GME')?.totalSendingAmount ?? null,
-    [snapshot]
+    () => {
+      const gme = snapshot.find(r => r.status === 'GME');
+      return isReceiveComparison ? (gme?.receiveAmount ?? null) : (gme?.totalSendingAmount ?? null);
+    },
+    [snapshot, isReceiveComparison]
   );
 
   const snapshotChartData = useMemo(
@@ -626,14 +666,17 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const trendData = useMemo(() => {
     const map: Record<string, number> = {};
     byCountry
-      .filter(r => r.gmeBaseline !== null && r.gmeBaseline > 0)
+      .filter(r => isReceiveComparison
+        ? r.status === 'GME' && r.receiveAmount > 0
+        : r.gmeBaseline !== null && r.gmeBaseline > 0
+      )
       .forEach(r => {
-        if (!map[r.runHour]) map[r.runHour] = r.gmeBaseline!;
+        if (!map[r.runHour]) map[r.runHour] = isReceiveComparison ? r.receiveAmount : r.gmeBaseline!;
       });
     return Object.entries(map)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([runHour, gmeBaseline]) => ({ runHour, label: formatChartLabel(runHour), gmeBaseline }));
-  }, [byCountry]);
+  }, [byCountry, isReceiveComparison]);
 
   const gmeRankData = useMemo(() => {
     const runHourMap = new Map<string, { operator: string; total: number }[]>();
@@ -686,8 +729,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     for (const op of effectiveTrendOperators) {
       const map: Record<string, number> = {};
       byCountry
-        .filter(r => r.operator === op && r.totalSendingAmount > 0)
-        .forEach(r => { if (!map[r.runHour]) map[r.runHour] = r.totalSendingAmount; });
+        .filter(r => r.operator === op && (isReceiveComparison ? r.receiveAmount > 0 : r.totalSendingAmount > 0))
+        .forEach(r => { if (!map[r.runHour]) map[r.runHour] = isReceiveComparison ? r.receiveAmount : r.totalSendingAmount; });
       opMaps[op] = map;
     }
     return trendData.map(d => {
@@ -697,7 +740,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
       }
       return { ...d, ...extra };
     });
-  }, [trendData, byCountry, effectiveTrendOperators]);
+  }, [trendData, byCountry, effectiveTrendOperators, isReceiveComparison]);
 
   const filteredTrendData = useMemo(
     () => combinedTrendData.filter(d => {
@@ -735,6 +778,13 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   );
 
   const latestGMEBaseline = trendData[trendData.length - 1]?.gmeBaseline ?? null;
+  // For the KPI card, always show GME's Collection Amount in KRW (even for receive-comparison corridors like Russia Card)
+  const latestGMEBaselineKRW = useMemo(() => {
+    const gme = byCountry
+      .filter(r => r.status === 'GME' && r.totalSendingAmount > 0)
+      .sort((a, b) => b.runHour.localeCompare(a.runHour))[0];
+    return gme?.totalSendingAmount ?? null;
+  }, [byCountry]);
   const cheaperCount = snapshot.filter(r => r.status === 'Cheaper than GME').length;
   const expensiveCount = snapshot.filter(r => r.status === 'Expensive than GME').length;
   const totalCompetitors = snapshot.filter(r => r.status !== 'GME').length;
@@ -1063,7 +1113,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               />
               <KPICard
                 title={t.latestGMEBaseline}
-                value={latestGMEBaseline ? `${latestGMEBaseline.toLocaleString('ko-KR')}${t.won}` : '-'}
+                value={latestGMEBaselineKRW ? `${latestGMEBaselineKRW.toLocaleString('ko-KR')}${t.won}` : '-'}
                 sub={latestRunHour ? formatRunHour(latestRunHour) : ''}
                 color="text-blue-600 dark:text-blue-400"
               />
@@ -1098,11 +1148,11 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           {/* Snapshot + Avg Gap */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Snapshot */}
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col">
+            <div className={`rounded-xl p-5 flex flex-col border ${isReceiveComparison ? 'bg-amber-50/60 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}>
               <div className="mb-3">
-                <h2 className="text-sm font-semibold">{t.snapshotTitle} - {selectedCountry} ({selectedDeliveryMethod || deliveryMethods[0]})</h2>
+                <h2 className="text-sm font-semibold">{isReceiveComparison ? t.receiveSnapshotTitle : t.snapshotTitle} - {selectedCountry} ({selectedDeliveryMethod || deliveryMethods[0]})</h2>
                 <div className="flex items-center justify-between mt-0.5">
-                  <p className="text-slate-500 dark:text-slate-500 text-xs">{t.snapshotSub(formatRunHour(targetRunHour))}</p>
+                  <p className="text-slate-500 dark:text-slate-500 text-xs">{isReceiveComparison ? t.receiveSnapshotSub(formatRunHour(targetRunHour)) : t.snapshotSub(formatRunHour(targetRunHour))}</p>
                   <span className="text-xs text-slate-500 dark:text-slate-500">{t.rateLegend(receiveCurrency, snapshotChartData[0]?.rateIsPerKRW ?? false)}</span>
                 </div>
               </div>
@@ -1141,8 +1191,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
                     <XAxis
                       type="number"
-                      domain={[(min: number) => Math.floor((min * 0.998) / 1000) * 1000, (max: number) => Math.ceil((max * 1.002) / 1000) * 1000]}
-                      tickFormatter={v => `${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}K`}
+                      domain={isReceiveComparison
+                        ? [(min: number) => Math.floor(min * 0.99), (max: number) => Math.ceil(max * 1.01)]
+                        : [(min: number) => Math.floor((min * 0.998) / 1000) * 1000, (max: number) => Math.ceil((max * 1.002) / 1000) * 1000]}
+                      tickFormatter={isReceiveComparison
+                        ? (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                        : (v: number) => `${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })}K`}
                       tick={{ fill: ct.tick, fontSize: 11 }}
                       axisLine={{ stroke: ct.axisLine }}
                       tickLine={false}
@@ -1168,7 +1222,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                       tickLine={false}
                       width={155}
                     />
-                    <Tooltip content={(props) => <SnapshotTooltip {...props} t={t} />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
+                    <Tooltip content={(props) => <SnapshotTooltip {...props} t={t} isReceiveComparison={isReceiveComparison} />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
                     {snapshotGMEBaseline && (
                       <ReferenceLine
                         x={snapshotGMEBaseline}
@@ -1176,7 +1230,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                         strokeDasharray="5 3"
                       />
                     )}
-                    <Bar dataKey="totalSendingAmount" radius={[0, 4, 4, 0]}>
+                    <Bar dataKey={isReceiveComparison ? "receiveAmount" : "totalSendingAmount"} radius={[0, 4, 4, 0]}>
                       {filteredSnapshotData.map((entry, i) => (
                         <Cell key={i} fill={statusColor(entry.status).hex} />
                       ))}
@@ -1213,17 +1267,26 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               )}
               <div className="flex flex-wrap items-center gap-4 mt-auto pt-3 text-xs text-slate-500 dark:text-slate-500">
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />{t.gmeBaselineLegend}</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.moreExpensiveLegend}</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.cheaperLegend}</span>
+                {isReceiveComparison ? (
+                  <>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.receiveMoreLegend}</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.receiveLessLegend}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.moreExpensiveLegend}</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.cheaperLegend}</span>
+                  </>
+                )}
               </div>
             </div>
 
             {/* GME Trend + Operator Overlay */}
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col">
+            <div className={`rounded-xl p-5 flex flex-col border ${isReceiveComparison ? 'bg-amber-50/60 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}>
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h2 className="text-sm font-semibold">{t.trendTitle}</h2>
-                <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.trendSub}</p>
+                <h2 className="text-sm font-semibold">{isReceiveComparison ? t.receiveTrendTitle : t.trendTitle}</h2>
+                <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{isReceiveComparison ? t.receiveTrendSub : t.trendSub}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <div className="flex items-center gap-1 text-xs">
@@ -1285,12 +1348,14 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     interval="preserveStartEnd"
                   />
                   <YAxis
-                    tickFormatter={v => `${(v / 1000).toFixed(0)}K`}
+                    tickFormatter={isReceiveComparison
+                      ? (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                      : (v: number) => `${(v / 1000).toFixed(0)}K`}
                     tick={{ fill: ct.tick, fontSize: 11 }}
                     axisLine={{ stroke: ct.axisLine }}
                     tickLine={false}
                     domain={['auto', 'auto']}
-                    width={42}
+                    width={isReceiveComparison ? 55 : 42}
                   />
                   <Tooltip
                     content={({ active, payload, label }) => {
@@ -1300,7 +1365,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                           <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">{label}</p>
                           {payload.map((p, i) => (
                             <p key={i} className="font-mono" style={{ color: p.color }}>
-                              {p.name === 'gmeBaseline' ? 'GME' : String(p.name ?? '').replace(/^op_/, '')}: {formatKRW(p.value as number, t)}
+                              {p.name === 'gmeBaseline' ? 'GME' : String(p.name ?? '').replace(/^op_/, '')}: {isReceiveComparison ? `${(p.value as number).toLocaleString('ko-KR')} RUB` : formatKRW(p.value as number, t)}
                             </p>
                           ))}
                         </div>
@@ -1351,9 +1416,19 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Avg Gap */}
           <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+              <div className="mb-3">
+                <h2 className="text-sm font-semibold">{t.avgDiffTitle}</h2>
+              </div>
+              {isReceiveComparison ? (
+                <div className="h-72 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">
+                  {isEn
+                    ? `Data is not available for ${selectedCountry} — ${selectedDeliveryMethod || deliveryMethods[0]}`
+                    : `${selectedCountry} — ${selectedDeliveryMethod || deliveryMethods[0]} 데이터 없음`}
+                </div>
+              ) : (
+              <>
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h2 className="text-sm font-semibold">{t.avgDiffTitle}</h2>
                   <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.avgDiffSub(formatDate(effectiveAvgFromDate || avgDates[0] || ''), formatDate(effectiveAvgToDate || avgDates[avgDates.length - 1] || ''))}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -1376,7 +1451,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
                     <XAxis
                       type="number"
-                      tickFormatter={v => `${v > 0 ? '+' : ''}${(v / 1000).toFixed(1)}K`}
+                      tickFormatter={(v: number) => `${v > 0 ? '+' : ''}${(v / 1000).toFixed(1)}K`}
                       tick={{ fill: ct.tick, fontSize: 11 }}
                       axisLine={{ stroke: ct.axisLine }}
                       tickLine={false}
@@ -1432,6 +1507,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{t.gmeWins}</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{t.gmeLoses}</span>
               </div>
+              </>
+              )}
           </div>
 
           {/* GME Competitive Position */}
@@ -1590,10 +1667,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                         <td className="py-2.5 px-3 text-right text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
                           {r.gmeBaseline ? r.gmeBaseline.toLocaleString('ko-KR') : '—'}
                         </td>
-                        <td className={`py-2.5 px-3 text-right font-mono whitespace-nowrap ${r.priceGap === null || r.priceGap === 0 ? 'text-slate-400 dark:text-slate-500' : r.priceGap < 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
-                          {r.priceGap !== null && r.priceGap !== 0
-                            ? `${r.priceGap > 0 ? '+' : ''}${r.priceGap.toLocaleString('ko-KR')}`
-                            : '—'}
+                        <td className={`py-2.5 px-3 text-right font-mono whitespace-nowrap ${r.receivingCountry === 'Russia' && r.deliveryMethod === 'Card Payment' || r.priceGap === null || r.priceGap === 0 ? 'text-slate-400 dark:text-slate-500' : r.priceGap < 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                          {r.receivingCountry === 'Russia' && r.deliveryMethod === 'Card Payment'
+                            ? '—'
+                            : r.priceGap !== null && r.priceGap !== 0
+                              ? `${r.priceGap > 0 ? '+' : ''}${r.priceGap.toLocaleString('ko-KR')}`
+                              : '—'}
                         </td>
                         <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-200 font-mono whitespace-nowrap">
                           {r.sendAmountKRW > 0
