@@ -2096,12 +2096,23 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
                                   {t.calcGMERate} ({rateLabel})
                                 </label>
-                                <input
-                                  type="text"
-                                  value={calcRate}
-                                  onChange={e => setCalcRate(e.target.value)}
-                                  className="w-32 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                />
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={calcRate}
+                                    onChange={e => setCalcRate(e.target.value)}
+                                    className="w-32 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                  />
+                                  {(() => {
+                                    const parsed = parseFloat(calcRate.replace(/,/g, ''));
+                                    const diff = !isNaN(parsed) && parsed > 0 ? parsed - currentRate : 0;
+                                    return Math.abs(diff) > 0.001 ? (
+                                      <span className={`text-xs font-mono font-semibold ${diff > 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
+                                        ({diff > 0 ? '+' : ''}{diff.toFixed(2)})
+                                      </span>
+                                    ) : null;
+                                  })()}
+                                </div>
                               </div>
                               {rateChanged && (
                                 <span className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold ${rankDiff > 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : rankDiff < 0 ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
@@ -2137,7 +2148,18 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                               <span className="text-slate-400 pb-1.5">→</span>
                               <div className="shrink-0">
                                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                  USD-KRW
+                                  USD-KRW {(() => {
+                                    const pUsdLocal = parseFloat(calcUsdLocalRate.replace(/,/g, ''));
+                                    const derived = !isNaN(pUsdLocal) && pUsdLocal > 0 && currentRate > 0
+                                      ? (isPerKRW ? pUsdLocal / currentRate : pUsdLocal * currentRate) : 0;
+                                    const parsed = parseFloat(calcRate.replace(/,/g, ''));
+                                    const diff = derived > 0 && !isNaN(parsed) && parsed > 0 ? parsed - derived : 0;
+                                    return Math.abs(diff) > 0.01 ? (
+                                      <span className={`font-mono font-semibold ${diff > 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
+                                        ({diff > 0 ? '+' : ''}{diff.toFixed(2)})
+                                      </span>
+                                    ) : null;
+                                  })()}
                                 </label>
                                 <input
                                   type="text"

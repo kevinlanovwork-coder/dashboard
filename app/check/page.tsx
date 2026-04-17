@@ -63,38 +63,44 @@ export default function CheckPage() {
     if (!checkId) return;
     setStatus('pending');
 
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     // Start polling after 30s (GitHub Actions needs time to spin up)
     const startDelay = setTimeout(() => {
-      const interval = setInterval(async () => {
+      intervalId = setInterval(async () => {
         const done = await poll();
-        if (done) clearInterval(interval);
-      }, 10000); // poll every 10s
+        if (done && intervalId) { clearInterval(intervalId); if (timeoutId) clearTimeout(timeoutId); }
+      }, 10000);
 
       // Timeout after 8 minutes
-      const timeout = setTimeout(() => {
-        clearInterval(interval);
+      timeoutId = setTimeout(() => {
+        if (intervalId) clearInterval(intervalId);
         setStatus(prev => prev === 'ready' ? prev : 'error');
         setError('Scraper did not return results within 8 minutes. Please try again.');
       }, 8 * 60 * 1000);
-
-      return () => { clearInterval(interval); clearTimeout(timeout); };
     }, 30000);
 
     // Elapsed timer
     const timer = setInterval(() => setElapsed(e => e + 1), 1000);
 
-    return () => { clearTimeout(startDelay); clearInterval(timer); };
+    return () => {
+      clearTimeout(startDelay);
+      clearInterval(timer);
+      if (intervalId) clearInterval(intervalId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [checkId, poll]);
 
   // Chart data — sorted descending (most expensive at top)
-  const chartData = records.sort((a, b) => b.totalSendingAmount - a.totalSendingAmount);
-  const gmeRecord = records.find(r => r.operator === 'GME');
+  const chartData = [...records].sort((a, b) => b.totalSendingAmount - a.totalSendingAmount);
+  const gmeRecord = chartData.find(r => r.operator === 'GME');
   const gmeBaseline = gmeRecord?.totalSendingAmount ?? null;
 
   const amounts = chartData.map(r => r.totalSendingAmount).filter(Boolean);
-  const minVal = Math.min(...amounts);
-  const maxVal = Math.max(...amounts);
-  const padding = (maxVal - minVal) * 0.15 || maxVal * 0.01;
+  const minVal = amounts.length > 0 ? Math.min(...amounts) : 0;
+  const maxVal = amounts.length > 0 ? Math.max(...amounts) : 0;
+  const padding = maxVal > 0 ? ((maxVal - minVal) * 0.15 || maxVal * 0.01) : 0;
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
