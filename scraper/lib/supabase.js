@@ -105,4 +105,38 @@ export async function logFailure(runHour, country, operator, deliveryMethod, err
   } catch { /* non-fatal */ }
 }
 
+/**
+ * Save scraper results to realtime_checks table (dry-run mode).
+ * No outlier validation — temporary data for real-time checking.
+ */
+export async function saveRealtimeCheck(records, checkId) {
+  if (records.length === 0 || !checkId) return;
+
+  const rows = records.map(r => ({
+    check_id: checkId,
+    corridor: `${r.receiving_country}||${r.delivery_method ?? 'Bank Deposit'}`,
+    operator: r.operator,
+    receiving_country: r.receiving_country,
+    delivery_method: r.delivery_method ?? 'Bank Deposit',
+    receive_amount: r.receive_amount,
+    send_amount_krw: r.send_amount_krw,
+    service_fee: r.service_fee ?? 0,
+    total_sending_amount: r.total_sending_amount,
+    gme_baseline: r.gme_baseline,
+    price_gap: r.price_gap,
+    status: r.status,
+  }));
+
+  const { error } = await supabase.from('realtime_checks').insert(rows);
+  if (error) throw new Error(`Realtime check save error: ${error.message}`);
+  console.log(`  📋 Saved ${rows.length} records to realtime_checks (check_id: ${checkId})`);
+}
+
+/**
+ * Returns true if the current run is a dry-run (Check Real Time).
+ */
+export function isDryRun() {
+  return process.env.DRY_RUN === 'true' && !!process.env.CHECK_ID;
+}
+
 export default supabase;

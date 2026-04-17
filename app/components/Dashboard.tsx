@@ -576,12 +576,17 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   }, [runHours, snapshotDate]);
 
   // Auto-select latest date/time when data loads or country changes
+  // Also re-select if current snapshotTime no longer exists in available runHours
+  const runHoursKey = runHours.join(',');
   useEffect(() => {
-    if (latestRunHour && (!snapshotDate || !snapshotTime)) {
+    if (!latestRunHour) return;
+    const needsReset = !snapshotDate || !snapshotTime || !runHours.includes(snapshotTime);
+    if (needsReset) {
       setSnapshotDate(latestRunHour.slice(0, 10));
       setSnapshotTime(latestRunHour);
     }
-  }, [latestRunHour, snapshotDate, snapshotTime]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latestRunHour, snapshotDate, snapshotTime, runHoursKey]);
 
   // Sync selectedRunHour from snapshotDate + snapshotTime
   useEffect(() => {
@@ -999,6 +1004,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                       if (!confirm(isEn ? 'Are you sure you want to logout?' : '로그아웃 하시겠습니까?')) return;
                       localStorage.removeItem('alerts-auth');
                       localStorage.removeItem('alerts-auth-expires');
+                      localStorage.removeItem('alerts-user');
+                      localStorage.removeItem('alerts-pass');
                       setIsLoggedIn(false);
                     }}
                     className="px-3 py-1.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
@@ -1137,6 +1144,36 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 <option value={90}>{isEn ? '90 days' : '90일'}</option>
               </select>
             </div>
+
+            {/* Check Real Time */}
+            <button
+                onClick={async () => {
+                  const dm = selectedDeliveryMethod || deliveryMethods[0];
+                  if (!confirm(isEn
+                    ? `Trigger a real-time scrape for ${selectedCountry} — ${dm}?\nThis takes 2-5 minutes. A new tab will open to show results.`
+                    : `${selectedCountry} — ${dm} 실시간 스크래핑을 실행하시겠습니까?\n2~5분 소요됩니다. 새 탭에서 결과를 확인합니다.`
+                  )) return;
+
+                  try {
+                    const res = await fetch('/api/scraper/trigger', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ country: selectedCountry, deliveryMethod: dm }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) { alert(data.error ?? 'Trigger failed'); return; }
+                    window.open(`/check?checkId=${data.checkId}&country=${encodeURIComponent(selectedCountry)}&method=${encodeURIComponent(dm)}`, '_blank');
+                  } catch (err) {
+                    alert(String(err));
+                  }
+                }}
+                className="p-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors self-end"
+                title={isEn ? 'Check Real Time' : '실시간 확인'}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                </svg>
+              </button>
 
             {/* Last accessed — right aligned */}
             <div className="ml-auto flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
@@ -1816,6 +1853,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   if (res.ok) {
                     localStorage.setItem('alerts-auth', 'true');
                     localStorage.setItem('alerts-auth-expires', String(Date.now() + 8 * 60 * 60 * 1000));
+                    localStorage.setItem('alerts-user', loginUser);
+                    localStorage.setItem('alerts-pass', loginPass);
                     setIsLoggedIn(true);
                     setShowLoginModal(false);
                   } else {

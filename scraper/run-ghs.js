@@ -6,7 +6,7 @@
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
-import { saveRates, logFailure } from './lib/supabase.js';
+import { saveRates, saveRealtimeCheck, isDryRun, logFailure } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
 import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 
@@ -129,10 +129,14 @@ async function main() {
   });
 
   try {
-    await saveRates(toSave);
+    if (isDryRun()) {
+      await saveRealtimeCheck(toSave, process.env.CHECK_ID);
+    } else {
+      await saveRates(toSave);
+    }
     console.log(`\n✅ ${toSave.length}건 Supabase 저장 완료 (Ghana GHS)`);
-    await checkAlerts(toSave, runHour);
-    await seedFees(toSave);
+    if (!isDryRun()) await checkAlerts(toSave, runHour);
+    if (!isDryRun()) await seedFees(toSave);
   } catch (err) {
     console.error(`\n❌ Supabase 저장 실패: ${err.message}`);
     process.exit(1);
