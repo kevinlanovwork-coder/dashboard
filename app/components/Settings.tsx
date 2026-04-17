@@ -906,11 +906,11 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
   const allFilteredFailures = filterOperator ? health.recentFailures.filter(f => f.operator === filterOperator) : health.recentFailures;
   const failureOperators = [...new Set(health.recentFailures.map(f => f.operator))].sort();
 
-  // Group failures by Delivery Method + Operator + Reason + Error Message, combining countries
+  // Group failures by Delivery Method + Operator + Reason, combining countries (error message ignored for grouping)
   const groupedFailures = (() => {
     const map = new Map<string, { countries: Set<string>; deliveryMethod: string; operator: string; reason: string; errorMessage: string | null; count: number; latestRunHour: string }>();
     for (const f of allFilteredFailures) {
-      const key = `${f.deliveryMethod}||${f.operator}||${f.reason}||${f.errorMessage ?? ''}`;
+      const key = `${f.deliveryMethod}||${f.operator}||${f.reason}`;
       const existing = map.get(key);
       if (existing) {
         existing.countries.add(f.country);
