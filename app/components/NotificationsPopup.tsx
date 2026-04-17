@@ -327,27 +327,20 @@ function FailuresGroupedList({ groups, isEn, emptyText }: {
   return (
     <>
       {groups.map((g, gi) => {
-        // Step 1: methods per (country, operator, reason)
-        const methodsPerKey = new Map<string, Set<string>>();
+        // Step 1: collect countries+methods per (operator, reason)
+        type Group = { operator: string; countries: Set<string>; methods: Set<string>; reason: string };
+        const merged = new Map<string, Group>();
         for (const item of g.items) {
           const reason = item.reason || 'scrape_error';
-          const key = `${item.country}||${item.operator}||${reason}`;
-          if (!methodsPerKey.has(key)) methodsPerKey.set(key, new Set());
-          methodsPerKey.get(key)!.add(item.deliveryMethod);
+          const mergeKey = `${item.operator}||${reason}`;
+          if (!merged.has(mergeKey)) merged.set(mergeKey, { operator: item.operator, countries: new Set(), methods: new Set(), reason });
+          const grp = merged.get(mergeKey)!;
+          grp.countries.add(item.country);
+          grp.methods.add(item.deliveryMethod);
         }
-        // Step 2: merge operators that share country + same method set + same reason
-        type Group = { country: string; operators: string[]; methods: string[]; reason: string };
-        const merged = new Map<string, Group>();
-        for (const [key, methodSet] of methodsPerKey) {
-          const [country, operator, reason] = key.split('||');
-          const sortedMethods = [...methodSet].sort();
-          const mergeKey = `${country}||${sortedMethods.join('|')}||${reason}`;
-          if (!merged.has(mergeKey)) merged.set(mergeKey, { country, operators: [], methods: sortedMethods, reason });
-          merged.get(mergeKey)!.operators.push(operator);
-        }
-        // Sort: by reason, then country
+        // Sort: by reason, then operator
         const groupEntries = [...merged.values()].sort((a, b) =>
-          a.reason.localeCompare(b.reason) || a.country.localeCompare(b.country)
+          a.reason.localeCompare(b.reason) || a.operator.localeCompare(b.operator)
         );
         return (
           <div key={gi} className="border-b border-slate-100 dark:border-slate-700/50 last:border-b-0">
@@ -361,8 +354,8 @@ function FailuresGroupedList({ groups, isEn, emptyText }: {
                 return (
                   <li key={ci} className="px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/30 flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="font-medium">{grp.country} — {grp.operators.sort().join(', ')}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">{grp.methods.join(', ')}</div>
+                      <div className="font-medium">{grp.operator} — {[...grp.countries].sort().join(', ')}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{[...grp.methods].sort().join(', ')}</div>
                     </div>
                     <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${meta.bg} ${meta.color}`}>
                       {reasonLabel(grp.reason, isEn)}
