@@ -414,7 +414,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [dlFrom, setDlFrom] = useState('');
   const [dlTo, setDlTo] = useState('');
   const [dlLoading, setDlLoading] = useState(false);
-  const [rtCooldown, setRtCooldown] = useState(0);
+  const [rtCooldownUntil, setRtCooldownUntil] = useState(0);
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -1170,8 +1170,14 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
 
             {/* Check Real Time (5-min cooldown) */}
             <button
-                disabled={rtCooldown > 0}
                 onClick={async () => {
+                  if (Date.now() < rtCooldownUntil) {
+                    const secs = Math.ceil((rtCooldownUntil - Date.now()) / 1000);
+                    alert(isEn
+                      ? `Please wait ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} before triggering another check.`
+                      : `다음 확인까지 ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} 남았습니다.`);
+                    return;
+                  }
                   const dm = selectedDeliveryMethod || deliveryMethods[0];
                   if (!confirm(isEn
                     ? `Trigger a real-time scrape for ${selectedCountry} — ${dm}?\nThis takes 2-5 minutes. A new tab will open to show results.`
@@ -1187,17 +1193,13 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     const data = await res.json();
                     if (!res.ok) { alert(data.error ?? 'Trigger failed'); return; }
                     window.open(`/check?checkId=${data.checkId}&country=${encodeURIComponent(selectedCountry)}&method=${encodeURIComponent(dm)}`, '_blank');
-                    setRtCooldown(300);
-                    const cd = setInterval(() => setRtCooldown(prev => {
-                      if (prev <= 1) { clearInterval(cd); return 0; }
-                      return prev - 1;
-                    }), 1000);
+                    setRtCooldownUntil(Date.now() + 5 * 60 * 1000);
                   } catch (err) {
                     alert(String(err));
                   }
                 }}
-                className={`p-1.5 rounded-lg border self-end transition-colors ${rtCooldown > 0 ? 'border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`}
-                title={rtCooldown > 0 ? `${Math.floor(rtCooldown / 60)}:${String(rtCooldown % 60).padStart(2, '0')}` : (isEn ? 'Check Real Time' : '실시간 확인')}
+                className="p-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors self-end"
+                title={isEn ? 'Check Real Time' : '실시간 확인'}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
