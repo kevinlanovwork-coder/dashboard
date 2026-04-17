@@ -100,6 +100,15 @@ const EN = {
   calcNoGME: 'No GME data in current snapshot',
   calcSelectHint: 'Select at least 1 competitor to compare',
   calculator: 'Calculator',
+  dlTitle: 'Download XLS',
+  dlFrom: 'From',
+  dlTo: 'To',
+  dl3m: '3 Months',
+  dl6m: '6 Months',
+  dl1y: '1 Year',
+  dlDownload: 'Download',
+  dlCancel: 'Cancel',
+  dlLoading: 'Preparing...',
 };
 
 const KO = {
@@ -191,6 +200,15 @@ const KO = {
   calcNoGME: '현재 스냅샷에 GME 데이터 없음',
   calcSelectHint: '비교할 경쟁사를 1개 이상 선택하세요',
   calculator: '계산기',
+  dlTitle: 'XLS 다운로드',
+  dlFrom: '시작',
+  dlTo: '종료',
+  dl3m: '3개월',
+  dl6m: '6개월',
+  dl1y: '1년',
+  dlDownload: '다운로드',
+  dlCancel: '취소',
+  dlLoading: '준비 중...',
 };
 
 type T = typeof EN;
@@ -392,6 +410,10 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [calcSelectedOps, setCalcSelectedOps] = useState<Set<string>>(new Set());
   const [calcRate, setCalcRate] = useState('');
   const [calcUsdLocalRate, setCalcUsdLocalRate] = useState('');
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [dlFrom, setDlFrom] = useState('');
+  const [dlTo, setDlTo] = useState('');
+  const [dlLoading, setDlLoading] = useState(false);
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -1670,7 +1692,14 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.records(tableData.length)}</p>
                 </div>
                 <button
-                  onClick={handleDownloadXlsx}
+                  onClick={() => {
+                    const today = new Date().toISOString().slice(0, 10);
+                    const threeMonthsAgo = new Date();
+                    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+                    setDlTo(today);
+                    setDlFrom(threeMonthsAgo.toISOString().slice(0, 10));
+                    setShowDownloadModal(true);
+                  }}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5">
@@ -2180,6 +2209,99 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             </div>
           );
         })()}
+
+        {/* Download XLS Modal */}
+        {showDownloadModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowDownloadModal(false)}>
+            <div onClick={e => e.stopPropagation()} className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 mx-4 space-y-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-800 dark:text-slate-200">{t.dlTitle}</h2>
+                <p className="text-slate-500 text-xs mt-0.5">{selectedCountry} — {selectedDeliveryMethod || deliveryMethods[0]}</p>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t.dlFrom}</label>
+                  <input type="date" value={dlFrom} onChange={e => setDlFrom(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200" />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t.dlTo}</label>
+                  <input type="date" value={dlTo} onChange={e => setDlTo(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200" />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                {[
+                  { label: t.dl3m, months: 3 },
+                  { label: t.dl6m, months: 6 },
+                  { label: t.dl1y, months: 12 },
+                ].map(({ label, months }) => {
+                  const d = new Date(dlTo || new Date().toISOString().slice(0, 10));
+                  d.setMonth(d.getMonth() - months);
+                  const target = d.toISOString().slice(0, 10);
+                  const isActive = dlFrom === target;
+                  return (
+                    <button key={months} onClick={() => setDlFrom(target)}
+                      className={`flex-1 px-2 py-1.5 rounded-lg border text-xs font-medium transition-colors ${isActive ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  disabled={dlLoading || !dlFrom || !dlTo}
+                  onClick={async () => {
+                    setDlLoading(true);
+                    try {
+                      const res = await fetch(`/api/rates?country=${encodeURIComponent(selectedCountry)}&from=${dlFrom}&to=${dlTo}`);
+                      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                      const data = await res.json();
+                      if (!data || data.length === 0) { alert(isEn ? 'No data for this period.' : '해당 기간 데이터 없음.'); return; }
+
+                      const rows = data.map((r: RateRecord) => ({
+                        Time: formatRunHour(r.runHour),
+                        Operator: r.operator,
+                        Method: r.deliveryMethod ?? 'Bank Deposit',
+                        Country: r.receivingCountry,
+                        'Recv. Amount': r.receiveAmount,
+                        Currency: CURRENCY_MAP[`${r.receivingCountry}||${r.deliveryMethod}`] ?? r.deliveryMethod?.match(/\(([A-Z]{3})\)/)?.[1] ?? CURRENCY_MAP[r.receivingCountry] ?? '',
+                        'Send Amt (KRW)': r.sendAmountKRW,
+                        'Service Fee': r.serviceFee,
+                        'Collection Amt (KRW)': r.totalSendingAmount,
+                        'GME Baseline': r.gmeBaseline ?? '',
+                        'Price Gap': r.priceGap ?? '',
+                        Rate: r.sendAmountKRW > 0
+                          ? (() => { const exKRW = rateExchangeKRW(r); const raw = r.receiveAmount / exKRW; return parseFloat((raw >= 1 ? raw : exKRW / r.receiveAmount).toFixed(4)); })()
+                          : '',
+                        Status: r.status,
+                      }));
+                      const ws = XLSX.utils.json_to_sheet(rows);
+                      const wb = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(wb, ws, 'Data');
+                      XLSX.writeFile(wb, `GME_${selectedCountry}_${dlFrom}_${dlTo}.xlsx`);
+                      setShowDownloadModal(false);
+                    } catch (err) {
+                      alert(String(err));
+                    } finally {
+                      setDlLoading(false);
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {dlLoading ? t.dlLoading : t.dlDownload}
+                </button>
+                <button onClick={() => setShowDownloadModal(false)}
+                  className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                  {t.dlCancel}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

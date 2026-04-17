@@ -14,22 +14,34 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_ANON_KEY!,
   );
 
-  const days = Number(req.nextUrl.searchParams.get('days') ?? '14');
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - days);
-  const fromDateStr = fromDate.toISOString().slice(0, 10);
+  // Support explicit from/to date params, or fall back to days-from-now
+  const fromParam = req.nextUrl.searchParams.get('from');
+  const toParam = req.nextUrl.searchParams.get('to');
+  let fromDateStr: string;
+  let toDateStr: string | null = null;
+  if (fromParam) {
+    fromDateStr = fromParam;
+    if (toParam) toDateStr = toParam;
+  } else {
+    const days = Number(req.nextUrl.searchParams.get('days') ?? '14');
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - days);
+    fromDateStr = fromDate.toISOString().slice(0, 10);
+  }
 
   // Fetch all records in batches (Supabase caps at 1000 per request)
   const BATCH = 1000;
   let allData: Record<string, unknown>[] = [];
   let from = 0;
   while (true) {
-    const { data: batch, error } = await supabase
+    let query = supabase
       .from('rate_records')
       .select('*')
       .eq('receiving_country', country)
       .is('deleted_at', null)
-      .gte('run_hour', fromDateStr)
+      .gte('run_hour', fromDateStr);
+    if (toDateStr) query = query.lte('run_hour', toDateStr + ' 23:59');
+    const { data: batch, error } = await query
       .order('run_hour', { ascending: false })
       .range(from, from + BATCH - 1);
 
