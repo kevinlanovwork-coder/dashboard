@@ -138,7 +138,7 @@ export default function CheckPage() {
             <img src="/GME_swirl_icon.png" alt="GME" className="h-7 shrink-0" />
             <div>
               <h1 className="text-base font-bold tracking-tight">Real-Time Check</h1>
-              <p className="text-slate-500 text-xs mt-0.5">{country} — {method}</p>
+              <p className="text-slate-500 text-xs mt-0.5">Data not stored in Database</p>
             </div>
           </div>
         </div>
@@ -177,9 +177,9 @@ export default function CheckPage() {
         {status === 'ready' && (
           <div>
             <div className="mb-4">
-              <h2 className="text-sm font-semibold">Collection Amount — {country}</h2>
+              <h2 className="text-sm font-semibold">Collection Amount — {country}{activeTab ? ` (${activeTab})` : ''}</h2>
               <p className="text-slate-500 text-xs mt-0.5">
-                Real-time check at {readyAt} KST — not stored in database
+                Real-time check at {readyAt} KST
               </p>
             </div>
 
@@ -272,7 +272,7 @@ export default function CheckPage() {
               </div>
             </div>
 
-            {/* Data table */}
+            {/* Data table — filtered by active tab */}
             <div className="mt-6 border border-slate-200 rounded-xl overflow-hidden">
               <table className="w-full text-xs">
                 <thead>
@@ -285,8 +285,8 @@ export default function CheckPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {chartData.map(r => (
-                    <tr key={r.operator} className={r.operator === 'GME' ? 'bg-red-50/50' : ''}>
+                  {chartData.map((r, i) => (
+                    <tr key={`${r.operator}-${i}`} className={r.operator === 'GME' ? 'bg-red-50/50' : ''}>
                       <td className={`px-4 py-2 font-medium ${r.operator === 'GME' ? 'text-red-500' : 'text-slate-700'}`}>
                         {r.operator === 'GME' ? '★ GME' : r.operator}
                       </td>
