@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Cell, LabelList,
@@ -35,6 +35,7 @@ export default function CheckPage() {
   const [error, setError] = useState('');
   const [readyAt, setReadyAt] = useState('');
   const [activeTab, setActiveTab] = useState('');
+  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Read params on mount
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function CheckPage() {
         setRecords(data.records);
         setStatus('ready');
         setReadyAt(new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+        if (elapsedRef.current) { clearInterval(elapsedRef.current); elapsedRef.current = null; }
         return true;
       }
     } catch (err) {
@@ -79,14 +81,15 @@ export default function CheckPage() {
         if (intervalId) clearInterval(intervalId);
         setStatus(prev => prev === 'ready' ? prev : 'error');
         setError('Scraper did not return results within 8 minutes. Please try again.');
+        if (elapsedRef.current) { clearInterval(elapsedRef.current); elapsedRef.current = null; }
       }, 8 * 60 * 1000);
     }, 30000);
 
-    const timer = setInterval(() => setElapsed(e => e + 1), 1000);
+    elapsedRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
 
     return () => {
       clearTimeout(startDelay);
-      clearInterval(timer);
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
       if (intervalId) clearInterval(intervalId);
       if (timeoutId) clearTimeout(timeoutId);
     };
