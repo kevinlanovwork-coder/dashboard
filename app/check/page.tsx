@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Cell, LabelList,
@@ -33,6 +33,8 @@ export default function CheckPage() {
   const [status, setStatus] = useState<'waiting' | 'pending' | 'ready' | 'error'>('waiting');
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
+  const [readyAt, setReadyAt] = useState('');
+  const [activeTab, setActiveTab] = useState('');
 
   // Read params on mount
   useEffect(() => {
@@ -51,7 +53,8 @@ export default function CheckPage() {
       if (data.status === 'ready' && data.records?.length > 0) {
         setRecords(data.records);
         setStatus('ready');
-        return true; // stop polling
+        setReadyAt(new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+        return true;
       }
     } catch (err) {
       console.error('Poll error:', err);
@@ -66,14 +69,12 @@ export default function CheckPage() {
     let intervalId: ReturnType<typeof setInterval> | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    // Start polling after 30s (GitHub Actions needs time to spin up)
     const startDelay = setTimeout(() => {
       intervalId = setInterval(async () => {
         const done = await poll();
         if (done && intervalId) { clearInterval(intervalId); if (timeoutId) clearTimeout(timeoutId); }
       }, 10000);
 
-      // Timeout after 8 minutes
       timeoutId = setTimeout(() => {
         if (intervalId) clearInterval(intervalId);
         setStatus(prev => prev === 'ready' ? prev : 'error');
@@ -81,7 +82,6 @@ export default function CheckPage() {
       }, 8 * 60 * 1000);
     }, 30000);
 
-    // Elapsed timer
     const timer = setInterval(() => setElapsed(e => e + 1), 1000);
 
     return () => {
@@ -92,15 +92,37 @@ export default function CheckPage() {
     };
   }, [checkId, poll]);
 
-  // Chart data — sorted descending (most expensive at top)
-  const chartData = [...records].sort((a, b) => b.totalSendingAmount - a.totalSendingAmount);
-  const gmeRecord = chartData.find(r => r.operator === 'GME');
+  // Delivery method tabs
+  const deliveryMethods = useMemo(
+    () => [...new Set(records.map(r => r.deliveryMethod).filter(Boolean))].sort(),
+    [records]
+  );
+
+  // Auto-select first tab when data arrives
+  useEffect(() => {
+    if (deliveryMethods.length > 0 && !activeTab) {
+      setActiveTab(deliveryMethods[0]);
+    }
+  }, [deliveryMethods, activeTab]);
+
+  // Filtered + sorted data for active tab
+  const chartData = useMemo(() => {
+    const filtered = activeTab
+      ? records.filter(r => r.deliveryMethod === activeTab)
+      : records;
+    return [...filtered].sort((a, b) => b.totalSendingAmount - a.totalSendingAmount);
+  }, [records, activeTab]);
+
+  const gmeRecord = useMemo(() => chartData.find(r => r.operator === 'GME'), [chartData]);
   const gmeBaseline = gmeRecord?.totalSendingAmount ?? null;
 
-  const amounts = chartData.map(r => r.totalSendingAmount).filter(Boolean);
-  const minVal = amounts.length > 0 ? Math.min(...amounts) : 0;
-  const maxVal = amounts.length > 0 ? Math.max(...amounts) : 0;
-  const padding = maxVal > 0 ? ((maxVal - minVal) * 0.15 || maxVal * 0.01) : 0;
+  const { minVal, maxVal, padding } = useMemo(() => {
+    const amounts = chartData.map(r => r.totalSendingAmount).filter(Boolean);
+    const min = amounts.length > 0 ? Math.min(...amounts) : 0;
+    const max = amounts.length > 0 ? Math.max(...amounts) : 0;
+    const pad = max > 0 ? ((max - min) * 0.15 || max * 0.01) : 0;
+    return { minVal: min, maxVal: max, padding: pad };
+  }, [chartData]);
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
@@ -152,11 +174,26 @@ export default function CheckPage() {
         {status === 'ready' && (
           <div>
             <div className="mb-4">
-              <h2 className="text-sm font-semibold">Collection Amount — {country} ({method})</h2>
+              <h2 className="text-sm font-semibold">Collection Amount — {country}</h2>
               <p className="text-slate-500 text-xs mt-0.5">
-                Real-time check at {new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} KST — not stored in database
+                Real-time check at {readyAt} KST — not stored in database
               </p>
             </div>
+
+            {/* Delivery method tabs */}
+            {deliveryMethods.length > 1 && (
+              <div className="flex gap-1 mb-4 border-b border-slate-200">
+                {deliveryMethods.map(dm => (
+                  <button
+                    key={dm}
+                    onClick={() => setActiveTab(dm)}
+                    className={`px-4 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${activeTab === dm ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                  >
+                    {dm}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
               {chartData.length > 0 ? (
