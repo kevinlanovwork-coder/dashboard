@@ -31,6 +31,7 @@ const CORRIDOR_SCRIPT: Record<string, string> = {
   'Kazakhstan||Cash Pickup': 'run-kzt.js',
   'Kyrgyzstan||Cash Pickup': 'run-kgs.js',
   'Ghana||Bank Deposit': 'run-ghs.js',
+  'Ghana||Mobile Wallet': 'run-ghs.js',
   'South Africa||Bank Deposit': 'run-zar.js',
   'Canada||Bank Deposit': 'run-cad.js',
   'Nigeria||Bank Deposit': 'run-ngn.js',

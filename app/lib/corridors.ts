@@ -19,6 +19,7 @@ export const OPERATOR_MAP: Record<string, string[]> = {
   'Philippines||Cash Pickup':  ['GME', 'GMoneyTrans', 'Hanpass', 'E9Pay', 'JRF'],
   'Cambodia||Bank Deposit':    ['GME', 'GMoneyTrans', 'Hanpass', 'SBI', 'E9Pay'],
   'Ghana||Bank Deposit':       ['GME', 'GMoneyTrans'],
+  'Ghana||Mobile Wallet':      ['GME', 'GMoneyTrans'],
   'South Africa||Bank Deposit': ['GME', 'GMoneyTrans', 'Hanpass'],
   'Canada||Bank Deposit':      ['GME', 'GMoneyTrans'],
   'Nigeria||Bank Deposit':     ['GME', 'GMoneyTrans'],
