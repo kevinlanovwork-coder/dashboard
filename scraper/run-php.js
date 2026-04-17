@@ -230,6 +230,12 @@ async function scrapeUtransfer(browser) {
   const page = await browser.newPage();
   try {
     await page.goto('https://www.utransfer.com', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForTimeout(2000);
+    const personalBtn = page.locator('button:has-text("바로가기")').first();
+    if (await personalBtn.isVisible().catch(() => false)) {
+      await personalBtn.click();
+      await page.waitForTimeout(2000);
+    }
     await page.waitForFunction(() => document.querySelectorAll('select').length >= 2, null, { timeout: 15000 });
     await page.locator('select').nth(1).selectOption('PHP');
     await page.waitForTimeout(1000);

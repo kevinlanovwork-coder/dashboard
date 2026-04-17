@@ -99,6 +99,11 @@ async function scrapeUtransfer(browser) {
   try {
     await page.goto('https://www.utransfer.com', { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(2000);
+    const personalBtn = page.locator('button:has-text("바로가기")').first();
+    if (await personalBtn.isVisible().catch(() => false)) {
+      await personalBtn.click();
+      await page.waitForTimeout(2000);
+    }
     await page.locator('select').nth(1).selectOption('BDT');
     await page.waitForTimeout(1000);
     await page.click('input[name="toAmount"]', { clickCount: 3 });

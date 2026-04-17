@@ -15,6 +15,13 @@ export async function scrape(browser) {
     });
     await page.waitForTimeout(2000);
 
+    // ── Utransfer Personal 선택 (랜딩 페이지) ──────────────────────────
+    const personalBtn = page.locator('button:has-text("바로가기")').first();
+    if (await personalBtn.isVisible().catch(() => false)) {
+      await personalBtn.click();
+      await page.waitForTimeout(2000);
+    }
+
     // ── 수신 통화: IDR 선택 (두 번째 select) ───────────────────────────
     await page.locator('select').nth(1).selectOption('IDR');
     await page.waitForTimeout(1000);
