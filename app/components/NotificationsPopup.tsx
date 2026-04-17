@@ -132,7 +132,7 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
   useEffect(() => {
     setLastViewed(Number(localStorage.getItem(STORAGE_KEY) ?? 0));
     fetchAll();
-    const interval = setInterval(fetchAll, 2 * 60 * 1000);
+    const interval = setInterval(fetchAll, 10 * 60 * 1000); // scrapers run every 30min; 10min poll is responsive enough
     return () => clearInterval(interval);
   }, [fetchAll]);
 
