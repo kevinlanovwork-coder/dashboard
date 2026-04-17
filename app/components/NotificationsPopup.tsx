@@ -136,10 +136,13 @@ export default function NotificationsPopup({ isEn }: { isEn: boolean }) {
     return () => clearInterval(interval);
   }, [fetchAll]);
 
-  const newFailures = failures.filter(f => runHourMs(f.runHour) > lastViewed).length;
-  const newAlerts = alerts.filter(a => new Date(a.notified_at).getTime() > lastViewed).length;
-  const newOutliers = outliers.filter(o => runHourMs(o.runHour) > lastViewed).length;
-  const newExpiredFees = expiredFees.filter(f => new Date(f.edited_at).getTime() > lastViewed).length;
+  // Badge count: items from last 24 hours (always visible regardless of last-viewed)
+  const last24h = Date.now() - 24 * 60 * 60 * 1000;
+  const cutoff = Math.max(lastViewed, last24h);
+  const newFailures = failures.filter(f => runHourMs(f.runHour) > cutoff).length;
+  const newAlerts = alerts.filter(a => new Date(a.notified_at).getTime() > cutoff).length;
+  const newOutliers = outliers.filter(o => runHourMs(o.runHour) > cutoff).length;
+  const newExpiredFees = expiredFees.filter(f => new Date(f.edited_at).getTime() > cutoff).length;
   const totalNew = newFailures + newAlerts + newOutliers + newExpiredFees;
 
   // Auto-select tab when popup opens — pick first tab with new items

@@ -86,6 +86,20 @@ const EN = {
   periodLabel: 'Period',
   latestDate: 'Latest',
   latestTime: 'Latest',
+  calcTitle: 'Rate Position Calculator',
+  calcSelectOps: 'Select competitors (max 3):',
+  calcCurrentRate: 'Current:',
+  calcGMERate: 'GME Exchange Rate',
+  calcPosition: 'Position Comparison',
+  calcCurrent: 'Current',
+  calcAdjusted: 'Adjusted',
+  calcClose: 'Close',
+  calcRank: 'Rank',
+  calcCollection: 'Collection',
+  calcGap: 'vs Cheapest',
+  calcNoGME: 'No GME data in current snapshot',
+  calcSelectHint: 'Select at least 1 competitor to compare',
+  calculator: 'Calculator',
 };
 
 const KO = {
@@ -163,6 +177,20 @@ const KO = {
   periodLabel: '기간',
   latestDate: '최신',
   latestTime: '최신',
+  calcTitle: '환율 포지션 계산기',
+  calcSelectOps: '비교 대상 선택 (최대 3개):',
+  calcCurrentRate: '현재:',
+  calcGMERate: 'GME 환율',
+  calcPosition: '포지션 비교',
+  calcCurrent: '현재',
+  calcAdjusted: '조정',
+  calcClose: '닫기',
+  calcRank: '순위',
+  calcCollection: '합계',
+  calcGap: 'vs 최저',
+  calcNoGME: '현재 스냅샷에 GME 데이터 없음',
+  calcSelectHint: '비교할 경쟁사를 1개 이상 선택하세요',
+  calculator: '계산기',
 };
 
 type T = typeof EN;
@@ -360,6 +388,10 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showCalcModal, setShowCalcModal] = useState(false);
+  const [calcSelectedOps, setCalcSelectedOps] = useState<Set<string>>(new Set());
+  const [calcRate, setCalcRate] = useState('');
+  const [calcUsdLocalRate, setCalcUsdLocalRate] = useState('');
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -901,6 +933,29 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Calculator (login required) */}
+              {isLoggedIn && <button
+                onClick={() => {
+                  const gme = snapshot.find(r => r.status === 'GME');
+                  if (gme && gme.sendAmountKRW > 0) {
+                    const raw = gme.receiveAmount / gme.sendAmountKRW;
+                    const rate = raw >= 1 ? raw : gme.sendAmountKRW / gme.receiveAmount;
+                    setCalcRate(rate.toFixed(2));
+                  } else {
+                    setCalcRate('');
+                  }
+                  setCalcSelectedOps(new Set());
+                  setCalcUsdLocalRate('');
+                  setShowCalcModal(true);
+                }}
+                className="p-1.5 rounded-lg border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+                title={t.calculator}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm4.498-2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm-2.502-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z" />
+                </svg>
+              </button>}
+
               {/* Summary link (public) */}
               <a href="/summary" className="px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
                 {isEn ? 'Summary' : '전체 요약'}
@@ -1802,6 +1857,290 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             </form>
           </div>
         )}
+
+        {/* Rate Position Calculator Modal */}
+        {showCalcModal && (() => {
+          const gme = snapshot.find(r => r.status === 'GME');
+          const competitors = snapshot.filter(r => r.status !== 'GME');
+          const receiveAmt = gme?.receiveAmount ?? 0;
+          const sendKRW = gme?.sendAmountKRW ?? 0;
+          const fee = gme?.serviceFee ?? 0;
+          const raw = sendKRW > 0 ? receiveAmt / sendKRW : 0;
+          const isPerKRW = raw >= 1;
+          const currentRate = isPerKRW ? raw : (receiveAmt > 0 ? sendKRW / receiveAmt : 0);
+          const rateLabel = isPerKRW
+            ? `${receiveCurrency} per 1 KRW`
+            : `KRW per 1 ${receiveCurrency}`;
+          const isUsdCorridor = receiveCurrency === 'USD';
+
+          // --- Calculation logic ---
+          let newSendKRW = sendKRW;
+          let newCollection = gme?.totalSendingAmount ?? 0;
+          let rateChanged = false;
+          let adjustedDisplayRate = currentRate; // the local rate shown in Adjusted header
+
+          if (isUsdCorridor) {
+            // USD corridor: direct rate adjustment (KRW per 1 USD)
+            const parsedRate = parseFloat(calcRate.replace(/,/g, ''));
+            const rateValid = !isNaN(parsedRate) && parsedRate > 0;
+            newSendKRW = rateValid ? parsedRate * receiveAmt : sendKRW;
+            newCollection = Math.round(newSendKRW + fee);
+            rateChanged = rateValid && Math.abs(parsedRate - currentRate) > 0.001;
+            adjustedDisplayRate = rateValid ? parsedRate : currentRate;
+          } else {
+            // Local currency corridor: two-step (KRW → USD → Local)
+            const parsedUsdLocal = parseFloat(calcUsdLocalRate.replace(/,/g, ''));
+            const usdLocalValid = !isNaN(parsedUsdLocal) && parsedUsdLocal > 0;
+            const parsedAdjUsdKrw = parseFloat(calcRate.replace(/,/g, ''));
+            const adjUsdKrwValid = !isNaN(parsedAdjUsdKrw) && parsedAdjUsdKrw > 0;
+
+            if (usdLocalValid && adjUsdKrwValid) {
+              // isPerKRW (e.g. IDR): localRate = IDR/KRW = USD-IDR / USD-KRW
+              // !isPerKRW (e.g. BDT): localRate = KRW/BDT = USD-KRW / USD-BDT
+              const newLocalRate = isPerKRW
+                ? parsedUsdLocal / parsedAdjUsdKrw
+                : parsedAdjUsdKrw / parsedUsdLocal;
+              newSendKRW = isPerKRW ? receiveAmt / newLocalRate : newLocalRate * receiveAmt;
+              newCollection = Math.round(newSendKRW + fee);
+              adjustedDisplayRate = newLocalRate;
+              // Derive the original USD-KRW for comparison
+              const derivedUsdKrw = isPerKRW
+                ? parsedUsdLocal / currentRate
+                : parsedUsdLocal * currentRate;
+              rateChanged = Math.abs(parsedAdjUsdKrw - derivedUsdKrw) > 0.01;
+            }
+          }
+
+          // Build current ranking (descending — most expensive at top, matching the Collection Amount chart)
+          const selected = competitors.filter(r => calcSelectedOps.has(r.operator));
+          const currentEntries = [
+            ...selected.map(r => ({ operator: r.operator, collection: r.totalSendingAmount, isGME: false })),
+            { operator: 'GME', collection: gme?.totalSendingAmount ?? 0, isGME: true },
+          ].sort((a, b) => b.collection - a.collection);
+          const totalCurrent = currentEntries.length;
+          const currentGMERank = totalCurrent - currentEntries.findIndex(e => e.isGME);
+          const cheapestCurrent = currentEntries[currentEntries.length - 1]?.collection ?? 0;
+
+          // Build adjusted ranking (descending)
+          const adjustedEntries = [
+            ...selected.map(r => ({ operator: r.operator, collection: r.totalSendingAmount, isGME: false })),
+            { operator: 'GME', collection: newCollection, isGME: true },
+          ].sort((a, b) => b.collection - a.collection);
+          const totalAdjusted = adjustedEntries.length;
+          const adjustedGMERank = totalAdjusted - adjustedEntries.findIndex(e => e.isGME);
+          const cheapestAdjusted = adjustedEntries[adjustedEntries.length - 1]?.collection ?? 0;
+
+          const rankDiff = currentGMERank - adjustedGMERank;
+          const ordinal = (n: number) => {
+            const s = ['th', 'st', 'nd', 'rd'];
+            const v = n % 100;
+            return n + (s[(v - 20) % 10] || s[v] || s[0]);
+          };
+
+          return (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCalcModal(false)}>
+              <div onClick={e => e.stopPropagation()} className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl mx-4 overflow-hidden">
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+                  <h2 className="text-base font-bold text-slate-800 dark:text-slate-200">{t.calcTitle}</h2>
+                  <p className="text-slate-500 text-xs mt-0.5">
+                    {selectedCountry} — {selectedDeliveryMethod || deliveryMethods[0]} — {receiveCurrency}
+                  </p>
+                </div>
+
+                <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+                  {!gme ? (
+                    <p className="text-slate-400 text-sm py-8 text-center">{t.calcNoGME}</p>
+                  ) : (
+                    <>
+                      {/* Operator Selection */}
+                      <div>
+                        <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">{t.calcSelectOps}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {competitors.map(r => {
+                            const checked = calcSelectedOps.has(r.operator);
+                            const disabled = !checked && calcSelectedOps.size >= 3;
+                            return (
+                              <label key={r.operator} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition-colors ${checked ? 'border-violet-400 bg-violet-50 dark:bg-violet-900/30 dark:border-violet-600 text-violet-700 dark:text-violet-300' : disabled ? 'border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-violet-300 dark:hover:border-violet-700'}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  disabled={disabled}
+                                  className="sr-only"
+                                  onChange={() => {
+                                    setCalcSelectedOps(prev => {
+                                      const next = new Set(prev);
+                                      if (next.has(r.operator)) next.delete(r.operator);
+                                      else next.add(r.operator);
+                                      return next;
+                                    });
+                                  }}
+                                />
+                                {checked && <span className="text-violet-500">&#10003;</span>}
+                                {r.operator}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Position Comparison */}
+                      {calcSelectedOps.size === 0 ? (
+                        <p className="text-slate-400 text-sm py-4 text-center">{t.calcSelectHint}</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {/* Current Position */}
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">{t.calcCurrent} — {isEn ? 'Rate' : '환율'}: {currentRate.toFixed(2)}</p>
+                            <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="bg-slate-50 dark:bg-slate-800/50">
+                                    <th className="px-3 py-1.5 text-left font-medium text-slate-500">{t.calcRank}</th>
+                                    <th className="px-3 py-1.5 text-left font-medium text-slate-500">{isEn ? 'Operator' : '운영사'}</th>
+                                    <th className="px-3 py-1.5 text-right font-medium text-slate-500">{t.calcCollection}</th>
+                                    <th className="px-3 py-1.5 text-right font-medium text-slate-500">{t.calcGap}</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {currentEntries.map((e, i) => (
+                                    <tr key={e.operator} className={e.isGME ? 'bg-red-50/50 dark:bg-red-900/10' : ''}>
+                                      <td className="px-3 py-1.5 font-mono text-slate-500">{ordinal(totalCurrent - i)}</td>
+                                      <td className={`px-3 py-1.5 font-medium ${e.isGME ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
+                                        {e.isGME ? '★ GME' : e.operator}
+                                      </td>
+                                      <td className="px-3 py-1.5 text-right font-mono text-slate-700 dark:text-slate-300">{e.collection.toLocaleString('ko-KR')}</td>
+                                      <td className={`px-3 py-1.5 text-right font-mono ${e.collection - cheapestCurrent > 0 ? 'text-orange-500' : 'text-green-600 dark:text-green-400'}`}>
+                                        {e.collection - cheapestCurrent === 0 ? '—' : `+${(e.collection - cheapestCurrent).toLocaleString('ko-KR')}`}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* Rate Input + Position pill */}
+                          {isUsdCorridor ? (
+                            /* USD corridor: single rate input */
+                            <div className="flex items-end gap-3">
+                              <div className="shrink-0">
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                  {t.calcGMERate} ({rateLabel})
+                                </label>
+                                <input
+                                  type="text"
+                                  value={calcRate}
+                                  onChange={e => setCalcRate(e.target.value)}
+                                  className="w-32 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                />
+                              </div>
+                              {rateChanged && (
+                                <span className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold ${rankDiff > 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : rankDiff < 0 ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                                  {isEn ? 'Position' : '포지션'}: {ordinal(currentGMERank)} → {ordinal(adjustedGMERank)}
+                                  {rankDiff > 0 && ` (↑${rankDiff})`}
+                                  {rankDiff < 0 && ` (↓${Math.abs(rankDiff)})`}
+                                  {rankDiff === 0 && ` (—)`}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            /* Local currency corridor: two-step inputs on one line */
+                            <div className="flex items-end gap-2 flex-wrap">
+                              <div className="shrink-0">
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                  USD-{receiveCurrency}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={calcUsdLocalRate}
+                                  onChange={e => {
+                                    setCalcUsdLocalRate(e.target.value);
+                                    const val = parseFloat(e.target.value.replace(/,/g, ''));
+                                    if (!isNaN(val) && val > 0 && currentRate > 0) {
+                                      const derived = isPerKRW ? val / currentRate : val * currentRate;
+                                      setCalcRate(derived.toFixed(2));
+                                    }
+                                  }}
+                                  placeholder="e.g. 16,200"
+                                  className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                />
+                              </div>
+                              <span className="text-slate-400 pb-1.5">→</span>
+                              <div className="shrink-0">
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                  USD-KRW
+                                </label>
+                                <input
+                                  type="text"
+                                  value={calcRate}
+                                  onChange={e => setCalcRate(e.target.value)}
+                                  className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                />
+                              </div>
+                              {rateChanged && (
+                                <span className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold ${rankDiff > 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : rankDiff < 0 ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                                  {isEn ? 'Position' : '포지션'}: {ordinal(currentGMERank)} → {ordinal(adjustedGMERank)}
+                                  {rankDiff > 0 && ` (↑${rankDiff})`}
+                                  {rankDiff < 0 && ` (↓${Math.abs(rankDiff)})`}
+                                  {rankDiff === 0 && ` (—)`}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Adjusted Position */}
+                          {rateChanged && (
+                            <div>
+                              <p className="text-xs font-semibold text-violet-500 dark:text-violet-400 mb-1.5">{t.calcAdjusted} — {isEn ? 'Rate' : '환율'}: {adjustedDisplayRate.toFixed(2)}</p>
+                              <div className="rounded-lg border border-violet-200 dark:border-violet-800 overflow-hidden">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="bg-violet-50 dark:bg-violet-900/20">
+                                      <th className="px-3 py-1.5 text-left font-medium text-slate-500">{t.calcRank}</th>
+                                      <th className="px-3 py-1.5 text-left font-medium text-slate-500">{isEn ? 'Operator' : '운영사'}</th>
+                                      <th className="px-3 py-1.5 text-right font-medium text-slate-500">{t.calcCollection}</th>
+                                      <th className="px-3 py-1.5 text-right font-medium text-slate-500">{t.calcGap}</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {adjustedEntries.map((e, i) => (
+                                      <tr key={e.operator} className={e.isGME ? 'bg-violet-50/50 dark:bg-violet-900/10' : ''}>
+                                        <td className="px-3 py-1.5 font-mono text-slate-500">{ordinal(totalAdjusted - i)}</td>
+                                        <td className={`px-3 py-1.5 font-medium ${e.isGME ? 'text-violet-600 dark:text-violet-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                          {e.isGME ? '★ GME' : e.operator}
+                                        </td>
+                                        <td className="px-3 py-1.5 text-right font-mono text-slate-700 dark:text-slate-300">
+                                          {e.collection.toLocaleString('ko-KR')}
+                                          {e.isGME && <span className="text-violet-500 ml-1">({newCollection < (gme?.totalSendingAmount ?? 0) ? '▼' : '▲'}{Math.abs(newCollection - (gme?.totalSendingAmount ?? 0)).toLocaleString('ko-KR')})</span>}
+                                        </td>
+                                        <td className={`px-3 py-1.5 text-right font-mono ${e.collection - cheapestAdjusted > 0 ? 'text-orange-500' : 'text-green-600 dark:text-green-400'}`}>
+                                          {e.collection - cheapestAdjusted === 0 ? '—' : `+${(e.collection - cheapestAdjusted).toLocaleString('ko-KR')}`}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                  <button onClick={() => setShowCalcModal(false)}
+                    className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    {t.calcClose}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
