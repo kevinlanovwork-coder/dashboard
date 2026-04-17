@@ -414,6 +414,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [dlFrom, setDlFrom] = useState('');
   const [dlTo, setDlTo] = useState('');
   const [dlLoading, setDlLoading] = useState(false);
+  const [rtCooldown, setRtCooldown] = useState(0);
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -1167,8 +1168,9 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               </select>
             </div>
 
-            {/* Check Real Time */}
+            {/* Check Real Time (5-min cooldown) */}
             <button
+                disabled={rtCooldown > 0}
                 onClick={async () => {
                   const dm = selectedDeliveryMethod || deliveryMethods[0];
                   if (!confirm(isEn
@@ -1185,12 +1187,17 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     const data = await res.json();
                     if (!res.ok) { alert(data.error ?? 'Trigger failed'); return; }
                     window.open(`/check?checkId=${data.checkId}&country=${encodeURIComponent(selectedCountry)}&method=${encodeURIComponent(dm)}`, '_blank');
+                    setRtCooldown(300);
+                    const cd = setInterval(() => setRtCooldown(prev => {
+                      if (prev <= 1) { clearInterval(cd); return 0; }
+                      return prev - 1;
+                    }), 1000);
                   } catch (err) {
                     alert(String(err));
                   }
                 }}
-                className="p-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors self-end"
-                title={isEn ? 'Check Real Time' : '실시간 확인'}
+                className={`p-1.5 rounded-lg border self-end transition-colors ${rtCooldown > 0 ? 'border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`}
+                title={rtCooldown > 0 ? `${Math.floor(rtCooldown / 60)}:${String(rtCooldown % 60).padStart(2, '0')}` : (isEn ? 'Check Real Time' : '실시간 확인')}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
