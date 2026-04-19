@@ -7,6 +7,7 @@ id,receiving_country,operator,delivery_method,direction,threshold_krw,cooldown_m
 8,Thailand,GMoneyTrans,Bank Deposit,cheaper,-100,120,false,2026-03-25T08:47:55.428227+00:00,2026-04-07T09:02:11.955+00:00,price
 11,Thailand,JRF,Bank Deposit,cheaper,-100,120,false,2026-03-25T08:50:06.069086+00:00,2026-04-07T09:02:11.967+00:00,price
 13,Indonesia,,Bank Deposit,cheaper,0.01,60,false,2026-03-30T09:37:27.275031+00:00,2026-04-07T09:02:12.417+00:00,rate
+23,Indonesia,SBI,Bank Deposit,cheaper,0.02,120,false,2026-04-13T06:56:38.980778+00:00,2026-04-13T07:01:09.13+00:00,rate
 7,China,Hanpass,Alipay,cheaper,-2000,120,false,2026-03-25T06:43:05.845182+00:00,2026-03-25T08:47:04.787+00:00,price
 21,Indonesia,Hanpass,Bank Deposit,cheaper,-200,120,false,2026-03-31T08:34:00.719339+00:00,2026-04-01T01:27:59.628+00:00,price
 20,Indonesia,Sentbe,Bank Deposit,cheaper,-200,120,false,2026-03-31T08:34:00.696899+00:00,2026-04-01T01:28:00.165+00:00,price
