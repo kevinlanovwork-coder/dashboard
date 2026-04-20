@@ -38,7 +38,7 @@ async function scrapeGmeApi(deliveryMethodCode, deliveryMethodName) {
 }
 
 // ─── GMoneyTrans (API) ──────────────────────────────────────────────────────
-// paymentType: 'Bank+Account' = Bank Deposit, 'MTN' = Mobile Wallet
+// paymentType: 'Bank Account' = Bank Deposit, 'MTN' = Mobile Wallet
 async function scrapeGmoneytrans(paymentType, deliveryMethodName) {
   const url = 'https://mapi.gmoneytrans.net/exratenew1/ajx_calcRate.asp'
     + `?receive_amount=${AMOUNT}`
@@ -66,7 +66,7 @@ function parseField(text, field) {
 const SCRAPERS = [
   // Bank Deposit
   { name: 'GME (Bank)',         fn: () => withRetry(() => scrapeGmeApi('2', 'Bank Deposit')),                needsBrowser: false },
-  { name: 'GMoneyTrans (Bank)', fn: () => scrapeGmoneytrans('Bank+Account', 'Bank Deposit'),                needsBrowser: false },
+  { name: 'GMoneyTrans (Bank)', fn: () => scrapeGmoneytrans('Bank Account', 'Bank Deposit'),                needsBrowser: false },
   // Mobile Wallet
   { name: 'GME (Mobile)',         fn: () => withRetry(() => scrapeGmeApi('13', 'Mobile Wallet')),            needsBrowser: false },
   { name: 'GMoneyTrans (Mobile)', fn: () => scrapeGmoneytrans('MTN', 'Mobile Wallet'),                      needsBrowser: false },
