@@ -309,15 +309,15 @@ async function scrapeMoin(browser) {
   try {
     await page.goto('https://www.themoin.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
-    // Close popup (transparent close div at top-right of modal)
-    await page.evaluate(() => {
-      document.querySelector('#portalRoot div[style*="top: 21px"]')?.click();
-    });
-    await page.waitForTimeout(1000);
-    // Click receive currency dropdown
-    await page.locator('div[color="var(--primary-100)"] div[class*="sc-qZusK"]').click();
+    // Hide promo popup so it doesn't intercept clicks (clicking the transparent close div
+    // stopped working after the 2026 redesign — the popup sits in #portalRoot .mds-modal).
+    await page.addStyleTag({ content: `#portalRoot .mds-modal { display: none !important; }` });
+    await page.waitForTimeout(300);
+    // Open receive-currency picker. The clickable target is the inner child div;
+    // clicking the outer div[color="var(--primary-100)"] wrapper no-ops.
+    await page.locator('div[color="var(--primary-100)"] > div').first().click({ timeout: 5000 });
     await page.waitForTimeout(2000);
-    // Select China CNY
+    // Select China CNY (picker list is still in Korean)
     await page.locator('text=중국').first().click();
     await page.waitForTimeout(2000);
     // Fill receive amount
