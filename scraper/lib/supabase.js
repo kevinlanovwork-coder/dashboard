@@ -26,7 +26,7 @@ export async function saveRates(records) {
         .eq('delivery_method', r.delivery_method)
         .is('deleted_at', null)
         .order('run_hour', { ascending: false })
-        .limit(6);
+        .limit(12);
 
       if (recent && recent.length >= 3) {
         const sorted = recent.map(x => x.total_sending_amount).sort((a, b) => a - b);

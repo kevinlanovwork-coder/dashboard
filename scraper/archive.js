@@ -10,6 +10,7 @@ const supabase = createClient(
 );
 
 const RETENTION_DAYS = 90;
+const ARCHIVE_RETENTION_DAYS = 365;
 const BATCH = 1000;
 
 async function main() {
@@ -73,6 +74,25 @@ async function main() {
     console.log(`\n✅ Archived ${totalArchived.toLocaleString()} records to rate_records_archive`);
   } else {
     console.log('\nNo records to archive.');
+  }
+
+  // Secondary purge: drop archive rows older than ARCHIVE_RETENTION_DAYS
+  const purgeCutoff = new Date();
+  purgeCutoff.setDate(purgeCutoff.getDate() - ARCHIVE_RETENTION_DAYS);
+  const purgeCutoffStr = purgeCutoff.toISOString().slice(0, 10);
+
+  console.log(`\nPurging archive rows older than ${ARCHIVE_RETENTION_DAYS} days (before ${purgeCutoffStr})...`);
+  const { count, error: purgeErr } = await supabase
+    .from('rate_records_archive')
+    .delete({ count: 'exact' })
+    .lt('run_hour', purgeCutoffStr);
+
+  if (purgeErr) {
+    console.error('Archive purge error:', purgeErr.message);
+  } else if (count && count > 0) {
+    console.log(`✅ Purged ${count.toLocaleString()} archive records`);
+  } else {
+    console.log('No archive records to purge.');
   }
 }
 

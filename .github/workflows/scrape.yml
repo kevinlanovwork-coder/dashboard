@@ -1,7 +1,7 @@
 name: Hourly Rate Scraper
 
 on:
-  workflow_dispatch: # cron-job.org triggers this every 30 min at :00 and :30 UTC
+  workflow_dispatch: # cron-job.org triggers this every 15 min at :00, :15, :30, :45 UTC
 
 concurrency:
   group: scrape
@@ -10,7 +10,7 @@ concurrency:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 14
 
     strategy:
       fail-fast: false
