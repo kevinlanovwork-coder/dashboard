@@ -33,25 +33,26 @@ for (const [hr, v] of hours.slice(0, 40)) {
   );
 }
 
-// Check for gaps (missing 30-min slots)
-console.log('\n── 누락 시간대 분석 (최근 24시간, 30분 간격) ─────────────────────────────');
+// Check for gaps (missing 15-min slots)
+console.log('\n── 누락 시간대 분석 (최근 24시간, 15분 간격) ─────────────────────────────');
 const now = new Date(Date.now() + 9 * 60 * 60 * 1000); // KST
 const runHourSet = new Set(hours.map(([hr]) => hr));
 let missing = 0;
-for (let i = 1; i <= 48; i++) {
-  const d = new Date(now.getTime() - i * 30 * 60 * 1000);
+for (let i = 1; i <= 96; i++) {
+  const d = new Date(now.getTime() - i * 15 * 60 * 1000);
   const yyyy = d.getUTCFullYear();
   const mm   = String(d.getUTCMonth() + 1).padStart(2, '0');
   const dd   = String(d.getUTCDate()).padStart(2, '0');
   const hh   = String(d.getUTCHours()).padStart(2, '0');
-  const min  = d.getUTCMinutes() < 30 ? '00' : '30';
+  const bucket = Math.floor(d.getUTCMinutes() / 15) * 15;
+  const min = String(bucket).padStart(2, '0');
   const key  = `${yyyy}-${mm}-${dd} ${hh}:${min}`;
   if (!runHourSet.has(key)) {
     console.log(`  ❌ 누락: ${key} (KST ${hh}:${min})`);
     missing++;
   }
 }
-if (missing === 0) console.log('  ✅ 최근 24시간 모두 데이터 있음 (30분 간격)');
+if (missing === 0) console.log('  ✅ 최근 24시간 모두 데이터 있음 (15분 간격)');
 else console.log(`\n  총 ${missing}개 시간대 누락`);
 
 console.log(`\n전체 레코드 수: ${data.length}건 (2026-02-18 이후)`);
