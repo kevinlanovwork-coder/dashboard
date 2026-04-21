@@ -451,23 +451,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     localStorage.setItem('dashboard-theme', isDark ? 'dark' : 'light');
   }, [isDark]);
 
-  // Safety net: if login succeeds, ensure the modal backdrop is torn down.
-  useEffect(() => {
-    if (isLoggedIn) setShowLoginModal(false);
-  }, [isLoggedIn]);
-
-  // Escape closes any open modal
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return;
-      setShowLoginModal(false);
-      setShowCalcModal(false);
-      setShowDownloadModal(false);
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
   // Persist language preference
   useEffect(() => {
     const saved = localStorage.getItem('dashboard-lang');
