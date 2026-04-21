@@ -9,6 +9,7 @@ import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
 import { saveRates, saveRealtimeCheck, isDryRun, logFailure } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
 import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
+import { scrapeCoinshot } from './lib/coinshot.js';
 
 const COUNTRY = 'Uzbekistan';
 const AMOUNT  = 1_000_000;
@@ -95,36 +96,6 @@ async function scrapeE9pay(browser) {
   } finally { await page.close(); }
 }
 
-// ─── Coinshot (Playwright — UZS) ─────────────────────────────────────────────
-async function scrapeCoinshot(browser) {
-  const page = await browser.newPage();
-  try {
-    await page.goto('https://coinshot.org/main', { waitUntil: 'load', timeout: 30000 });
-    await page.waitForTimeout(2000);
-    await page.waitForSelector('button.lang-btn[value="ko"]', { timeout: 10000 });
-    await page.click('button.lang-btn[value="ko"]'); await page.waitForTimeout(1000);
-    await page.click('#current-receiving-currency'); await page.waitForTimeout(500);
-    await page.click('#select-receiving-currency a[data-currency="UZS"]');
-    await page.waitForTimeout(1000);
-    await page.click('#receiving-input', { clickCount: 3 });
-    await page.fill('#receiving-input', String(AMOUNT));
-    await page.press('#receiving-input', 'Enter');
-    let sendAmt = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await page.waitForTimeout(1000);
-      const raw = await page.inputValue('#sending-input');
-      sendAmt = extractNumber(raw);
-      if (sendAmt && sendAmt !== 1_000_000) break;
-    }
-    if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    // Coinshot: fee NOT included in sendAmt, currently 0 ("CoinShot Fee included" with 0)
-    const fee = 0;
-    return { operator: 'Coinshot', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee,
-      delivery_method: METHOD };
-  } finally { await page.close(); }
-}
-
 // ─── Hanpass (API — UZS) ─────────────────────────────────────────────────────
 async function scrapeHanpass() {
   const res = await fetch('https://app.hanpass.com/app/v1/remittance/get-cost', {
@@ -151,7 +122,7 @@ const SCRAPERS = [
   { name: 'GME',         fn: () => withRetry(scrapeGme), needsBrowser: false },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
-  { name: 'Coinshot',    fn: (b) => withRetry(() => scrapeCoinshot(b)), needsBrowser: true  },
+  { name: 'Coinshot',    fn: () => withRetry(() => scrapeCoinshot({ country: COUNTRY, currency: 'UZS', amount: AMOUNT, deliveryMethod: METHOD })), needsBrowser: false },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
 ];
 
