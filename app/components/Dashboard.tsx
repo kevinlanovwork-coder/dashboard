@@ -97,6 +97,7 @@ const EN = {
   calcRank: 'Rank',
   calcCollection: 'Collection',
   calcGap: 'vs Cheapest',
+  calcVsGme: 'vs GME',
   calcNoGME: 'No GME data in current snapshot',
   calcSelectHint: 'Select at least 1 competitor to compare',
   calculator: 'Calculator',
@@ -197,6 +198,7 @@ const KO = {
   calcRank: '순위',
   calcCollection: '합계',
   calcGap: 'vs 최저',
+  calcVsGme: 'vs GME',
   calcNoGME: '현재 스냅샷에 GME 데이터 없음',
   calcSelectHint: '비교할 경쟁사를 1개 이상 선택하세요',
   calculator: '계산기',
@@ -2026,7 +2028,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
 
           return (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCalcModal(false)}>
-              <div onClick={e => e.stopPropagation()} className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl mx-4 overflow-hidden">
+              <div onClick={e => e.stopPropagation()} className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl mx-4 overflow-hidden">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800">
                   <h2 className="text-base font-bold text-slate-800 dark:text-slate-200">{t.calcTitle}</h2>
@@ -2087,10 +2089,14 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                                     <th className="px-3 py-1.5 text-left font-medium text-slate-500">{isEn ? 'Operator' : '운영사'}</th>
                                     <th className="px-3 py-1.5 text-right font-medium text-slate-500">{t.calcCollection}</th>
                                     <th className="px-3 py-1.5 text-right font-medium text-slate-500">{t.calcGap}</th>
+                                    <th className="px-3 py-1.5 text-right font-medium text-slate-500">{t.calcVsGme}</th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {currentEntries.map((e, i) => (
+                                  {currentEntries.map((e, i) => {
+                                    const gmeCollection = gme?.totalSendingAmount ?? 0;
+                                    const vsGme = e.collection - gmeCollection;
+                                    return (
                                     <tr key={e.operator} className={e.isGME ? 'bg-red-50/50 dark:bg-red-900/10' : ''}>
                                       <td className="px-3 py-1.5 font-mono text-slate-500">{ordinal(totalCurrent - i)}</td>
                                       <td className={`px-3 py-1.5 font-medium ${e.isGME ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
@@ -2100,8 +2106,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                                       <td className={`px-3 py-1.5 text-right font-mono ${e.collection - cheapestCurrent > 0 ? 'text-orange-500' : 'text-green-600 dark:text-green-400'}`}>
                                         {e.collection - cheapestCurrent === 0 ? '—' : `+${(e.collection - cheapestCurrent).toLocaleString('ko-KR')}`}
                                       </td>
+                                      <td className={`px-3 py-1.5 text-right font-mono ${e.isGME ? 'text-slate-400' : vsGme > 0 ? 'text-orange-500' : 'text-green-600 dark:text-green-400'}`}>
+                                        {e.isGME ? '—' : `${vsGme > 0 ? '+' : ''}${vsGme.toLocaleString('ko-KR')}`}
+                                      </td>
                                     </tr>
-                                  ))}
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </div>
@@ -2144,10 +2154,10 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                             </div>
                           ) : (
                             /* Local currency corridor: two-step inputs on one line */
-                            <div className="flex items-end gap-2 flex-wrap">
+                            <div className="flex items-start gap-2 flex-wrap">
                               <div className="shrink-0">
                                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                  USD-{receiveCurrency}
+                                  USD-{receiveCurrency}<span className="text-red-500 ml-0.5">*</span>
                                 </label>
                                 <input
                                   type="text"
@@ -2160,35 +2170,54 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                                       setCalcRate(derived.toFixed(2));
                                     }
                                   }}
-                                  placeholder="e.g. 16,200"
-                                  className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                  placeholder="Cost rate"
+                                  className="w-24 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono text-slate-800 dark:text-slate-200 placeholder:text-xs placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-violet-500"
                                 />
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">* {isEn ? 'Input from Core System' : '코어 시스템에서 입력'}</p>
                               </div>
-                              <span className="text-slate-400 pb-1.5">→</span>
-                              <div className="shrink-0">
-                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                  USD-KRW {(() => {
-                                    const pUsdLocal = parseFloat(calcUsdLocalRate.replace(/,/g, ''));
-                                    const derived = !isNaN(pUsdLocal) && pUsdLocal > 0 && currentRate > 0
-                                      ? (isPerKRW ? pUsdLocal / currentRate : pUsdLocal * currentRate) : 0;
-                                    const parsed = parseFloat(calcRate.replace(/,/g, ''));
-                                    const diff = derived > 0 && !isNaN(parsed) && parsed > 0 ? parsed - derived : 0;
-                                    return Math.abs(diff) > 0.01 ? (
-                                      <span className={`font-mono font-semibold ${diff > 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
-                                        ({diff > 0 ? '+' : ''}{diff.toFixed(2)})
-                                      </span>
-                                    ) : null;
-                                  })()}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={calcRate}
-                                  onChange={e => setCalcRate(e.target.value)}
-                                  className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                />
-                              </div>
+                              <span className="text-slate-400 mt-7">→</span>
+                              {(() => {
+                                const pUsdLocal = parseFloat(calcUsdLocalRate.replace(/,/g, ''));
+                                const usdLocalValid = !isNaN(pUsdLocal) && pUsdLocal > 0;
+                                const derived = usdLocalValid && currentRate > 0
+                                  ? (isPerKRW ? pUsdLocal / currentRate : pUsdLocal * currentRate) : 0;
+                                const parsed = parseFloat(calcRate.replace(/,/g, ''));
+                                const diff = derived > 0 && !isNaN(parsed) && parsed > 0 ? parsed - derived : 0;
+                                return (
+                                  <>
+                                    <div className="shrink-0">
+                                      <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                        {isEn ? 'Current USD-KRW' : '현재 USD-KRW'}
+                                      </label>
+                                      <input
+                                        type="text"
+                                        disabled
+                                        value={derived > 0 ? derived.toFixed(2) : ''}
+                                        className="w-24 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/50 text-sm font-mono text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                                      />
+                                    </div>
+                                    <span className="text-slate-400 mt-7">→</span>
+                                    <div className="shrink-0">
+                                      <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                        {isEn ? 'Adjust USD-KRW' : 'USD-KRW 조정'} {Math.abs(diff) > 0.01 && (
+                                          <span className={`font-mono font-semibold ${diff > 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
+                                            ({diff > 0 ? '+' : ''}{diff.toFixed(2)})
+                                          </span>
+                                        )}
+                                      </label>
+                                      <input
+                                        type="text"
+                                        disabled={!usdLocalValid}
+                                        value={usdLocalValid ? calcRate : ''}
+                                        onChange={e => setCalcRate(e.target.value)}
+                                        className={`w-24 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-500 ${usdLocalValid ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200' : 'bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 cursor-not-allowed'}`}
+                                      />
+                                    </div>
+                                  </>
+                                );
+                              })()}
                               {rateChanged && (
-                                <span className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold ${rankDiff > 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : rankDiff < 0 ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                                <span className={`shrink-0 mt-6 px-3 py-1.5 rounded-full text-xs font-semibold ${rankDiff > 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : rankDiff < 0 ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
                                   {isEn ? 'Position' : '포지션'}: {ordinal(currentGMERank)} → {ordinal(adjustedGMERank)}
                                   {rankDiff > 0 && ` (↑${rankDiff})`}
                                   {rankDiff < 0 && ` (↓${Math.abs(rankDiff)})`}
@@ -2210,10 +2239,13 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                                       <th className="px-3 py-1.5 text-left font-medium text-slate-500">{isEn ? 'Operator' : '운영사'}</th>
                                       <th className="px-3 py-1.5 text-right font-medium text-slate-500">{t.calcCollection}</th>
                                       <th className="px-3 py-1.5 text-right font-medium text-slate-500">{t.calcGap}</th>
+                                      <th className="px-3 py-1.5 text-right font-medium text-slate-500">{t.calcVsGme}</th>
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {adjustedEntries.map((e, i) => (
+                                    {adjustedEntries.map((e, i) => {
+                                      const vsGme = e.collection - newCollection;
+                                      return (
                                       <tr key={e.operator} className={e.isGME ? 'bg-violet-50/50 dark:bg-violet-900/10' : ''}>
                                         <td className="px-3 py-1.5 font-mono text-slate-500">{ordinal(totalAdjusted - i)}</td>
                                         <td className={`px-3 py-1.5 font-medium ${e.isGME ? 'text-violet-600 dark:text-violet-400' : 'text-slate-700 dark:text-slate-300'}`}>
@@ -2226,8 +2258,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                                         <td className={`px-3 py-1.5 text-right font-mono ${e.collection - cheapestAdjusted > 0 ? 'text-orange-500' : 'text-green-600 dark:text-green-400'}`}>
                                           {e.collection - cheapestAdjusted === 0 ? '—' : `+${(e.collection - cheapestAdjusted).toLocaleString('ko-KR')}`}
                                         </td>
+                                        <td className={`px-3 py-1.5 text-right font-mono ${e.isGME ? 'text-slate-400' : vsGme > 0 ? 'text-orange-500' : 'text-green-600 dark:text-green-400'}`}>
+                                          {e.isGME ? '—' : `${vsGme > 0 ? '+' : ''}${vsGme.toLocaleString('ko-KR')}`}
+                                        </td>
                                       </tr>
-                                    ))}
+                                      );
+                                    })}
                                   </tbody>
                                 </table>
                               </div>
