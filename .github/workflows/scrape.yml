@@ -58,6 +58,8 @@ jobs:
             script: run-kzt.js
           - name: Kyrgyzstan USD
             script: run-kgs.js
+          - name: Kyrgyzstan KGS Card
+            script: run-kgs-card.js
           - name: Ghana GHS
             script: run-ghs.js
           - name: South Africa ZAR
