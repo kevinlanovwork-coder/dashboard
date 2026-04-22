@@ -6,6 +6,7 @@ import {
   LineChart, Line, ResponsiveContainer, ReferenceLine, Cell, LabelList,
 } from 'recharts';
 import type { RateRecord } from '@/app/lib/parseRates';
+import { DELIVERY_METHOD_MAP, CURRENCY_MAP } from '@/app/lib/corridors';
 import * as XLSX from 'xlsx';
 import NotificationsPopup from './NotificationsPopup';
 
@@ -253,28 +254,6 @@ function statusColor(status: string) {
 }
 
 const TREND_COLORS = ['#8b5cf6', '#10b981', '#f59e0b'];  // violet, emerald, amber
-
-/** Currency by country, or by `Country||Method` for corridors where the same country has different currencies per method. */
-const CURRENCY_MAP: Record<string, string> = {
-  Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Nepal: 'NPR',
-  Philippines: 'PHP',  Malaysia: 'MYR', Singapore: 'SGD', Cambodia: 'USD',
-  Japan: 'JPY', China: 'CNY', Mongolia: 'MNT', Myanmar: 'MMK',
-  Pakistan: 'PKR', Laos: 'LAK', 'Sri Lanka': 'LKR', India: 'INR',
-  'Timor Leste': 'USD', Uzbekistan: 'USD', 'Uzbekistan||Card Payment': 'UZS',
-  Bangladesh: 'BDT', Russia: 'RUB', Kazakhstan: 'USD', Kyrgyzstan: 'USD',
-  Ghana: 'GHS', 'South Africa': 'ZAR', Canada: 'CAD', Nigeria: 'NGN',
-};
-
-const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
-  Indonesia: 'Bank Deposit', Thailand: 'Bank Deposit', Vietnam: 'Bank Deposit',
-  Nepal: 'Bank Deposit', Philippines: ['Bank Deposit', 'Cash Pickup'], Malaysia: 'Bank Deposit',
-  Singapore: 'Bank Deposit', Cambodia: ['Bank Deposit', 'Cash Pickup'], Japan: 'Bank Deposit',
-  China: 'Alipay', Mongolia: 'Bank Deposit', Myanmar: 'Bank Deposit',
-  Pakistan: 'Bank Deposit', Laos: ['Bank Deposit (LAK)', 'Bank Deposit (USD)'], 'Sri Lanka': 'Bank Deposit', India: 'Bank Deposit',
-  'Timor Leste': ['Bank Deposit', 'Cash Pickup (MoneyGram)'],
-  Uzbekistan: ['Cash Pickup', 'Card Payment'], Bangladesh: 'Bank Deposit', Russia: ['Cash Payment', 'Card Payment'], Kazakhstan: 'Cash Pickup', Kyrgyzstan: ['Cash Pickup', 'Card Payment'],
-  Ghana: ['Bank Deposit', 'Mobile Wallet'], 'South Africa': 'Bank Deposit', Canada: 'Bank Deposit', Nigeria: 'Bank Deposit',
-};
 
 // Rate is calculated from send_amount_krw (net amount excluding service fee).
 // GME API returns collAmt (total) and scCharge (fee) separately;
@@ -543,11 +522,10 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   };
 
   // Delivery method support for corridors with non-default methods (e.g. China: Alipay)
-  const deliveryMethods = useMemo(() => {
-    const methods = DEPOSIT_METHOD_MAP[selectedCountry];
-    if (Array.isArray(methods)) return methods;
-    return [methods ?? 'Bank Deposit'];
-  }, [selectedCountry]);
+  const deliveryMethods = useMemo(
+    () => DELIVERY_METHOD_MAP[selectedCountry] ?? ['Bank Deposit'],
+    [selectedCountry],
+  );
 
   const hasMultipleMethods = deliveryMethods.length > 1;
 
@@ -558,9 +536,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   );
 
   useEffect(() => {
-    setSelectedDeliveryMethod(
-      deliveryMethods.includes('Bank Deposit') ? 'Bank Deposit' : deliveryMethods[0]
-    );
+    const preferred = deliveryMethods.find(m => m.startsWith('Bank Deposit')) ?? deliveryMethods[0];
+    setSelectedDeliveryMethod(preferred);
   }, [deliveryMethods]);
 
   const filteredCountries = useMemo(

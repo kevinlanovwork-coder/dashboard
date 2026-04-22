@@ -5,6 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Cell, LabelList,
 } from 'recharts';
+import { CURRENCY_MAP } from '@/app/lib/corridors';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -27,14 +28,6 @@ interface CorridorSummary {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const CURRENCY_MAP: Record<string, string> = {
-  Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Nepal: 'NPR',
-  Philippines: 'PHP', Malaysia: 'MYR', Singapore: 'SGD', Cambodia: 'USD',
-  Japan: 'JPY', China: 'CNY', Mongolia: 'MNT', Myanmar: 'MMK',
-  Pakistan: 'PKR', Laos: 'LAK', 'Sri Lanka': 'LKR', India: 'INR',
-  'Timor Leste': 'USD', Uzbekistan: 'USD', Bangladesh: 'BDT', Russia: 'RUB', Kazakhstan: 'USD', Kyrgyzstan: 'USD',
-};
 
 function statusColor(status: string) {
   if (status === 'GME') return '#ef4444';

@@ -57,3 +57,20 @@ export const DELIVERY_METHOD_MAP: Record<string, string[]> = (() => {
 
 /** All countries sorted alphabetically (derived from DELIVERY_METHOD_MAP) */
 export const COUNTRIES: string[] = Object.keys(DELIVERY_METHOD_MAP).sort();
+
+/**
+ * Currency by country, with `Country||Method` overrides for corridors where
+ * different delivery methods use different currencies (e.g. Uzbekistan Card
+ * Payment is quoted in UZS while Cash Pickup is USD).
+ */
+export const CURRENCY_MAP: Record<string, string> = {
+  Indonesia: 'IDR', Thailand: 'THB', Vietnam: 'VND', Nepal: 'NPR',
+  Philippines: 'PHP', Cambodia: 'USD',
+  China: 'CNY', Mongolia: 'MNT', Myanmar: 'MMK',
+  Pakistan: 'PKR', Laos: 'LAK', 'Sri Lanka': 'LKR', India: 'INR',
+  'Timor Leste': 'USD', Uzbekistan: 'USD', 'Uzbekistan||Card Payment': 'UZS',
+  Bangladesh: 'BDT', Russia: 'RUB', Kazakhstan: 'USD', Kyrgyzstan: 'USD',
+  'Kyrgyzstan||Card Payment': 'KGS',
+  'Laos||Bank Deposit (USD)': 'USD',
+  Ghana: 'GHS', 'South Africa': 'ZAR', Canada: 'CAD', Nigeria: 'NGN',
+};
