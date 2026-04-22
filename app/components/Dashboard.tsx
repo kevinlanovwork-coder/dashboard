@@ -272,7 +272,7 @@ const DEPOSIT_METHOD_MAP: Record<string, string | string[]> = {
   China: 'Alipay', Mongolia: 'Bank Deposit', Myanmar: 'Bank Deposit',
   Pakistan: 'Bank Deposit', Laos: ['Bank Deposit (LAK)', 'Bank Deposit (USD)'], 'Sri Lanka': 'Bank Deposit', India: 'Bank Deposit',
   'Timor Leste': ['Bank Deposit', 'Cash Pickup (MoneyGram)'],
-  Uzbekistan: ['Cash Pickup', 'Card Payment'], Bangladesh: 'Bank Deposit', Russia: ['Cash Payment', 'Card Payment'], Kazakhstan: 'Cash Pickup', Kyrgyzstan: 'Cash Pickup',
+  Uzbekistan: ['Cash Pickup', 'Card Payment'], Bangladesh: 'Bank Deposit', Russia: ['Cash Payment', 'Card Payment'], Kazakhstan: 'Cash Pickup', Kyrgyzstan: ['Cash Pickup', 'Card Payment'],
   Ghana: ['Bank Deposit', 'Mobile Wallet'], 'South Africa': 'Bank Deposit', Canada: 'Bank Deposit', Nigeria: 'Bank Deposit',
 };
 
