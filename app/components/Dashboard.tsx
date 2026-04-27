@@ -1036,8 +1036,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     }
 
     const labels = isEn
-      ? { day: 'Day', avg: 'Avg rank', pts: 'Points', pos: 'Position', gmePos: "GME's position", meta: `${gmeDailyPosition.length} day(s) · ranking lower = cheaper`, print: 'Print', download: 'Download PNG', operators: 'Operators', overall: 'Overall', positionLow: 'Low', positionMedium: 'Medium', positionHigh: 'High', snapshotTitle: 'Representative Snapshot', snapshotSub: 'Closest run-hour to GME’s average position over the period', operator: 'Operator', serviceFee: 'Service Fee', totalSend: 'Total Send (KRW)', priceGap: 'Price Gap vs GME', status: 'Status', statusGME: 'GME', statusCheaper: 'Cheaper than GME', statusExpensive: 'More expensive than GME', note: '<div><b>Avg rank</b> = mean of the operator’s rank across that day’s hourly snapshots (<b>rank 1 = most expensive</b> among all operators).</div><div style="margin-top:4px"><b>Position</b> uses thirds of the leaderboard: bottom third → <b style="color:#16a34a">Low</b> (cheapest), middle → <b style="color:#d97706">Medium</b>, top third → <b style="color:#dc2626">High</b> (most expensive).</div>' }
-      : { day: '날짜', avg: '평균 순위', pts: '데이터 수', pos: '포지션', gmePos: 'GME 포지션', meta: `${gmeDailyPosition.length}일 · 순위 낮을수록 저렴`, print: '인쇄', download: 'PNG 다운로드', operators: '운영사', overall: '전체', positionLow: '낮음', positionMedium: '보통', positionHigh: '높음', snapshotTitle: '대표 스냅샷', snapshotSub: '기간 중 GME 평균 순위에 가장 가까운 시점', operator: '운영사', serviceFee: '수수료', totalSend: '송금 합계 (KRW)', priceGap: 'GME 대비 가격차', status: '상태', statusGME: 'GME', statusCheaper: 'GME보다 저렴', statusExpensive: 'GME보다 비쌈', note: '<div><b>평균 순위</b> = 해당 날짜 시간별 스냅샷에서 운영사 순위의 평균 (<b>1위 = 가장 비쌈</b>).</div><div style="margin-top:4px"><b>포지션</b>은 평균 순위를 운영사 수의 1/3 단위로 분할: 하위 1/3 → <b style="color:#16a34a">낮음</b>(저렴), 중간 → <b style="color:#d97706">보통</b>, 상위 1/3 → <b style="color:#dc2626">높음</b>(비쌈).</div>' };
+      ? { day: 'Day', avg: 'Avg rank', pts: 'Points', pos: 'Position', gmePos: "GME's position", meta: `${gmeDailyPosition.length} day(s) · ranking lower = cheaper`, print: 'Print', download: 'Download PNG', operators: 'Operators', overall: 'Overall', positionLow: 'Low', positionMedium: 'Medium', positionHigh: 'High', chartTitle: 'Rank Trend on Hourly Basis', dailyTableTitle: 'Avg Ranking on Daily Basis', snapshotTitle: 'Avg Price Gap on Weekly Basis', snapshotSub: 'Closest run-hour to GME’s average position over the period', operator: 'Operator', serviceFee: 'Service Fee', totalSend: 'Total Send (KRW)', priceGap: 'Price Gap vs GME', status: 'Status', statusGME: 'GME', statusCheaper: 'Cheaper than GME', statusExpensive: 'More expensive than GME', note: '<div><b>Avg rank</b> = mean of the operator’s rank across that day’s hourly snapshots (<b>rank 1 = most expensive</b> among all operators).</div><div style="margin-top:4px"><b>Position</b> uses thirds of the leaderboard: bottom third → <b style="color:#16a34a">Low</b> (cheapest), middle → <b style="color:#d97706">Medium</b>, top third → <b style="color:#dc2626">High</b> (most expensive).</div>' }
+      : { day: '날짜', avg: '평균 순위', pts: '데이터 수', pos: '포지션', gmePos: 'GME 포지션', meta: `${gmeDailyPosition.length}일 · 순위 낮을수록 저렴`, print: '인쇄', download: 'PNG 다운로드', operators: '운영사', overall: '전체', positionLow: '낮음', positionMedium: '보통', positionHigh: '높음', chartTitle: '시간별 순위 추이', dailyTableTitle: '일별 평균 순위', snapshotTitle: '주간 평균 가격차', snapshotSub: '기간 중 GME 평균 순위에 가장 가까운 시점', operator: '운영사', serviceFee: '수수료', totalSend: '송금 합계 (KRW)', priceGap: 'GME 대비 가격차', status: '상태', statusGME: 'GME', statusCheaper: 'GME보다 저렴', statusExpensive: 'GME보다 비쌈', note: '<div><b>평균 순위</b> = 해당 날짜 시간별 스냅샷에서 운영사 순위의 평균 (<b>1위 = 가장 비쌈</b>).</div><div style="margin-top:4px"><b>포지션</b>은 평균 순위를 운영사 수의 1/3 단위로 분할: 하위 1/3 → <b style="color:#16a34a">낮음</b>(저렴), 중간 → <b style="color:#d97706">보통</b>, 상위 1/3 → <b style="color:#dc2626">높음</b>(비쌈).</div>' };
 
     const positionLabel = (p: 'Low' | 'Medium' | 'High') =>
       p === 'Low' ? labels.positionLow : p === 'Medium' ? labels.positionMedium : labels.positionHigh;
@@ -1176,8 +1176,11 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
         })
         .join('');
       snapshotHtml = `
-<h2 style="font-size:14px;margin:20px 0 2px;color:#0f172a">${escapeHtml(labels.snapshotTitle)} · ${escapeHtml(formatRunHour(snap.runHour))}</h2>
-<div class="meta">${escapeHtml(labels.snapshotSub)} · GME #${flipRank(snap.gmeRank, snap.total)} / ${snap.total}</div>
+<h2 style="font-size:14px;margin:20px 0 4px;color:#0f172a">${escapeHtml(labels.snapshotTitle)}</h2>
+<div class="meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:8px">
+  <span>${escapeHtml(labels.snapshotSub)} · GME #${flipRank(snap.gmeRank, snap.total)} / ${snap.total}</span>
+  <span style="font-family:ui-monospace,monospace;color:#0f172a">${escapeHtml(formatRunHour(snap.runHour))}</span>
+</div>
 <table>
   <thead><tr>
     <th>${escapeHtml(labels.operator)}</th>
@@ -1217,7 +1220,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
 <div id="capture">
   <h1>${headingTitle}</h1>
   <div class="meta">${escapeHtml(dateRange)} · ${escapeHtml(labels.meta)}</div>
-  <div class="chart" id="chart">${svgMarkup}</div>
+  <h2 style="font-size:14px;margin:0 0 4px;color:#0f172a">${escapeHtml(labels.dailyTableTitle)}</h2>
   <div style="font-size:12px;color:#475569;margin:0 0 6px;font-style:italic">${escapeHtml(rankNote)}</div>
   <table>
     <thead><tr>
@@ -1230,6 +1233,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   </table>
   <div style="font-size:12px;color:#475569;line-height:1.55;margin:8px 0 16px;padding:8px 10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">${labels.note}</div>
   ${snapshotHtml}
+  <h2 style="font-size:14px;margin:20px 0 6px;color:#0f172a">${escapeHtml(labels.chartTitle)}</h2>
+  <div class="chart" id="chart">${svgMarkup}</div>
 </div>
 <script>
   function downloadPng(){
