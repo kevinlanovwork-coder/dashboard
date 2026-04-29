@@ -22,6 +22,7 @@ export async function PUT(req: NextRequest) {
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.main_operators !== undefined) update.main_operators = body.main_operators;
   if (body.corridor_operators !== undefined) update.corridor_operators = body.corridor_operators;
+  if (body.enabled_corridors !== undefined) update.enabled_corridors = body.enabled_corridors;
 
   const { data, error } = await supabase
     .from('summary_config')

@@ -7,18 +7,26 @@ export const dynamic = 'force-dynamic';
 const BATCH = 1000;
 
 export async function GET(req: NextRequest) {
-  const days = Number(req.nextUrl.searchParams.get('days') ?? '3');
+  const days = Number(req.nextUrl.searchParams.get('days') ?? '1');
   const requestedRunHour = req.nextUrl.searchParams.get('runHour') ?? '';
   const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
 
-  // 1. Read config — per-corridor operators or fallback to global
-  const { data: config } = await supabase.from('summary_config').select('main_operators, corridor_operators').limit(1).single();
+  // 1. Read config — per-corridor operators, enabled corridors, or fallback to global
+  const { data: config } = await supabase.from('summary_config').select('*').limit(1).single();
   const corridorOpsConfig: Record<string, string[]> = config?.corridor_operators ?? {};
   const globalOps: string[] = config?.main_operators ?? ['GMoneyTrans', 'Hanpass', 'E9Pay'];
+  const enabledCorridors: string[] = config?.enabled_corridors ?? [];
+  const enabledSet = new Set(enabledCorridors);
 
-  // Build set of all operators we need to fetch (GME + union of all per-corridor selections)
+  // Empty enabled set → user hasn't picked any corridors → return nothing.
+  if (enabledSet.size === 0) {
+    return NextResponse.json({ corridors: [], runHours: [] });
+  }
+
+  // Build set of all operators we need to fetch (GME + union of selected ops for enabled corridors)
   const allTargetOps = new Set<string>(['GME']);
   for (const [corridorKey, expectedOps] of Object.entries(OPERATOR_MAP)) {
+    if (!enabledSet.has(corridorKey)) continue;
     const selected = corridorOpsConfig[corridorKey];
     if (selected && selected.length > 0) {
       selected.forEach(op => allTargetOps.add(op));
@@ -28,8 +36,9 @@ export async function GET(req: NextRequest) {
     }
   }
   const targetOps = [...allTargetOps];
+  const enabledCountries = [...new Set([...enabledSet].map(k => k.split('||')[0]))];
 
-  // 2. Fetch rate_records for target operators only
+  // 2. Fetch rate_records for target operators in enabled countries only
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - days);
   const fromDateStr = fromDate.toISOString().slice(0, 10);
@@ -41,6 +50,7 @@ export async function GET(req: NextRequest) {
       .from('rate_records')
       .select('run_hour, operator, receiving_country, delivery_method, total_sending_amount, send_amount_krw, receive_amount, service_fee')
       .in('operator', targetOps)
+      .in('receiving_country', enabledCountries)
       .is('deleted_at', null)
       .gte('run_hour', fromDateStr)
       .order('run_hour', { ascending: false })
@@ -65,9 +75,10 @@ export async function GET(req: NextRequest) {
     corridorMap.get(key)!.push(r);
   }
 
-  // 5. Build summary per corridor
+  // 5. Build summary per corridor (enabled corridors only)
   const corridors = [];
   for (const [corridorKey, expectedOps] of Object.entries(OPERATOR_MAP)) {
+    if (!enabledSet.has(corridorKey)) continue;
     const records = corridorMap.get(corridorKey);
     if (!records || records.length === 0) continue;
 

@@ -1309,10 +1309,17 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 </svg>
               </button>}
 
-              {/* Summary link (public) */}
-              <a href="/summary" className="px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
-                {isEn ? 'Summary' : '전체 요약'}
-              </a>
+              {/* Summary in TV window (kiosk popup) */}
+              <button
+                onClick={() => window.open('/summary', 'summary-tv', 'popup,width=1920,height=1080')}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                title={isEn ? 'Open Summary in a new TV-friendly window' : 'TV 창에서 요약 열기'}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125Z" />
+                </svg>
+                {isEn ? 'Summary' : '요약'}
+              </button>
 
               {/* Language toggle */}
               <div className="flex rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden text-sm">

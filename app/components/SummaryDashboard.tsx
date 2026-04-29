@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Cell, LabelList,
@@ -29,6 +29,31 @@ interface CorridorSummary {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// Schedule the next refresh at the next 15-minute wall-clock boundary + 60s grace
+// so we land just after the new scrape has written its rows.
+function msUntilNextRefresh() {
+  const now = new Date();
+  const next = new Date(now);
+  const slot = (Math.floor(now.getMinutes() / 15) + 1) * 15;
+  next.setMinutes(slot, 60, 0);
+  return Math.max(1000, next.getTime() - now.getTime());
+}
+
+function useLiveRefresh(onTick: () => void, errored: boolean) {
+  useEffect(() => {
+    let cycleTimeout: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const ms = errored ? 60_000 : msUntilNextRefresh();
+      cycleTimeout = setTimeout(() => {
+        onTick();
+        schedule();
+      }, ms);
+    };
+    schedule();
+    return () => clearTimeout(cycleTimeout);
+  }, [onTick, errored]);
+}
+
 function statusColor(status: string) {
   if (status === 'GME') return '#ef4444';
   if (status === 'Cheaper than GME') return '#22c55e';
@@ -41,25 +66,9 @@ function formatRunHour(rh: string) {
   return `${m[2]}/${m[3]} ${m[4]}:${m[5]}`;
 }
 
-function SunIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
-    </svg>
-  );
-}
-
-function MoonIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
-    </svg>
-  );
-}
-
 // ─── Corridor Card ───────────────────────────────────────────────────────────
 
-function CorridorCard({ corridor, isDark, isEn }: { corridor: CorridorSummary; isDark: boolean; isEn: boolean }) {
+const CorridorCard = memo(function CorridorCard({ corridor, isDark, isEn }: { corridor: CorridorSummary; isDark: boolean; isEn: boolean }) {
   const ct = {
     grid:     isDark ? '#1e293b' : '#e2e8f0',
     tick:     isDark ? '#64748b' : '#94a3b8',
@@ -90,9 +99,8 @@ function CorridorCard({ corridor, isDark, isEn }: { corridor: CorridorSummary; i
   const domainMax = maxVal + padding;
 
   return (
-    <a
-      href={`/?country=${encodeURIComponent(corridor.country)}`}
-      className={`block rounded-xl overflow-hidden hover:shadow-lg transition-all cursor-pointer ${isReceiveComparison ? 'bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 hover:border-amber-400 dark:hover:border-amber-600' : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600'}`}
+    <div
+      className={`block rounded-xl overflow-hidden ${isReceiveComparison ? 'bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60' : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800'}`}
     >
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -129,13 +137,21 @@ function CorridorCard({ corridor, isDark, isEn }: { corridor: CorridorSummary; i
               width={130}
               interval={0}
               tick={({ x, y, payload }: any) => {
+                const op = operators.find(o => o.operator === payload.value);
                 const isGME = payload.value === 'GME';
                 const name = isGME ? '★ GME' : payload.value;
-                const rate = rateByOp.get(payload.value);
+                const gap = op?.priceGap ?? null;
+                const gapColor = gap === null
+                  ? null
+                  : isReceiveComparison
+                    ? gap > 0 ? '#16a34a' : '#f97316'
+                    : gap > 0 ? '#f97316' : '#16a34a';
+                const gapLabel = gap === null ? null : `${gap > 0 ? '+' : ''}${Math.round(gap).toLocaleString()}`;
+                const showGap = !isGME && gapLabel !== null;
                 return (
                   <text x={x - 4} y={y} textAnchor="end" fill={isGME ? '#ef4444' : ct.yLabel}>
-                    <tspan dy={rate ? -2 : 4} fontSize={11} fontWeight={isGME ? 700 : 500}>{name}</tspan>
-                    {rate && <tspan x={x - 4} dy={13} fontSize={9} fill={ct.tick}>({rate})</tspan>}
+                    <tspan dy={showGap ? -2 : 4} fontSize={11} fontWeight={isGME ? 700 : 500}>{name}</tspan>
+                    {showGap && <tspan x={x - 4} dy={13} fontSize={9} fill={gapColor!}>({gapLabel})</tspan>}
                   </text>
                 );
               }}
@@ -183,17 +199,22 @@ function CorridorCard({ corridor, isDark, isEn }: { corridor: CorridorSummary; i
         </ResponsiveContainer>
       </div>
 
-      {/* Gap legend */}
+      {/* Rate legend */}
       <div className="px-4 pb-3 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-        {operators.filter(o => o.priceGap !== null).map(o => (
-          <span key={o.operator} className={o.priceGap! > 0 ? 'text-orange-500' : 'text-green-600 dark:text-green-400'}>
-            {o.operator}: {o.priceGap! > 0 ? '+' : ''}{Math.round(o.priceGap!).toLocaleString()}
-          </span>
-        ))}
+        {operators.map(o => {
+          const rate = rateByOp.get(o.operator);
+          if (!rate) return null;
+          const isGME = o.operator === 'GME';
+          return (
+            <span key={o.operator} className={isGME ? 'text-red-500 font-semibold' : 'text-slate-600 dark:text-slate-400'}>
+              {isGME ? '★ GME' : o.operator}: <span className="font-mono">{rate}</span>
+            </span>
+          );
+        })}
       </div>
-    </a>
+    </div>
   );
-}
+});
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -201,65 +222,56 @@ export default function SummaryDashboard() {
   const [isDark, setIsDark] = useState(false);
   const [isEn, setIsEn] = useState(true);
   const [corridors, setCorridors] = useState<CorridorSummary[]>([]);
-  const [allRunHours, setAllRunHours] = useState<string[]>([]);
-  const [snapshotDate, setSnapshotDate] = useState('');
-  const [snapshotTime, setSnapshotTime] = useState('');
   const [loading, setLoading] = useState(true);
+  const [lastFetchAt, setLastFetchAt] = useState<number | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Persist theme/lang
+  // Inherit theme/lang from localStorage (set elsewhere in the app); not toggleable here.
   useEffect(() => {
-    const theme = localStorage.getItem('dashboard-theme');
-    if (theme === 'dark') setIsDark(true);
-    const lang = localStorage.getItem('dashboard-lang');
-    if (lang === 'ko') setIsEn(false);
+    if (localStorage.getItem('dashboard-theme') === 'dark') setIsDark(true);
+    if (localStorage.getItem('dashboard-lang') === 'ko') setIsEn(false);
   }, []);
-  useEffect(() => { localStorage.setItem('dashboard-theme', isDark ? 'dark' : 'light'); }, [isDark]);
-  useEffect(() => { localStorage.setItem('dashboard-lang', isEn ? 'en' : 'ko'); }, [isEn]);
-
-  // Derive date/time options from runHours
-  const snapshotDates = useMemo(() => {
-    const dates = [...new Set(allRunHours.map(rh => rh.slice(0, 10)))];
-    return dates.sort((a, b) => b.localeCompare(a));
-  }, [allRunHours]);
-
-  const snapshotTimes = useMemo(() => {
-    if (snapshotDate === 'all') return allRunHours;
-    return allRunHours.filter(rh => rh.startsWith(snapshotDate));
-  }, [allRunHours, snapshotDate]);
-
-  // Auto-select latest date/time when data first loads
-  useEffect(() => {
-    if (allRunHours.length > 0 && snapshotDate === '' && snapshotTime === '') {
-      const latestRh = allRunHours[0];
-      setSnapshotDate(latestRh.slice(0, 10));
-      setSnapshotTime(latestRh);
-    }
-  }, [allRunHours, snapshotDate, snapshotTime]);
-
-  // Compute target run_hour from selections
-  const targetRunHour = useMemo(() => {
-    if (snapshotTime) return snapshotTime;
-    if (snapshotDate) {
-      const timesForDate = allRunHours.filter(rh => rh.startsWith(snapshotDate));
-      return timesForDate.length > 0 ? timesForDate[0] : '';
-    }
-    return '';
-  }, [snapshotDate, snapshotTime, allRunHours]);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
     try {
-      const params = new URLSearchParams({ days: '3' });
-      if (targetRunHour) params.set('runHour', targetRunHour);
-      const res = await fetch(`/api/summary/rates?${params}`);
+      const res = await fetch('/api/summary/rates?days=1');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data?.corridors) setCorridors(data.corridors);
-      if (data?.runHours) setAllRunHours(data.runHours);
-    } catch (err) { console.error('Failed to fetch summary:', err); }
-    finally { setLoading(false); }
-  }, [targetRunHour]);
+      setFetchError(null);
+      setLastFetchAt(Date.now());
+    } catch (err) {
+      console.error('Failed to fetch summary:', err);
+      setFetchError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  useLiveRefresh(fetchData, fetchError !== null);
+
+  const lastFetchLabel = useMemo(() => {
+    if (!lastFetchAt) return '';
+    return new Date(lastFetchAt).toLocaleTimeString(isEn ? 'en-US' : 'ko-KR', { hour: '2-digit', minute: '2-digit' });
+  }, [lastFetchAt, isEn]);
+
+  // Latest scrape run-hour across all enabled corridors. If older than 30 min, the
+  // scraper is likely stuck even though the API itself is reachable.
+  const latestRunHour = useMemo(() => {
+    if (corridors.length === 0) return null;
+    return corridors.reduce((max, c) => c.latestRunHour > max ? c.latestRunHour : max, '');
+  }, [corridors]);
+
+  const STALE_THRESHOLD_MS = 30 * 60 * 1000;
+  const isStale = useMemo(() => {
+    if (!latestRunHour) return false;
+    const ts = new Date(latestRunHour.replace(' ', 'T')).getTime();
+    if (isNaN(ts)) return false;
+    return Date.now() - ts > STALE_THRESHOLD_MS;
+  }, [latestRunHour, lastFetchAt, STALE_THRESHOLD_MS]);
+
+  const latestScrapeLabel = useMemo(() => latestRunHour ? formatRunHour(latestRunHour) : '', [latestRunHour]);
 
   return (
     <div className={isDark ? 'dark' : ''}>
@@ -267,37 +279,37 @@ export default function SummaryDashboard() {
 
         {/* Header */}
         <header className="sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur">
-          <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <img src="/GME_swirl_icon.png" alt="GME" className="h-8 shrink-0" />
-              <div>
-                <h1 className="text-lg font-bold tracking-tight">{isEn ? "GME's Competitors - All Corridors Summary" : 'GME 경쟁사 - 전체 경로 요약'}</h1>
-                <p className="text-slate-500 text-xs mt-0.5">{isEn ? 'Snapshot comparison across all corridors' : '전체 경로 스냅샷 비교'}</p>
-              </div>
+              <img src="/GME_swirl_icon.png" alt="GME" className="h-7 shrink-0" />
+              <h1 className="text-base font-bold tracking-tight">{isEn ? "GME's Competitors Live Rate" : 'GME 경쟁사 실시간 환율'}</h1>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Home link */}
-              <a href="/" className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                {isEn ? 'Home' : '홈'}
-              </a>
-
-              {/* Language toggle */}
-              <div className="flex rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden text-sm">
-                <button onClick={() => setIsEn(true)} className={`px-3 py-1.5 transition-colors ${isEn ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>EN</button>
-                <button onClick={() => setIsEn(false)} className={`px-3 py-1.5 transition-colors ${!isEn ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>한</button>
-              </div>
-
-              {/* Dark / Light toggle */}
-              <button
-                onClick={() => setIsDark(d => !d)}
-                className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-              >
-                {isDark ? <SunIcon /> : <MoonIcon />}
-              </button>
-
-              <a href="/settings?tab=summary" className="px-3 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                {isEn ? 'Settings' : '설정'}
-              </a>
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-lg text-xs ${
+              fetchError
+                ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60'
+                : isStale
+                  ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60'
+                  : 'border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+            }`}>
+              <span className={`inline-block w-2 h-2 rounded-full ${
+                fetchError ? 'bg-red-500' : isStale ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'
+              }`} />
+              {fetchError ? (
+                <span>
+                  {isEn ? 'Connection issue' : '연결 오류'}
+                  {lastFetchLabel && ` · ${isEn ? 'last' : '마지막'} ${lastFetchLabel}`}
+                </span>
+              ) : isStale ? (
+                <span>
+                  {isEn ? 'Stale data' : '데이터 지연'}
+                  {latestScrapeLabel && ` · ${isEn ? 'last scrape' : '마지막 스크랩'} ${latestScrapeLabel}`}
+                </span>
+              ) : (
+                <span>
+                  {isEn ? 'Live' : '실시간'}
+                  {lastFetchLabel && ` · ${lastFetchLabel}`}
+                </span>
+              )}
             </div>
           </div>
         </header>
@@ -307,41 +319,14 @@ export default function SummaryDashboard() {
           {loading ? (
             <div className="text-center py-20 text-slate-400">{isEn ? 'Loading...' : '로딩 중...'}</div>
           ) : corridors.length === 0 ? (
-            <div className="text-center py-20 text-slate-400">{isEn ? 'No data available.' : '데이터가 없습니다.'}</div>
+            <div className="text-center py-20 text-slate-400 text-sm">
+              <p className="mb-2">{isEn ? 'No corridors enabled.' : '활성화된 경로가 없습니다.'}</p>
+              <a href="/settings?tab=summary" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-xs hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
+                {isEn ? 'Pick up to 9 in Settings → Summary Setup →' : '설정 → 요약 설정에서 최대 9개 선택 →'}
+              </a>
+            </div>
           ) : (
             <>
-              {/* Snapshot Date/Time filter */}
-              <div className="flex items-end gap-4 flex-wrap mb-4">
-                <div>
-                  <span className="block text-xs text-slate-500 mb-1">{isEn ? 'Snapshot Date' : '스냅샷 날짜'}</span>
-                  <select
-                    value={snapshotDate}
-                    onChange={e => {
-                      const newDate = e.target.value;
-                      setSnapshotDate(newDate);
-                      const timesForDate = allRunHours.filter(rh => rh.startsWith(newDate));
-                      setSnapshotTime(timesForDate.length > 0 ? timesForDate[0] : '');
-                    }}
-                    className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm"
-                  >
-                    {snapshotDates.map(d => (
-                      <option key={d} value={d}>{d.replace(/-/g, '/')}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <span className="block text-xs text-slate-500 mb-1">{isEn ? 'Snapshot Time' : '스냅샷 시간'}</span>
-                  <select
-                    value={snapshotTime}
-                    onChange={e => setSnapshotTime(e.target.value)}
-                    className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm"
-                  >
-                    {snapshotTimes.map(rh => (
-                      <option key={rh} value={rh}>{rh.split(' ')[1] ?? rh}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {corridors.map(c => (
                   <CorridorCard

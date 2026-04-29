@@ -1181,10 +1181,13 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
 // ─── Summary Config Tab ──────────────────────────────────────────────────────
 
 const MAX_OPS_PER_CORRIDOR = 3; // + GME = 4 total
+const MAX_ENABLED_CORRIDORS = 9;
 
 function SummaryConfigTab({ isEn }: { isEn: boolean }) {
   // corridor_operators: { "Indonesia||Bank Deposit": ["GMoneyTrans","Hanpass","E9Pay"], ... }
   const [corridorOps, setCorridorOps] = useState<Record<string, string[]>>({});
+  const [enabledCorridors, setEnabledCorridors] = useState<Set<string>>(new Set());
+  const [savedEnabled, setSavedEnabled] = useState<Set<string>>(new Set());
   const [configId, setConfigId] = useState(1);
   const [loading, setLoading] = useState(true);
 
@@ -1203,6 +1206,9 @@ function SummaryConfigTab({ isEn }: { isEn: boolean }) {
       const res = await fetch('/api/summary/config');
       const data = await res.json();
       setConfigId(data?.id ?? 1);
+      const ec: string[] = Array.isArray(data?.enabled_corridors) ? data.enabled_corridors : [];
+      setEnabledCorridors(new Set(ec));
+      setSavedEnabled(new Set(ec));
       const co = data?.corridor_operators;
       if (co && typeof co === 'object' && Object.keys(co).length > 0) {
         setCorridorOps(co);
@@ -1230,18 +1236,32 @@ function SummaryConfigTab({ isEn }: { isEn: boolean }) {
 
   const [savedOps, setSavedOps] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
-  const hasChanges = JSON.stringify(corridorOps) !== JSON.stringify(savedOps);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const sortedEnabled = [...enabledCorridors].sort();
+  const sortedSavedEnabled = [...savedEnabled].sort();
+  const hasChanges = JSON.stringify(corridorOps) !== JSON.stringify(savedOps)
+    || JSON.stringify(sortedEnabled) !== JSON.stringify(sortedSavedEnabled);
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
-      await fetch('/api/summary/config', {
+      const enabled = [...enabledCorridors];
+      const res = await fetch('/api/summary/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: configId, corridor_operators: corridorOps }),
+        body: JSON.stringify({ id: configId, corridor_operators: corridorOps, enabled_corridors: enabled }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `HTTP ${res.status}`);
+      }
       setSavedOps(corridorOps);
-    } catch (err) { console.error('Failed to save:', err); }
+      setSavedEnabled(new Set(enabled));
+    } catch (err) {
+      console.error('Failed to save:', err);
+      setSaveError(err instanceof Error ? err.message : String(err));
+    }
     finally { setSaving(false); }
   };
 
@@ -1257,37 +1277,70 @@ function SummaryConfigTab({ isEn }: { isEn: boolean }) {
     setCorridorOps({ ...corridorOps, [corridorKey]: next });
   };
 
+  const toggleCorridor = (key: string) => {
+    setEnabledCorridors(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else if (next.size < MAX_ENABLED_CORRIDORS) next.add(key);
+      return next;
+    });
+  };
+
   if (loading) return <div className="p-8 text-center text-slate-400">Loading...</div>;
 
   return (
     <div className="space-y-4">
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-        <div className="flex items-center justify-between mb-1">
+        <div className="mb-1">
           <h2 className="text-sm font-semibold">{isEn ? 'Summary Operators per Corridor' : '경로별 요약 운영사'}</h2>
-          <a href="/summary" className="inline-flex items-center gap-1 px-3 py-1 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-xs hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
-            {isEn ? 'Open Summary Page →' : '요약 페이지 열기 →'}
-          </a>
         </div>
-        <p className="text-xs text-slate-500 mb-4">
+        <p className="text-xs text-slate-500 mb-3">
           {isEn
-            ? `Select up to ${MAX_OPS_PER_CORRIDOR} operators per corridor to show alongside GME (always included). Maximum 4 operators per chart.`
-            : `각 경로별 최대 ${MAX_OPS_PER_CORRIDOR}개 운영사를 선택하세요. GME는 항상 포함됩니다. 차트당 최대 4개.`}
+            ? `Tick the checkbox at the left of each row to include that corridor in the Summary view (max ${MAX_ENABLED_CORRIDORS}). For each enabled corridor, select up to ${MAX_OPS_PER_CORRIDOR} competitor operators alongside GME.`
+            : `각 행 왼쪽 체크박스로 요약 페이지에 표시할 경로를 선택하세요(최대 ${MAX_ENABLED_CORRIDORS}개). 활성화된 경로별로 GME 외 최대 ${MAX_OPS_PER_CORRIDOR}개 운영사를 선택할 수 있습니다.`}
         </p>
+
+        <div className="flex items-center justify-between text-xs mb-3">
+          <span className={enabledCorridors.size === MAX_ENABLED_CORRIDORS ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-slate-500 dark:text-slate-400'}>
+            {isEn
+              ? `${enabledCorridors.size} / ${MAX_ENABLED_CORRIDORS} corridors enabled`
+              : `${enabledCorridors.size} / ${MAX_ENABLED_CORRIDORS}개 경로 활성화`}
+          </span>
+          {enabledCorridors.size > 0 && (
+            <button
+              onClick={() => setEnabledCorridors(new Set())}
+              className="px-2 py-0.5 text-[11px] rounded border border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-red-50 hover:border-red-300 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:border-red-700 dark:hover:text-red-400 transition-colors"
+            >
+              {isEn ? 'Clear all' : '전체 해제'}
+            </button>
+          )}
+        </div>
 
         <div className="space-y-3">
           {corridorEntries.map(({ key, country, method, operators }) => {
             const selected = corridorOps[key] ?? [];
+            const enabled = enabledCorridors.has(key);
+            const capped = !enabled && enabledCorridors.size >= MAX_ENABLED_CORRIDORS;
             return (
-              <div key={key} className="border border-slate-200 dark:border-slate-800 rounded-lg p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-semibold">
-                    {country} <span className="text-slate-400 font-normal">— {method}</span>
-                  </h3>
+              <div key={key} className={`border rounded-lg p-3 ${enabled ? 'border-blue-200 dark:border-blue-800/60 bg-blue-50/30 dark:bg-blue-900/10' : 'border-slate-200 dark:border-slate-800'}`}>
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <label className={`flex items-center gap-2 ${capped ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
+                    <input
+                      type="checkbox"
+                      checked={enabled}
+                      disabled={capped}
+                      onChange={() => toggleCorridor(key)}
+                      className="rounded border-slate-300 dark:border-slate-600 text-blue-500 focus:ring-blue-500 h-3.5 w-3.5"
+                    />
+                    <h3 className="text-xs font-semibold">
+                      {country} <span className="text-slate-400 font-normal">— {method}</span>
+                    </h3>
+                  </label>
                   <span className="text-xs text-slate-400">
                     <span className="text-red-500 font-medium">GME</span> + {selected.length}/{MAX_OPS_PER_CORRIDOR}
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                <div className={`flex flex-wrap gap-x-4 gap-y-1.5 ${enabled ? '' : 'opacity-40'}`}>
                   {operators.map(op => {
                     const checked = selected.includes(op);
                     const disabled = !checked && selected.length >= MAX_OPS_PER_CORRIDOR;
@@ -1315,8 +1368,14 @@ function SummaryConfigTab({ isEn }: { isEn: boolean }) {
       {/* Sticky save bar */}
       {hasChanges && (
         <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur shadow-lg">
-          <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
-            <span className="text-sm text-slate-600 dark:text-slate-300">{isEn ? 'You have unsaved changes' : '저장되지 않은 변경사항이 있습니다'}</span>
+          <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between gap-3">
+            <span className="text-sm">
+              {saveError ? (
+                <span className="text-red-600 dark:text-red-400">{isEn ? 'Save failed: ' : '저장 실패: '}{saveError}</span>
+              ) : (
+                <span className="text-slate-600 dark:text-slate-300">{isEn ? 'You have unsaved changes' : '저장되지 않은 변경사항이 있습니다'}</span>
+              )}
+            </span>
             <button
               onClick={handleSave}
               disabled={saving}
