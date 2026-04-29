@@ -39,8 +39,6 @@ const EN = {
   gmeBaselineLegend: 'GME (baseline)',
   gmeRankTitle: 'GME Competitive Position',
   gmeRankSub: 'GME price rank over time (1st = most expensive)',
-  gmeRankPreview: 'Report',
-  gmeRankCompare: 'Compare with',
   gmeRankDateError: '"From" date must be earlier than "To" date. Please adjust the date range.',
   moreExpensiveLegend: 'More expensive than GME',
   cheaperLegend: 'Cheaper than GME',
@@ -143,8 +141,6 @@ const KO = {
   gmeBaselineLegend: 'GME (기준)',
   gmeRankTitle: 'GME 경쟁 순위',
   gmeRankSub: '시간에 따른 GME 가격 순위 (1위 = 가장 비쌈)',
-  gmeRankPreview: '리포트',
-  gmeRankCompare: '비교 대상',
   gmeRankDateError: "'시작' 날짜는 '종료' 날짜보다 빨라야 합니다. 날짜 범위를 조정해 주세요.",
   moreExpensiveLegend: 'GME보다 비쌈',
   cheaperLegend: 'GME보다 저렴',
@@ -383,7 +379,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [avgToDate, setAvgToDate] = useState('');
   const avgGapSortDesc = true;
   const [selectedTrendOperators, setSelectedTrendOperators] = useState<Set<string>>(new Set());
-  const [selectedRankOperators, setSelectedRankOperators] = useState<Set<string>>(new Set());
   const [gmeTrendFromDate, setGmeTrendFromDate] = useState('');
   const [gmeTrendToDate, setGmeTrendToDate] = useState('');
   const [operatorTrendFromDate, setOperatorTrendFromDate] = useState('');
@@ -410,7 +405,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [lastAccessed, setLastAccessed] = useState<Date | null>(null);
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const detailedDataRef = useRef<HTMLDivElement>(null);
-  const rankChartRef = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = pageSize;
 
   const t = isEn ? EN : KO;
@@ -761,67 +755,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     [gmeRankData, effectiveGmeTrendFromDate, effectiveGmeTrendToDate]
   );
 
-  const gmeDailyPosition = useMemo(() => {
-    const byDay = new Map<string, { ranks: number[]; total: number }>();
-    for (const d of filteredRankData) {
-      const day = d.runHour.slice(0, 10);
-      const entry = byDay.get(day) ?? { ranks: [], total: d.total };
-      entry.ranks.push(d.rank);
-      entry.total = d.total;
-      byDay.set(day, entry);
-    }
-    const days = [...byDay.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([day, { ranks, total }]) => {
-        const avg = ranks.reduce((s, r) => s + r, 0) / ranks.length;
-        const ratio = total > 0 ? avg / total : 1;
-        const position: 'Low' | 'Medium' | 'High' =
-          ratio <= 1 / 3 ? 'Low' : ratio <= 2 / 3 ? 'Medium' : 'High';
-        return {
-          day,
-          avgRank: avg,
-          total,
-          points: ranks.length,
-          position,
-          extreme: undefined as 'best' | 'worst' | undefined,
-        };
-      });
-    if (days.length > 1) {
-      const min = Math.min(...days.map(d => d.avgRank));
-      const max = Math.max(...days.map(d => d.avgRank));
-      if (min !== max) {
-        const bestIdx = days.findIndex(d => d.avgRank === min);
-        const worstIdx = days.findIndex(d => d.avgRank === max);
-        days[bestIdx].extreme = 'best';
-        if (worstIdx !== bestIdx) days[worstIdx].extreme = 'worst';
-      }
-    }
-    return days;
-  }, [filteredRankData]);
-
-  const representativeSnapshot = useMemo(() => {
-    if (filteredRankData.length === 0) return null;
-    const avgAll = filteredRankData.reduce((s, d) => s + d.rank, 0) / filteredRankData.length;
-    let best: { point: typeof filteredRankData[number]; dist: number } | null = null;
-    for (const d of filteredRankData) {
-      const dist = Math.abs(d.rank - avgAll);
-      if (!best || dist < best.dist || (dist === best.dist && d.runHour > best.point.runHour)) {
-        best = { point: d, dist };
-      }
-    }
-    if (!best) return null;
-    const records = byCountry
-      .filter(r => r.runHour === best!.point.runHour && r.totalSendingAmount > 0)
-      .slice()
-      .sort((a, b) => a.totalSendingAmount - b.totalSendingAmount);
-    return {
-      runHour: best.point.runHour,
-      gmeRank: best.point.rank,
-      total: best.point.total,
-      records,
-    };
-  }, [filteredRankData, byCountry]);
-
   const trendOperators = useMemo(
     () => [...new Set(byCountry.filter(r => r.status !== 'GME').map(r => r.operator))].sort(),
     [byCountry]
@@ -830,11 +763,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const effectiveTrendOperators = useMemo(
     () => new Set([...selectedTrendOperators].filter(op => trendOperators.includes(op))),
     [selectedTrendOperators, trendOperators]
-  );
-
-  const effectiveRankOperators = useMemo(
-    () => new Set([...selectedRankOperators].filter(op => trendOperators.includes(op))),
-    [selectedRankOperators, trendOperators]
   );
 
   // Combined trend: GME baseline + selected operators overlaid
@@ -1000,277 +928,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     XLSX.writeFile(wb, `GME_${selectedCountry}_${date}.xlsx`);
   }
 
-  function openRankPreview() {
-    const svg = rankChartRef.current?.querySelector('svg');
-    if (!svg) return;
-
-    const clone = svg.cloneNode(true) as SVGElement;
-    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    const w = svg.clientWidth || 800;
-    const h = svg.clientHeight || 360;
-    clone.setAttribute('width', String(w));
-    clone.setAttribute('height', String(h));
-    const svgMarkup = new XMLSerializer().serializeToString(clone);
-
-    const escapeHtml = (s: string) =>
-      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-    const corridorRaw = `${selectedCountry}${selectedDeliveryMethod ? ' — ' + selectedDeliveryMethod : ''}`;
-    const corridor = escapeHtml(corridorRaw);
-    const dateRange =
-      effectiveGmeTrendFromDate && effectiveGmeTrendToDate
-        ? `${effectiveGmeTrendFromDate} → ${effectiveGmeTrendToDate}`
-        : gmeDailyPosition.length
-          ? `${gmeDailyPosition[0].day} → ${gmeDailyPosition[gmeDailyPosition.length - 1].day}`
-          : '';
-    const fileSafeCorridor = corridorRaw.replace(/[^A-Za-z0-9]+/g, '_');
-    const fileSafeRange = (dateRange || '').replace(/[^0-9]+/g, '_');
-    const filename = `GME_position_${fileSafeCorridor}_${fileSafeRange}.png`;
-
-    // Operator count for the title: mode across days, fallback to representative snapshot.
-    let operatorCount = representativeSnapshot?.total ?? 0;
-    if (gmeDailyPosition.length) {
-      const counts = new Map<number, number>();
-      for (const d of gmeDailyPosition) counts.set(d.total, (counts.get(d.total) ?? 0) + 1);
-      operatorCount = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
-    }
-
-    const labels = isEn
-      ? { day: 'Day', avg: 'Avg rank', pts: 'Points', pos: 'Position', gmePos: "GME's position", meta: `${gmeDailyPosition.length} day(s) · ranking lower = cheaper`, print: 'Print', download: 'Download PNG', operators: 'Operators', overall: 'Overall', positionLow: 'Low', positionMedium: 'Medium', positionHigh: 'High', chartTitle: 'Rank Trend on Hourly Basis', dailyTableTitle: 'Avg Ranking on Daily Basis', snapshotTitle: 'Avg Price Gap on Weekly Basis', snapshotSub: 'Closest run-hour to GME’s average position over the period', operator: 'Operator', serviceFee: 'Service Fee', totalSend: 'Total Send (KRW)', priceGap: 'Price Gap vs GME', status: 'Status', statusGME: 'GME', statusCheaper: 'Cheaper than GME', statusExpensive: 'More expensive than GME', note: '<div><b>Avg rank</b> = mean of the operator’s rank across that day’s hourly snapshots (<b>rank 1 = most expensive</b> among all operators).</div><div style="margin-top:4px"><b>Position</b> uses thirds of the leaderboard: bottom third → <b style="color:#16a34a">Low</b> (cheapest), middle → <b style="color:#d97706">Medium</b>, top third → <b style="color:#dc2626">High</b> (most expensive).</div>' }
-      : { day: '날짜', avg: '평균 순위', pts: '데이터 수', pos: '포지션', gmePos: 'GME 포지션', meta: `${gmeDailyPosition.length}일 · 순위 낮을수록 저렴`, print: '인쇄', download: 'PNG 다운로드', operators: '운영사', overall: '전체', positionLow: '낮음', positionMedium: '보통', positionHigh: '높음', chartTitle: '시간별 순위 추이', dailyTableTitle: '일별 평균 순위', snapshotTitle: '주간 평균 가격차', snapshotSub: '기간 중 GME 평균 순위에 가장 가까운 시점', operator: '운영사', serviceFee: '수수료', totalSend: '송금 합계 (KRW)', priceGap: 'GME 대비 가격차', status: '상태', statusGME: 'GME', statusCheaper: 'GME보다 저렴', statusExpensive: 'GME보다 비쌈', note: '<div><b>평균 순위</b> = 해당 날짜 시간별 스냅샷에서 운영사 순위의 평균 (<b>1위 = 가장 비쌈</b>).</div><div style="margin-top:4px"><b>포지션</b>은 평균 순위를 운영사 수의 1/3 단위로 분할: 하위 1/3 → <b style="color:#16a34a">낮음</b>(저렴), 중간 → <b style="color:#d97706">보통</b>, 상위 1/3 → <b style="color:#dc2626">높음</b>(비쌈).</div>' };
-
-    const positionLabel = (p: 'Low' | 'Medium' | 'High') =>
-      p === 'Low' ? labels.positionLow : p === 'Medium' ? labels.positionMedium : labels.positionHigh;
-    const positionColor = (p: 'Low' | 'Medium' | 'High') =>
-      p === 'Low' ? '#16a34a' : p === 'Medium' ? '#d97706' : '#dc2626';
-    const flipRank = (origAvg: number, total: number) => total > 0 ? total - origAvg + 1 : origAvg;
-    const rankNote = isEn
-      ? `Rank 1 = Most Expensive · Rank ${operatorCount} = Cheapest`
-      : `1위 = 가장 비쌈 · ${operatorCount}위 = 가장 저렴`;
-
-    // Per-competitor daily and overall positions for the selected operators.
-    const competitorList = [...effectiveRankOperators];
-    const ranksByOp: Record<string, Map<string, { ranks: number[]; total: number }>> = {};
-    for (const op of competitorList) ranksByOp[op] = new Map();
-    if (competitorList.length > 0) {
-      const byHour = new Map<string, { operator: string; total: number }[]>();
-      for (const r of byCountry) {
-        if (r.totalSendingAmount <= 0) continue;
-        if (effectiveGmeTrendFromDate && r.runHour < effectiveGmeTrendFromDate) continue;
-        if (effectiveGmeTrendToDate && r.runHour > effectiveGmeTrendToDate + 'T23:59') continue;
-        if (!byHour.has(r.runHour)) byHour.set(r.runHour, []);
-        byHour.get(r.runHour)!.push({ operator: r.operator, total: r.totalSendingAmount });
-      }
-      for (const [runHour, ops] of byHour) {
-        ops.sort((a, b) => a.total - b.total);
-        const day = runHour.slice(0, 10);
-        for (const op of competitorList) {
-          const idx = ops.findIndex(o => o.operator === op);
-          if (idx === -1) continue;
-          const m = ranksByOp[op];
-          const e = m.get(day) ?? { ranks: [], total: ops.length };
-          e.ranks.push(idx + 1);
-          e.total = ops.length;
-          m.set(day, e);
-        }
-      }
-    }
-    const bucket = (avg: number, total: number): 'Low' | 'Medium' | 'High' => {
-      const ratio = total > 0 ? avg / total : 1;
-      return ratio <= 1 / 3 ? 'Low' : ratio <= 2 / 3 ? 'Medium' : 'High';
-    };
-    type CompEntry = { avgRank: number; total: number; position: 'Low' | 'Medium' | 'High' };
-    const competitorDayPos = (op: string, day: string): CompEntry | null => {
-      const e = ranksByOp[op]?.get(day);
-      if (!e || e.ranks.length === 0) return null;
-      const avgRank = e.ranks.reduce((s, r) => s + r, 0) / e.ranks.length;
-      return { avgRank, total: e.total, position: bucket(avgRank, e.total) };
-    };
-    const competitorOverallPos = (op: string): CompEntry | null => {
-      const m = ranksByOp[op];
-      if (!m) return null;
-      let total = 0;
-      const all: number[] = [];
-      for (const { ranks, total: t } of m.values()) { all.push(...ranks); total = t; }
-      if (all.length === 0) return null;
-      const avgRank = all.reduce((s, r) => s + r, 0) / all.length;
-      return { avgRank, total, position: bucket(avgRank, total) };
-    };
-    const renderCompCell = (entry: CompEntry | null) => {
-      if (!entry) return '<td style="text-align:center"><span style="color:#94a3b8">—</span></td>';
-      const cc = positionColor(entry.position);
-      const display = flipRank(entry.avgRank, entry.total).toFixed(2);
-      return `<td style="text-align:center">
-        <div style="font-family:ui-monospace,monospace;font-size:11px;color:#475569">#${display}</div>
-        <div style="margin-top:2px"><span style="background:${cc}1a;color:${cc};padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px">${escapeHtml(positionLabel(entry.position))}</span></div>
-      </td>`;
-    };
-
-    const dailyRows = gmeDailyPosition
-      .map(d => {
-        const c = positionColor(d.position);
-        const rowBg = d.extreme === 'best' ? '#f0fdf4' : d.extreme === 'worst' ? '#fef2f2' : '';
-        const compCells = competitorList.map(op => renderCompCell(competitorDayPos(op, d.day))).join('');
-        return `<tr${rowBg ? ` style="background:${rowBg}"` : ''}>
-          <td>${escapeHtml(d.day)}</td>
-          <td style="text-align:right">#${flipRank(d.avgRank, d.total).toFixed(2)}</td>
-          <td><span style="background:${c}1a;color:${c};padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px">${escapeHtml(positionLabel(d.position))}</span></td>
-          ${compCells}
-        </tr>`;
-      })
-      .join('');
-
-    // Overall summary row (period-wide weighted avg of every rank point).
-    let overallRow = '';
-    if (filteredRankData.length > 0) {
-      const overallAvgRank = filteredRankData.reduce((s, d) => s + d.rank, 0) / filteredRankData.length;
-      const overallPoints = filteredRankData.length;
-      const overallRatio = operatorCount > 0 ? overallAvgRank / operatorCount : 1;
-      const overallPosition: 'Low' | 'Medium' | 'High' =
-        overallRatio <= 1 / 3 ? 'Low' : overallRatio <= 2 / 3 ? 'Medium' : 'High';
-      const c = positionColor(overallPosition);
-      const overallCompCells = competitorList.map(op => renderCompCell(competitorOverallPos(op))).join('');
-      overallRow = `<tr style="background:#f1f5f9;font-weight:600;border-top:2px solid #cbd5e1">
-        <td>${escapeHtml(labels.overall)}</td>
-        <td style="text-align:right">#${flipRank(overallAvgRank, operatorCount).toFixed(2)}</td>
-        <td><span style="background:${c}1a;color:${c};padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px">${escapeHtml(positionLabel(overallPosition))}</span></td>
-        ${overallCompCells}
-      </tr>`;
-    }
-
-    // Representative snapshot section
-    let snapshotHtml = '';
-    if (representativeSnapshot && representativeSnapshot.records.length > 0) {
-      const snap = representativeSnapshot;
-      const snapRows = snap.records
-        .map(r => {
-          const isGME = r.status === 'GME' || r.operator === 'GME';
-          const rowBg = isGME ? '#eff6ff' : '';
-          const total = r.totalSendingAmount.toLocaleString('ko-KR');
-          let gapHtml = '';
-          if (!isGME && r.priceGap !== null && r.priceGap !== 0) {
-            const gapColor = r.priceGap < 0 ? '#16a34a' : '#dc2626';
-            const sign = r.priceGap > 0 ? '+' : '';
-            gapHtml = `<span style="color:${gapColor};font-family:ui-monospace,monospace">${sign}${r.priceGap.toLocaleString('ko-KR')}</span>`;
-          } else if (!isGME && r.priceGap === 0) {
-            gapHtml = `<span style="color:#94a3b8">0</span>`;
-          }
-          let statusChip;
-          if (isGME) {
-            statusChip = `<span style="background:#ef44441a;color:#ef4444;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px">${escapeHtml(labels.statusGME)}</span>`;
-          } else if (r.priceGap !== null && r.priceGap < 0) {
-            statusChip = `<span style="background:#22c55e1a;color:#16a34a;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px">${escapeHtml(labels.statusCheaper)}</span>`;
-          } else if (r.priceGap !== null && r.priceGap > 0) {
-            statusChip = `<span style="background:#f973161a;color:#f97316;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px">${escapeHtml(labels.statusExpensive)}</span>`;
-          } else {
-            statusChip = `<span style="color:#94a3b8">—</span>`;
-          }
-          const fee = r.serviceFee.toLocaleString('ko-KR');
-          return `<tr${rowBg ? ` style="background:${rowBg}"` : ''}>
-            <td${isGME ? ' style="font-weight:600"' : ''}>${escapeHtml(r.operator)}</td>
-            <td style="text-align:right;font-family:ui-monospace,monospace">${fee}</td>
-            <td style="text-align:right;font-family:ui-monospace,monospace">${total}</td>
-            <td style="text-align:right">${gapHtml}</td>
-            <td>${statusChip}</td>
-          </tr>`;
-        })
-        .join('');
-      snapshotHtml = `
-<h2 style="font-size:14px;margin:20px 0 4px;color:#0f172a">${escapeHtml(labels.snapshotTitle)}</h2>
-<div class="meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:8px">
-  <span>${escapeHtml(labels.snapshotSub)} · GME #${flipRank(snap.gmeRank, snap.total)} / ${snap.total}</span>
-  <span style="font-family:ui-monospace,monospace;color:#0f172a">${escapeHtml(formatRunHour(snap.runHour))}</span>
-</div>
-<table>
-  <thead><tr>
-    <th>${escapeHtml(labels.operator)}</th>
-    <th style="text-align:right">${escapeHtml(labels.serviceFee)}</th>
-    <th style="text-align:right">${escapeHtml(labels.totalSend)}</th>
-    <th style="text-align:right">${escapeHtml(labels.priceGap)}</th>
-    <th>${escapeHtml(labels.status)}</th>
-  </tr></thead>
-  <tbody>${snapRows}</tbody>
-</table>`;
-    }
-
-    const headingTitle = `GME Competitive Position — ${corridor} (${operatorCount} ${escapeHtml(labels.operators)})`;
-
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>GME Competitive Position — ${corridor}</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<style>
-  body{font-family:system-ui,-apple-system,sans-serif;margin:24px;color:#0f172a;background:#fff}
-  h1{font-size:18px;margin:0 0 4px}
-  .meta{color:#64748b;font-size:12px;margin-bottom:16px}
-  .chart{border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:16px;text-align:center}
-  .chart svg{max-width:100%;height:auto}
-  table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px}
-  th,td{padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:left}
-  th{background:#f8fafc;font-weight:600;color:#475569}
-  .actions{position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:10}
-  .actions button{padding:6px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-size:13px;font-family:inherit}
-  .actions button.primary{background:#2563eb;color:#fff;border-color:#2563eb}
-  .actions button:hover{filter:brightness(0.95)}
-  .actions button:disabled{opacity:0.6;cursor:wait}
-  @media print{.actions{display:none}body{margin:12mm}}
-</style></head><body>
-<div class="actions">
-  <button onclick="window.print()">${escapeHtml(labels.print)}</button>
-  <button class="primary" id="dlBtn" onclick="downloadPng()">${escapeHtml(labels.download)}</button>
-</div>
-<div id="capture">
-  <h1>${headingTitle}</h1>
-  <div class="meta">${escapeHtml(dateRange)} · ${escapeHtml(labels.meta)}</div>
-  <h2 style="font-size:14px;margin:0 0 4px;color:#0f172a">${escapeHtml(labels.dailyTableTitle)}</h2>
-  <div style="font-size:12px;color:#475569;margin:0 0 6px;font-style:italic">${escapeHtml(rankNote)}</div>
-  <table>
-    <thead><tr>
-      <th>${escapeHtml(labels.day)}</th>
-      <th style="text-align:right">${escapeHtml(labels.avg)}</th>
-      <th>${escapeHtml(labels.gmePos)}</th>
-      ${competitorList.map(op => `<th style="text-align:center">${escapeHtml(op)}</th>`).join('')}
-    </tr></thead>
-    <tbody>${dailyRows}${overallRow}</tbody>
-  </table>
-  <div style="font-size:12px;color:#475569;line-height:1.55;margin:8px 0 16px;padding:8px 10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">${labels.note}</div>
-  ${snapshotHtml}
-  <h2 style="font-size:14px;margin:20px 0 6px;color:#0f172a">${escapeHtml(labels.chartTitle)}</h2>
-  <div class="chart" id="chart">${svgMarkup}</div>
-</div>
-<script>
-  function downloadPng(){
-    if(typeof html2canvas === 'undefined'){
-      alert('${escapeHtml(isEn ? 'Export library is still loading; please try again in a moment.' : '내보내기 라이브러리를 로딩 중입니다. 잠시 후 다시 시도하세요.')}');
-      return;
-    }
-    var btn = document.getElementById('dlBtn');
-    var actions = document.querySelector('.actions');
-    if(btn){ btn.disabled = true; }
-    var target = document.getElementById('capture');
-    html2canvas(target, {scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false}).then(function(c){
-      c.toBlob(function(b){
-        if(!b){ if(btn) btn.disabled = false; return; }
-        var url = URL.createObjectURL(b);
-        var a = document.createElement('a');
-        a.href = url; a.download = ${JSON.stringify(filename)};
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(function(){ URL.revokeObjectURL(url); if(btn) btn.disabled = false; }, 1000);
-      }, 'image/png');
-    }).catch(function(err){
-      console.error(err);
-      if(btn) btn.disabled = false;
-      if(actions) actions.style.display = '';
-    });
-  }
-</script>
-</body></html>`;
-
-    const win = window.open('', '_blank', 'width=1000,height=900');
-    if (!win) return;
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-  }
-
   return (
     <div className={isDark ? 'dark' : ''}>
       <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
@@ -1285,42 +942,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                 <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.subtitle}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Calculator (login required) */}
-              {isLoggedIn && <button
-                onClick={() => {
-                  const gme = snapshot.find(r => r.status === 'GME');
-                  if (gme && gme.sendAmountKRW > 0) {
-                    const raw = gme.receiveAmount / gme.sendAmountKRW;
-                    const rate = raw >= 1 ? raw : gme.sendAmountKRW / gme.receiveAmount;
-                    setCalcRate(rate.toFixed(2));
-                  } else {
-                    setCalcRate('');
-                  }
-                  setCalcSelectedOps(new Set());
-                  setCalcUsdLocalRate('');
-                  setShowCalcModal(true);
-                }}
-                className="p-1.5 rounded-lg border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
-                title={t.calculator}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm4.498-2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm-2.502-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z" />
-                </svg>
-              </button>}
-
-              {/* Summary in TV window (kiosk popup) */}
-              <button
-                onClick={() => window.open('/summary', 'summary-tv', 'popup,width=1920,height=1080')}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
-                title={isEn ? 'Open Summary in a new TV-friendly window' : 'TV 창에서 요약 열기'}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125Z" />
-                </svg>
-                {isEn ? 'Summary' : '요약'}
-              </button>
-
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
               {/* Language toggle */}
               <div className="flex rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden text-sm">
                 <button
@@ -1388,6 +1011,58 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                   </button>
                 </>
               )}
+              </div>
+
+              {/* Second row: Calculator / Summary / Report */}
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                {/* Calculator (login required) */}
+                {isLoggedIn && <button
+                  onClick={() => {
+                    const gme = snapshot.find(r => r.status === 'GME');
+                    if (gme && gme.sendAmountKRW > 0) {
+                      const raw = gme.receiveAmount / gme.sendAmountKRW;
+                      const rate = raw >= 1 ? raw : gme.sendAmountKRW / gme.receiveAmount;
+                      setCalcRate(rate.toFixed(2));
+                    } else {
+                      setCalcRate('');
+                    }
+                    setCalcSelectedOps(new Set());
+                    setCalcUsdLocalRate('');
+                    setShowCalcModal(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+                  title={t.calculator}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm4.498-2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm-2.502-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z" />
+                  </svg>
+                  {t.calculator}
+                </button>}
+
+                {/* Summary in TV window (kiosk popup) */}
+                <button
+                  onClick={() => window.open('/summary', 'summary-tv', 'popup,width=1920,height=1080')}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                  title={isEn ? 'Open Summary in a new TV-friendly window' : 'TV 창에서 요약 열기'}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125Z" />
+                  </svg>
+                  {isEn ? 'Summary' : '요약'}
+                </button>
+
+                {/* Multi-corridor Report (popup) */}
+                <button
+                  onClick={() => window.open('/report', 'gme-report', 'popup,width=1280,height=1024')}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+                  title={isEn ? 'Open the multi-corridor Weekly Report' : '주간 리포트 열기'}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                  </svg>
+                  {isEn ? 'Report' : '리포트'}
+                </button>
+              </div>
             </div>
           </div>
           {/* Filter bar */}
@@ -1991,17 +1666,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     </select>
                   </div>
                 )}
-                {!isReceiveComparison && !gmeDateRangeError && filteredRankData.length > 1 && (
-                  <button
-                    onClick={openRankPreview}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />
-                    </svg>
-                    {t.gmeRankPreview}
-                  </button>
-                )}
               </div>
             </div>
             {isReceiveComparison ? (
@@ -2016,40 +1680,8 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               </div>
             ) : (
             <>
-            {trendOperators.length > 0 && (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3">
-                {trendOperators.map(op => {
-                  const checked = effectiveRankOperators.has(op);
-                  const disabled = !checked && effectiveRankOperators.size >= 3;
-                  return (
-                    <label key={op} className={`flex items-center gap-1 text-xs cursor-pointer select-none ${disabled ? 'opacity-40' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        disabled={disabled}
-                        onChange={() => {
-                          const next = new Set(selectedRankOperators);
-                          if (next.has(op)) next.delete(op); else next.add(op);
-                          setSelectedRankOperators(next);
-                        }}
-                        className="rounded w-3 h-3 accent-blue-500"
-                      />
-                      <span className="text-slate-600 dark:text-slate-300">{op}</span>
-                    </label>
-                  );
-                })}
-                {effectiveRankOperators.size > 0 && (
-                  <button
-                    onClick={() => setSelectedRankOperators(new Set())}
-                    className="ml-auto px-2 py-0.5 text-[11px] rounded border border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-red-50 hover:border-red-300 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:border-red-700 dark:hover:text-red-400 transition-colors"
-                  >
-                    {isEn ? 'Clear all' : '전체 해제'}
-                  </button>
-                )}
-              </div>
-            )}
             {filteredRankData.length > 1 ? (
-              <div ref={rankChartRef} className="w-full">
+              <div className="w-full">
               {(() => {
                 const chartTotal = filteredRankData.reduce((m, d) => Math.max(m, d.total), 0);
                 return (

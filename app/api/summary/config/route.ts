@@ -23,6 +23,8 @@ export async function PUT(req: NextRequest) {
   if (body.main_operators !== undefined) update.main_operators = body.main_operators;
   if (body.corridor_operators !== undefined) update.corridor_operators = body.corridor_operators;
   if (body.enabled_corridors !== undefined) update.enabled_corridors = body.enabled_corridors;
+  if (body.report_corridors !== undefined) update.report_corridors = body.report_corridors;
+  if (body.report_corridor_operators !== undefined) update.report_corridor_operators = body.report_corridor_operators;
 
   const { data, error } = await supabase
     .from('summary_config')

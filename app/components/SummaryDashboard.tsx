@@ -6,6 +6,7 @@ import {
   ResponsiveContainer, ReferenceLine, Cell, LabelList,
 } from 'recharts';
 import { CURRENCY_MAP } from '@/app/lib/corridors';
+import { useLiveRefresh } from '@/app/lib/useLiveRefresh';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -28,31 +29,6 @@ interface CorridorSummary {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-// Schedule the next refresh at the next 15-minute wall-clock boundary + 60s grace
-// so we land just after the new scrape has written its rows.
-function msUntilNextRefresh() {
-  const now = new Date();
-  const next = new Date(now);
-  const slot = (Math.floor(now.getMinutes() / 15) + 1) * 15;
-  next.setMinutes(slot, 60, 0);
-  return Math.max(1000, next.getTime() - now.getTime());
-}
-
-function useLiveRefresh(onTick: () => void, errored: boolean) {
-  useEffect(() => {
-    let cycleTimeout: ReturnType<typeof setTimeout>;
-    const schedule = () => {
-      const ms = errored ? 60_000 : msUntilNextRefresh();
-      cycleTimeout = setTimeout(() => {
-        onTick();
-        schedule();
-      }, ms);
-    };
-    schedule();
-    return () => clearTimeout(cycleTimeout);
-  }, [onTick, errored]);
-}
 
 function statusColor(status: string) {
   if (status === 'GME') return '#ef4444';
