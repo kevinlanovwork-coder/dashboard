@@ -934,12 +934,12 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
 
         {/* Header */}
         <header className="sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur">
-          <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 pt-2.5 pb-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <img src="/GME_swirl_icon.png" alt="GME" className="h-8 shrink-0" />
+              <img src="/GME_swirl_icon.png" alt="GME" className="h-7 shrink-0" />
               <div>
-                <h1 className="text-lg font-bold tracking-tight">{t.title}</h1>
-                <p className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">{t.subtitle}</p>
+                <h1 className="text-base font-bold tracking-tight leading-tight">{t.title}</h1>
+                <p className="text-slate-500 dark:text-slate-500 text-[11px] mt-0">{t.subtitle}</p>
               </div>
             </div>
             <div className="flex flex-col items-end gap-2">
@@ -1030,7 +1030,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                     setCalcUsdLocalRate('');
                     setShowCalcModal(true);
                   }}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   title={t.calculator}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -1066,7 +1066,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
             </div>
           </div>
           {/* Filter bar */}
-          <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 pb-3 pt-1 flex items-end gap-4 flex-wrap">
+          <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 pb-3 pt-0 flex items-end gap-4 flex-wrap">
             {/* Country */}
             <div>
               <span className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t.countryLabel}</span>
@@ -1231,9 +1231,9 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           </div>
         </header>
 
-        <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-4 space-y-4">
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Left group — aligns with Snapshot Comparison below */}
             <div className="grid grid-cols-3 gap-3">
               <KPICard
@@ -1276,7 +1276,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           </div>
 
           {/* Snapshot + Avg Gap */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Snapshot */}
             <div className={`rounded-xl p-5 flex flex-col border ${isReceiveComparison ? 'bg-amber-50/60 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}>
               <div className="mb-3">
@@ -1543,7 +1543,7 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
           </div>
 
           {/* Avg Gap + Rank */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Avg Gap */}
           <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
               <div className="flex items-start justify-between mb-4">

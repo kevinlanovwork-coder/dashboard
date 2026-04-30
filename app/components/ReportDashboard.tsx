@@ -103,13 +103,14 @@ export default function ReportDashboard() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Default active tab = Summary; if user had picked a corridor that no longer exists, fall back.
+  // Default active tab = first corridor (leftmost). If user had picked a corridor that
+  // no longer exists, fall back to the first corridor too.
   useEffect(() => {
     if (!config?.corridors.length) return;
     if (!activeCorridor) {
-      setActiveCorridor(SUMMARY_KEY);
+      setActiveCorridor(config.corridors[0]);
     } else if (activeCorridor !== SUMMARY_KEY && !config.corridors.includes(activeCorridor)) {
-      setActiveCorridor(SUMMARY_KEY);
+      setActiveCorridor(config.corridors[0]);
     }
   }, [config, activeCorridor]);
 
