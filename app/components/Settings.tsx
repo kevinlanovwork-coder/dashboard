@@ -649,9 +649,13 @@ function ServiceFeesTab({ isEn }: { isEn: boolean }) {
   useEffect(() => { setLoading(true); fetchFees(); }, [fetchFees]);
   useEffect(() => { fetchFeeHistory(); }, [fetchFeeHistory]);
 
+  // API-scraped operators get their fees from their own APIs — never editable here.
+  const API_OPERATORS = ['GME', 'GMoneyTrans', 'Hanpass'];
   const grouped = useMemo(() => {
     const map: Record<string, ServiceFee[]> = {};
-    fees.forEach(f => { if (!map[f.receiving_country]) map[f.receiving_country] = []; map[f.receiving_country].push(f); });
+    fees
+      .filter(f => !API_OPERATORS.includes(f.operator))
+      .forEach(f => { if (!map[f.receiving_country]) map[f.receiving_country] = []; map[f.receiving_country].push(f); });
     return map;
   }, [fees]);
 

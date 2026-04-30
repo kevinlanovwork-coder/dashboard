@@ -1,6 +1,15 @@
 import supabase from './supabase.js';
 
 /**
+ * Operators whose service_fee comes directly from their own JSON APIs (scCharge,
+ * serviceCharge, transferFee). Their fees are always authoritative — we never
+ * apply Service Fees overrides to them, never seed rows for them, and the
+ * Settings UI hides them. Override layer is reserved for browser-scraped
+ * operators where the scraper can't reliably extract the fee.
+ */
+export const API_OPERATORS = new Set(['GME', 'GMoneyTrans', 'Hanpass']);
+
+/**
  * Load fee overrides from service_fees table for a given country.
  * Returns a Map keyed by "operator||delivery_method" → fee_krw.
  */
@@ -55,6 +64,9 @@ export async function loadFees(country) {
  */
 export function applyFeeOverrides(records, feeMap) {
   return records.map(r => {
+    // API operators report scCharge/serviceCharge/transferFee directly — that
+    // value is always the source of truth. Skip the override layer entirely.
+    if (API_OPERATORS.has(r.operator)) return r;
     const key = `${r.operator}||${r.delivery_method ?? 'Bank Deposit'}`;
     const overrideFee = feeMap.get(key);
     if (overrideFee != null && overrideFee !== r.service_fee) {
@@ -88,32 +100,15 @@ export async function seedFees(records) {
     const existingKeys = new Set(
       (existing ?? []).map(e => `${e.operator}||${e.delivery_method}`)
     );
-    const manuallyEditedKeys = new Set(
-      (existing ?? []).filter(e => e.manually_edited).map(e => `${e.operator}||${e.delivery_method}`)
-    );
 
     const now = new Date().toISOString();
 
-    // API-based operators whose fees are dynamic and authoritative — sync every run
-    const API_OPERATORS = new Set(['GME', 'GMoneyTrans', 'Hanpass']);
-
-    // Sync API operators' fees — skip if manually edited (preserve admin overrides until expiry)
-    for (const r of records.filter(r => API_OPERATORS.has(r.operator) && r.receiving_country)) {
-      const key = `${r.operator}||${r.delivery_method ?? 'Bank Deposit'}`;
-      if (existingKeys.has(key)) {
-        if (!manuallyEditedKeys.has(key)) {
-          await supabase.from('service_fees')
-            .update({ fee_krw: r.service_fee ?? 0, updated_at: now })
-            .eq('receiving_country', country)
-            .eq('operator', r.operator)
-            .eq('delivery_method', r.delivery_method ?? 'Bank Deposit');
-        }
-      }
-    }
-
-    // Insert new entries for operators that don't have a row yet (all operators)
+    // Insert new entries for non-API operators that don't have a row yet.
+    // API operators (GME / GMoneyTrans / Hanpass) get their fees directly from
+    // their own APIs every run, so we never create rows for them.
     const newRows = records
       .filter(r => r.operator && r.receiving_country)
+      .filter(r => !API_OPERATORS.has(r.operator))
       .filter(r => !existingKeys.has(`${r.operator}||${r.delivery_method ?? 'Bank Deposit'}`))
       .map(r => ({
         receiving_country: r.receiving_country,
