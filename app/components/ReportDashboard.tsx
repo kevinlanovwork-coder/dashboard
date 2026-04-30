@@ -476,7 +476,7 @@ function CorridorReport(props: {
                 <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
                 <XAxis dataKey="label" tick={{ fill: ct.tick, fontSize: 11 }} axisLine={{ stroke: ct.axisLine }} tickLine={false} interval="preserveStartEnd" />
                 <YAxis reversed domain={[1, 'dataMax']} allowDecimals={false} tick={{ fill: ct.tick, fontSize: 11 }} axisLine={{ stroke: ct.axisLine }} tickLine={false} width={30} tickFormatter={(v: number) => `#${chartTotal > 0 ? chartTotal - v + 1 : v}`} />
-                <Tooltip content={({ active, payload, label }: { active?: boolean; payload?: Array<{ payload?: { rank?: number; total?: number } }>; label?: string }) => {
+                <Tooltip content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null;
                   const d = payload[0]?.payload as { rank: number; total: number };
                   const display = d.total - d.rank + 1;
