@@ -1196,7 +1196,7 @@ function ScraperHealthTab({ isEn }: { isEn: boolean }) {
 // ─── Summary Config Tab ──────────────────────────────────────────────────────
 
 const MAX_OPS_PER_CORRIDOR = 3; // + GME = 4 total
-const MAX_ENABLED_CORRIDORS = 9;
+const MAX_ENABLED_CORRIDORS = 12;
 
 function SummaryConfigTab({ isEn }: { isEn: boolean }) {
   // corridor_operators: { "Indonesia||Bank Deposit": ["GMoneyTrans","Hanpass","E9Pay"], ... }

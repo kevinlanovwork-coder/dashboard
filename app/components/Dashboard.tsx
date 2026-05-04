@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   LineChart, Line, ResponsiveContainer, ReferenceLine, Cell, LabelList,
@@ -443,13 +444,23 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
     localStorage.setItem('dashboard-lang', isEn ? 'en' : 'ko');
   }, [isEn]);
 
-  // Persist selected country & fetch data on change
+  // Honor ?country=&method= URL params (used by Summary cards as deep links).
+  // Falls back to localStorage when no URL hint is present.
+  const searchParams = useSearchParams();
+  const initialMethodHintRef = useRef<string | null>(null);
   useEffect(() => {
+    const urlCountry = searchParams?.get('country');
+    const urlMethod = searchParams?.get('method');
+    if (urlCountry && countries.includes(urlCountry)) {
+      setSelectedCountry(urlCountry);
+      initialMethodHintRef.current = urlMethod;
+      return;
+    }
     const saved = localStorage.getItem('dashboard-country');
     if (saved && saved !== defaultCountry) {
       setSelectedCountry(saved);
     }
-  }, [defaultCountry]);
+  }, [defaultCountry, searchParams, countries]);
   useEffect(() => {
     localStorage.setItem('dashboard-country', selectedCountry);
   }, [selectedCountry]);
@@ -538,6 +549,13 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   );
 
   useEffect(() => {
+    const hint = initialMethodHintRef.current;
+    if (hint && deliveryMethods.includes(hint)) {
+      setSelectedDeliveryMethod(hint);
+      initialMethodHintRef.current = null;
+      return;
+    }
+    initialMethodHintRef.current = null;
     const preferred = deliveryMethods.find(m => m.startsWith('Bank Deposit')) ?? deliveryMethods[0];
     setSelectedDeliveryMethod(preferred);
   }, [deliveryMethods]);

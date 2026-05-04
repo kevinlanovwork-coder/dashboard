@@ -74,9 +74,13 @@ const CorridorCard = memo(function CorridorCard({ corridor, isDark, isEn }: { co
   const domainMin = Math.max(0, minVal - padding);
   const domainMax = maxVal + padding;
 
+  const dashboardHref = `/?country=${encodeURIComponent(corridor.country)}&method=${encodeURIComponent(corridor.deliveryMethod)}`;
+
   return (
-    <div
-      className={`block rounded-xl overflow-hidden ${isReceiveComparison ? 'bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60' : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800'}`}
+    <a
+      href={dashboardHref}
+      title={isEn ? `Open ${corridor.country} — ${corridor.deliveryMethod} dashboard` : `${corridor.country} — ${corridor.deliveryMethod} 대시보드 열기`}
+      className={`block rounded-xl overflow-hidden transition-shadow hover:shadow-md hover:ring-1 hover:ring-emerald-300 dark:hover:ring-emerald-700 ${isReceiveComparison ? 'bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60' : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800'}`}
     >
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -188,7 +192,7 @@ const CorridorCard = memo(function CorridorCard({ corridor, isDark, isEn }: { co
           );
         })}
       </div>
-    </div>
+    </a>
   );
 });
 
@@ -298,7 +302,7 @@ export default function SummaryDashboard() {
             <div className="text-center py-20 text-slate-400 text-sm">
               <p className="mb-2">{isEn ? 'No corridors enabled.' : '활성화된 경로가 없습니다.'}</p>
               <a href="/settings?tab=summary" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-xs hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
-                {isEn ? 'Pick up to 9 in Settings → Summary Setup →' : '설정 → 요약 설정에서 최대 9개 선택 →'}
+                {isEn ? 'Pick up to 12 in Settings → Summary Setup →' : '설정 → 요약 설정에서 최대 12개 선택 →'}
               </a>
             </div>
           ) : (
