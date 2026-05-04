@@ -61,7 +61,7 @@ function parseField(text, field) {
 async function scrapeUtransfer(browser) {
   const page = await browser.newPage();
   try {
-    await page.goto('https://www.utransfer.com', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto('https://www.utransfer.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(2000);
     const personalBtn = page.locator('button:has-text("바로가기")').first();
     if (await personalBtn.isVisible().catch(() => false)) {
