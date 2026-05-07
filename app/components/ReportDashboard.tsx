@@ -39,7 +39,7 @@ export default function ReportDashboard() {
   useEffect(() => {
     if (localStorage.getItem('dashboard-theme') === 'dark') setIsDark(true);
     if (localStorage.getItem('dashboard-lang') === 'ko') setIsEn(false);
-    document.title = 'GME Competitive Position Weekly Report';
+    document.title = 'GME Weekly Competitive Position Report';
   }, []);
 
   // Window: last 7 complete days ending yesterday. If today is 04/29, this gives 04/22 → 04/28.
@@ -181,7 +181,7 @@ export default function ReportDashboard() {
           <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2.5">
               <img src="/GME_swirl_icon.png" alt="GME" className="h-7 shrink-0" />
-              <h1 className="text-base font-bold tracking-tight">{isEn ? 'GME Competitive Position Weekly Report' : 'GME 경쟁사 주간 리포트'}</h1>
+              <h1 className="text-base font-bold tracking-tight">{isEn ? 'GME Weekly Competitive Position Report' : 'GME 경쟁사 주간 리포트'}</h1>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <button onClick={() => window.print()} className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
@@ -225,46 +225,31 @@ export default function ReportDashboard() {
           ) : (
             <>
               <div className="border-b border-slate-200 dark:border-slate-800 flex print:hidden mb-4">
-                {(() => {
-                  // If multiple corridor tabs share a country, append the method to disambiguate.
-                  const countryCounts = new Map<string, number>();
-                  for (const k of config.corridors) {
-                    const c = k.split('||')[0];
-                    countryCounts.set(c, (countryCounts.get(c) ?? 0) + 1);
-                  }
-                  const summaryActive = activeCorridor === SUMMARY_KEY;
-                  return (
-                    <>
-                      <div className="flex gap-1 overflow-x-auto flex-1 min-w-0">
-                        {config.corridors.map(key => {
-                          const [country, method] = key.split('||');
-                          const active = key === activeCorridor;
-                          const ambiguous = (countryCounts.get(country) ?? 0) > 1;
-                          return (
-                            <button
-                              key={key}
-                              onClick={() => setActiveCorridor(key)}
-                              title={`${country} — ${method}`}
-                              className={`px-4 py-2 text-sm whitespace-nowrap border-b-2 transition-colors ${active ? 'border-violet-500 text-violet-600 dark:text-violet-400 font-semibold' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                            >
-                              {country}
-                              {ambiguous && <span className={active ? 'text-violet-400' : 'text-slate-400'}> · {method}</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="flex border-l border-slate-200 dark:border-slate-800 ml-2">
-                        <button
-                          onClick={() => setActiveCorridor(SUMMARY_KEY)}
-                          title={isEn ? 'Summary across all corridors' : '전체 경로 요약'}
-                          className={`px-4 py-2 text-sm whitespace-nowrap border-b-2 transition-colors ${summaryActive ? 'border-violet-500 text-violet-600 dark:text-violet-400 font-semibold' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                        >
-                          {isEn ? 'Summary' : '요약'}
-                        </button>
-                      </div>
-                    </>
-                  );
-                })()}
+                <div className="flex gap-1 overflow-x-auto flex-1 min-w-0">
+                  {config.corridors.map(key => {
+                    const [country, method] = key.split('||');
+                    const active = key === activeCorridor;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setActiveCorridor(key)}
+                        title={`${country} — ${method}`}
+                        className={`px-4 py-2 text-sm whitespace-nowrap border-b-2 transition-colors ${active ? 'border-violet-500 text-violet-600 dark:text-violet-400 font-semibold' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                      >
+                        {country}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex border-l border-slate-200 dark:border-slate-800 ml-2">
+                  <button
+                    onClick={() => setActiveCorridor(SUMMARY_KEY)}
+                    title={isEn ? 'Summary across all corridors' : '전체 경로 요약'}
+                    className={`px-4 py-2 text-sm whitespace-nowrap border-b-2 transition-colors ${activeCorridor === SUMMARY_KEY ? 'border-violet-500 text-violet-600 dark:text-violet-400 font-semibold' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                  >
+                    {isEn ? 'Summary' : '요약'}
+                  </button>
+                </div>
               </div>
 
               <div ref={captureRef}>
@@ -533,16 +518,13 @@ function SummaryTab({ perCorridorRecords, config, isEn, reportWindow }: {
       }
       return { corridorKey, country, method, gme, competitors, effectiveOps };
     });
-    // Track which countries appear more than once so we can disambiguate row labels.
-    const countryCounts = new Map<string, number>();
-    for (const r of rows) countryCounts.set(r.country, (countryCounts.get(r.country) ?? 0) + 1);
     // Union of all operators that have a column in the matrix.
     const allOps = new Set<string>(SUMMARY_DEFAULT_OPS);
     for (const r of rows) for (const op of r.effectiveOps) allOps.add(op);
     // Column order: GME → defaults (in fixed order) → remaining ops alphabetically.
     const remaining = [...allOps].filter(op => !SUMMARY_DEFAULT_OPS.includes(op)).sort();
     const operatorColumns = ['GME', ...SUMMARY_DEFAULT_OPS, ...remaining];
-    return { rows, operatorColumns, countryCounts };
+    return { rows, operatorColumns };
   }, [perCorridorRecords, config]);
 
   const renderCell = (cell: CompetitorEntry | null, isAvailable: boolean) => {
@@ -564,12 +546,16 @@ function SummaryTab({ perCorridorRecords, config, isEn, reportWindow }: {
         <div className="text-xs text-slate-500 dark:text-slate-400">
           {reportWindow.from} → {reportWindow.to} · {isEn ? 'overall position per operator across the past 7 days' : '지난 7일간 운영사별 종합 포지션'}
         </div>
+        <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          {isEn ? 'Rank 1 = Most expensive' : '1위 = 가장 비쌈'}
+        </div>
       </div>
       <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 dark:bg-slate-800/50">
             <tr>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">{isEn ? 'Country' : '국가'}</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 whitespace-nowrap w-px">{isEn ? 'Country' : '국가'}</th>
+              <th className="pl-3 pr-12 py-2 text-center text-xs font-medium text-slate-500 whitespace-nowrap w-px" aria-label={isEn ? 'Operators' : '운영사'}></th>
               {matrix.operatorColumns.map(op => (
                 <th key={op} className={`px-3 py-2 text-center text-xs font-medium ${op === 'GME' ? 'text-red-500' : 'text-slate-500'}`}>
                   {op === 'GME' ? '★ GME' : op}
@@ -579,12 +565,13 @@ function SummaryTab({ perCorridorRecords, config, isEn, reportWindow }: {
           </thead>
           <tbody>
             {matrix.rows.map(row => {
-              const ambiguous = (matrix.countryCounts.get(row.country) ?? 0) > 1;
               return (
                 <tr key={row.corridorKey} className="border-t border-slate-200 dark:border-slate-800">
-                  <td className="px-3 py-2">
-                    <span className="font-medium">{row.country}</span>
-                    {ambiguous && <span className="text-slate-400 text-xs ml-1">— {row.method}</span>}
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <span className="font-medium">{row.country} — {row.method}</span>
+                  </td>
+                  <td className="pl-3 pr-12 py-2 text-center text-xs whitespace-nowrap text-slate-400 font-normal">
+                    {row.gme ? `(${row.gme.total} ${isEn ? 'Operators' : '운영사'})` : '—'}
                   </td>
                   {matrix.operatorColumns.map(op => {
                     if (op === 'GME') {
