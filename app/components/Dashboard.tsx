@@ -62,10 +62,8 @@ const EN = {
   allMethods: 'All Methods',
   allDate: 'All Dates',
   allTime: 'All Times',
-  tableHeaders: ['Time', 'Operator', 'Method', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Service Fee', 'Collection Amt (KRW)', 'GME Baseline', 'Price Gap', 'Rate', 'Status', ''],
+  tableHeaders: ['Time', 'Operator', 'Method', 'Country', 'Recv. Amount', 'Send Amt (KRW)', 'Service Fee', 'Collection Amt (KRW)', 'GME Baseline', 'Price Gap', 'Rate', 'Status'],
   rightAlignHeaders: ['Recv. Amount', 'Send Amt (KRW)', 'Service Fee', 'Collection Amt (KRW)', 'GME Baseline', 'Price Gap', 'Rate'],
-  deleteConfirm: (op: string, time: string) => `Delete record for ${op} at ${time}?`,
-  deleting: 'Deleting...',
   pagination: (start: number, end: number, total: number) =>
     `${start.toLocaleString()}–${end.toLocaleString()} of ${total.toLocaleString()}`,
   prev: 'Prev',
@@ -164,10 +162,8 @@ const KO = {
   allMethods: '전체 방식',
   allDate: '전체 날짜',
   allTime: '전체 시간',
-  tableHeaders: ['시간대', '운영사', '입금방식', '국가', '수령액', '송금액 (KRW)', '수수료', '수금액 (KRW)', 'GME 기준가', '가격차이', '환율', '상태', ''],
+  tableHeaders: ['시간대', '운영사', '입금방식', '국가', '수령액', '송금액 (KRW)', '수수료', '수금액 (KRW)', 'GME 기준가', '가격차이', '환율', '상태'],
   rightAlignHeaders: ['수령액', '송금액 (KRW)', '수수료', '수금액 (KRW)', 'GME 기준가', '가격차이', '환율'],
-  deleteConfirm: (op: string, time: string) => `${op} (${time}) 기록을 삭제하시겠습니까?`,
-  deleting: '삭제 중...',
   pagination: (start: number, end: number, total: number) =>
     `${start.toLocaleString()}–${end.toLocaleString()} / ${total.toLocaleString()}건`,
   prev: '이전',
@@ -386,7 +382,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [countrySearch, setCountrySearch] = useState('');
   const [daysRange, setDaysRange] = useState(3);
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -398,7 +393,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
   const [dlFrom, setDlFrom] = useState('');
   const [dlTo, setDlTo] = useState('');
   const [dlLoading, setDlLoading] = useState(false);
-  const [rtCooldownUntil, setRtCooldownUntil] = useState(0);
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -494,25 +488,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
       .then(data => { setRecords(data); setLastAccessed(new Date()); setSnapshotDate(''); setSnapshotTime(''); })
       .catch(err => console.error('Failed to fetch rates:', err))
       .finally(() => setIsLoadingRecords(false));
-  }
-
-  async function handleDelete(r: RateRecord) {
-    if (!confirm(t.deleteConfirm(r.operator, formatRunHour(r.runHour)))) return;
-    setDeletingId(r.id);
-    try {
-      const res = await fetch('/api/rates', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: r.id }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      setRecords(prev => prev.filter(rec => rec.id !== r.id));
-    } catch (err) {
-      console.error('Delete failed:', err);
-      alert(String(err));
-    } finally {
-      setDeletingId(null);
-    }
   }
 
   // Close country dropdown on click outside
@@ -1193,44 +1168,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
               </select>
             </div>
 
-            {/* Check Real Time (5-min cooldown) */}
-            <button
-                onClick={async () => {
-                  if (Date.now() < rtCooldownUntil) {
-                    const secs = Math.ceil((rtCooldownUntil - Date.now()) / 1000);
-                    alert(isEn
-                      ? `Please wait ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} before triggering another check.`
-                      : `다음 확인까지 ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} 남았습니다.`);
-                    return;
-                  }
-                  const dm = selectedDeliveryMethod || deliveryMethods[0];
-                  if (!confirm(isEn
-                    ? `Trigger a real-time scrape for ${selectedCountry} — ${dm}?\nThis takes 2-5 minutes. A new tab will open to show results.`
-                    : `${selectedCountry} — ${dm} 실시간 스크래핑을 실행하시겠습니까?\n2~5분 소요됩니다. 새 탭에서 결과를 확인합니다.`
-                  )) return;
-
-                  try {
-                    const res = await fetch('/api/scraper/trigger', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ country: selectedCountry, deliveryMethod: dm }),
-                    });
-                    const data = await res.json();
-                    if (!res.ok) { alert(data.error ?? 'Trigger failed'); return; }
-                    window.open(`/check?checkId=${data.checkId}&country=${encodeURIComponent(selectedCountry)}&method=${encodeURIComponent(dm)}`, '_blank');
-                    setRtCooldownUntil(Date.now() + 5 * 60 * 1000);
-                  } catch (err) {
-                    alert(String(err));
-                  }
-                }}
-                className="p-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors self-end"
-                title={isEn ? 'Check Real Time' : '실시간 확인'}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-                </svg>
-              </button>
-
             {/* Last accessed — right aligned */}
             <div className="ml-auto flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
               {isLoadingRecords && (
@@ -1881,22 +1818,6 @@ export default function Dashboard({ initialRecords, countries, defaultCountry }:
                           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
                             {statusLabel(r.status, t)}
                           </span>
-                        </td>
-                        <td className="py-2.5 px-1 text-center">
-                          <button
-                            onClick={() => handleDelete(r)}
-                            disabled={deletingId === r.id}
-                            title={deletingId === r.id ? t.deleting : undefined}
-                            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500 dark:hover:text-red-400 disabled:opacity-40 transition-colors"
-                          >
-                            {deletingId === r.id ? (
-                              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                              </svg>
-                            )}
-                          </button>
                         </td>
                       </tr>
                     );

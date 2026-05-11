@@ -128,33 +128,3 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(records);
 }
-
-export async function DELETE(req: NextRequest) {
-  let body: { id?: number };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
-
-  const id = body?.id;
-  if (typeof id !== 'number') {
-    return NextResponse.json({ error: 'id (number) is required' }, { status: 400 });
-  }
-
-  const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
-  );
-
-  const { error } = await supabase
-    .from('rate_records')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true });
-}
