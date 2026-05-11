@@ -11,38 +11,49 @@ dashboard/
 │   │   │   ├── auth/route.ts         # Login validation
 │   │   │   ├── config/route.ts       # Global email config
 │   │   │   └── history/route.ts      # Alert log history
-│   │   ├── rates/route.ts            # Rate data + soft-delete
-│   │   └── settings/fees/route.ts    # Service fee management
+│   │   ├── rates/route.ts            # Rate data (GET)
+│   │   ├── settings/
+│   │   │   ├── fees/route.ts         # Service fee management
+│   │   │   ├── fees/history/route.ts # Fee edit history
+│   │   │   └── health/route.ts       # Scraper health + outliers
+│   │   └── summary/
+│   │       ├── config/route.ts       # Summary + Report setup
+│   │       └── rates/route.ts        # Aggregated rates for Summary
 │   ├── components/
 │   │   ├── Dashboard.tsx             # Main dashboard (charts, KPIs, table)
-│   │   └── Settings.tsx              # Alert rules + service fees (tabbed)
+│   │   ├── ReportDashboard.tsx       # Weekly competitive-position report
+│   │   ├── SummaryDashboard.tsx      # Multi-corridor summary cards
+│   │   ├── Settings.tsx              # Alert rules + fees + summary/report setup
+│   │   └── NotificationsPopup.tsx
 │   ├── lib/
 │   │   ├── parseRates.ts             # RateRecord type
+│   │   ├── corridors.ts              # OPERATOR_MAP, DELIVERY_METHOD_MAP, CURRENCY_MAP
+│   │   ├── rankAnalysis.ts           # Position/rank computations for Report
+│   │   ├── useLiveRefresh.ts         # Visibility-aware polling hook
 │   │   └── ratesData.ts              # Static fallback data
 │   ├── alerts/page.tsx               # Redirects to /settings
 │   ├── settings/page.tsx             # Settings page
+│   ├── summary/page.tsx              # Summary page (TV/wallboard view)
+│   ├── report/page.tsx               # Weekly Report page
 │   ├── page.tsx                      # Home (SSR data fetch)
 │   ├── layout.tsx                    # Root layout
 │   └── globals.css                   # Tailwind styles
 ├── scraper/
 │   ├── lib/
 │   │   ├── browser.js                # extractNumber, getRunHour, withRetry
-│   │   ├── supabase.js               # Supabase client + saveRates
+│   │   ├── supabase.js               # Supabase client, saveRates (with outlier validation), logFailure
 │   │   ├── fees.js                   # loadFees, applyFeeOverrides, seedFees
 │   │   ├── alerts.js                 # checkAlerts + email logic
 │   │   └── email.js                  # Gmail SMTP transport
 │   ├── scrapers/*.js                 # Individual operator modules
-│   ├── run-{idr,thb,vnd,cny,...}.js  # 20 corridor runners
+│   ├── run-{idr,thb,vnd,cny,...}.js  # 26 corridor runners
 │   └── package.json
-├── supabase/migrations/
-│   ├── 001_init.sql                  # rate_records + RLS
-│   ├── 002_delete_policy.sql
-│   ├── 003_soft_delete.sql           # deleted_at + trigger
-│   ├── 004_add_delivery_method.sql   # delivery_method + unique constraint
-│   ├── 005_alert_rules.sql           # alert_config, alert_rules, alert_log
-│   ├── 006_service_fees.sql          # service_fees table
-│   └── 007_service_fees_edit_tracking.sql
-├── .github/workflows/scrape.yml      # GitHub Actions (20 parallel jobs)
+├── supabase/migrations/              # 001..021 (init, delete policy, soft-delete,
+│                                     # delivery_method, alerts, service fees,
+│                                     # bank_deposit rename, outlier_log,
+│                                     # scraper_failure_log, summary_config,
+│                                     # report_setup, RLS fixes, …)
+├── .github/workflows/scrape.yml      # GitHub Actions (26 parallel jobs)
 ├── .github/workflows/backup.yml      # Weekly database backup
 ├── public/GME_swirl_icon.png         # Logo
 └── .env.local                        # Local env vars
@@ -66,10 +77,50 @@ dashboard/
 | price_gap | NUMERIC | competitor total - GME total |
 | status | TEXT | GME / Cheaper than GME / Expensive than GME |
 | delivery_method | TEXT NOT NULL DEFAULT 'Bank Account' | Bank Account, Alipay, etc. |
-| deleted_at | TIMESTAMPTZ | Soft-delete marker |
+| deleted_at | TIMESTAMPTZ | Soft-delete marker (legacy — UI delete removed, column kept so historical soft-deletes stay hidden) |
 | scraped_at | TIMESTAMPTZ DEFAULT NOW() | |
 
 **Unique:** `(run_hour, operator, receiving_country, delivery_method)`
+
+### `outlier_log` — Scraped values flagged by guards
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | BIGSERIAL PK | |
+| run_hour | TEXT NOT NULL | |
+| operator | TEXT NOT NULL | |
+| receiving_country | TEXT NOT NULL | |
+| delivery_method | TEXT | |
+| scraped_value | NUMERIC | Value the scraper produced |
+| median_value | NUMERIC | Median of last 12 records (NULL when no baseline) |
+| deviation_pct | INTEGER | % deviation from median |
+| created_at | TIMESTAMPTZ DEFAULT NOW() | |
+
+### `scraper_failure_log` — Per-run failure history
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | BIGINT IDENTITY PK | |
+| run_hour | TEXT NOT NULL | |
+| operator | TEXT NOT NULL | |
+| receiving_country | TEXT NOT NULL | |
+| delivery_method | TEXT NOT NULL DEFAULT 'Bank Deposit' | |
+| reason | TEXT NOT NULL DEFAULT 'scrape_error' | scrape_error / website_down / api_error |
+| error_message | TEXT | Truncated to 500 chars |
+| created_at | TIMESTAMPTZ DEFAULT NOW() | |
+
+### `summary_config` — Summary + Weekly Report setup
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | BIGSERIAL PK | Single row |
+| main_operators | TEXT[] | Default columns on the Summary page |
+| enabled_corridors | TEXT[] | Up to 12 corridors selected for Summary |
+| corridor_operators | JSONB | Per-corridor competitor selection |
+| report_corridors | TEXT[] | Corridors enabled as Weekly Report tabs |
+| report_corridor_operators | JSONB | Per-corridor competitor selection for the Report |
+| updated_at | TIMESTAMPTZ | |
+
 
 ### `alert_config` — Global email recipients
 
@@ -131,8 +182,7 @@ dashboard/
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| GET | /api/rates?country=X | Fetch 30 days of rate data (batched) |
-| DELETE | /api/rates | Soft-delete a record |
+| GET | /api/rates?country=X[&from=&to=\|&days=N] | Fetch rate data (batched) |
 | GET | /api/alerts | List all alert rules with last triggered time |
 | POST | /api/alerts | Create new alert rule |
 | PUT | /api/alerts | Update alert rule |
@@ -146,7 +196,11 @@ dashboard/
 | PUT | /api/settings/fees | Update fee (admin edit) |
 | POST | /api/settings/fees | Get latest scraped fee (for reset) |
 | GET | /api/settings/fees/history | Fee edit history |
+| DELETE | /api/settings/fees/history | Delete fee log entry or clear all |
 | GET | /api/settings/health?days=N | Scraper health + outliers |
+| GET | /api/summary/config | Read Summary + Report setup |
+| PUT | /api/summary/config | Update Summary + Report setup |
+| GET | /api/summary/rates?days=N | Aggregated rates for enabled Summary corridors |
 
 ## Data Flow
 
@@ -157,7 +211,7 @@ cron-job.org (every 30 min)
 GitHub Actions workflow_dispatch
   |
   v
-20 parallel matrix jobs (one per corridor/method)
+26 parallel matrix jobs (one per corridor/method)
   |
   v
 run-*.js
@@ -174,9 +228,10 @@ Supabase (rate_records, alert_log, service_fees)
   |
   v
 Next.js Dashboard (Vercel)
-  |-- page.tsx (SSR) -> fetch rate_records
-  |-- Dashboard.tsx -> KPIs, charts, detailed table, XLS export
-  |-- Settings.tsx -> Alert Rules tab + Service Fees tab
+  |-- /         -> Dashboard.tsx (KPIs, charts, detailed table, XLS export)
+  |-- /summary  -> SummaryDashboard.tsx (multi-corridor cards, click → home)
+  |-- /report   -> ReportDashboard.tsx (Weekly competitive-position report)
+  |-- /settings -> Settings.tsx (Alerts, Fees, Summary/Report setup, Scraper Health)
 ```
 
 ## Corridors and Operators
@@ -221,7 +276,7 @@ Next.js Dashboard (Vercel)
 
 ## Key Engineering Patterns
 
-**Soft Deletes:** Records marked with `deleted_at` instead of hard-deleted. RLS trigger preserves flag on upsert.
+**Soft Deletes (legacy):** The `deleted_at` column on `rate_records` and the `.is('deleted_at', null)` filter in the GET handler remain so previously soft-deleted rows stay hidden. The UI delete button has been removed — outlier detection in `saveRates()` now prevents bad rows from being inserted in the first place, so manual cleanup is no longer needed.
 
 **Fee Overrides:** Admin edits in Settings persist across scraper runs. `seedFees()` only inserts new entries, never overwrites. `manually_edited` flag tracks admin changes. Reset button reverts to latest non-zero scraped value.
 
@@ -241,7 +296,7 @@ Next.js Dashboard (Vercel)
 |-----------|----------|
 | Database | Supabase (PostgreSQL + RLS) |
 | Frontend | Vercel (Next.js 16 auto-deploy on push) |
-| Scrapers | GitHub Actions (Node.js 20 + Playwright, 20 parallel jobs) |
+| Scrapers | GitHub Actions (Node.js 22 + Playwright, 26 parallel jobs) |
 | Cron | cron-job.org (every 30 min) |
 | Email | Gmail SMTP (nodemailer) |
 

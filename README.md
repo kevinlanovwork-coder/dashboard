@@ -74,7 +74,8 @@ Competitor websites
 - **Operator Trend** --per-operator send amount over time, with operator and date dropdowns
 - **KPI cards** --Receive Baseline, Latest GME Baseline, Cheaper Competitors, More Expensive Competitors
 - **Detailed data table** --full record history with search, status filter, and pagination
-- **Soft delete** --incorrect scrape results can be removed via the API without losing audit trail
+- **Summary page** (`/summary`) --multi-corridor wallboard view, with each card linking back to the home dashboard pre-filtered to that corridor + deposit method (up to 12 corridors)
+- **Weekly Competitive Position Report** (`/report`) --per-corridor daily ranks, weekly price-gap snapshot, and a cross-corridor Summary tab
 - **Dark / Light mode** --toggled in the header, persisted in `localStorage`
 - **EN / Korean** --full bilingual UI, persisted in `localStorage`
 - **Country persistence** --selected corridor is remembered across page refreshes
@@ -82,7 +83,7 @@ Competitor websites
 - **Last accessed** --timestamp with refresh button (right-aligned in filter bar)
 - **Date range error** --charts show error message when From date is after To date
 - **XLS export** --download detailed data as Excel spreadsheet
-- **Outlier detection** --round-number and median-deviation guards prevent bad data from being saved
+- **Outlier detection** --round-number and median-deviation guards prevent bad data from being saved (rows that would have needed manual deletion never enter the table)
 - **Scraper Health** --Settings tab showing success rates, recent failures, and outliers
 
 ---
@@ -102,7 +103,7 @@ Competitor websites
 ### Scraper (backend)
 | Technology | Version | Purpose |
 |---|---|---|
-| Node.js | 20 | Runtime (ESM modules) |
+| Node.js | 22 | Runtime (ESM modules) |
 | Playwright | 1.40+ | Browser automation (Chromium) |
 | Supabase JS | 2 | Writing scraped data to database |
 | fetch API | built-in | Direct API calls (e.g. GMoneyTrans, Hanpass) |
@@ -111,7 +112,7 @@ Competitor websites
 | Technology | Purpose |
 |---|---|
 | Supabase (PostgreSQL) | Stores all rate records with timestamps |
-| GitHub Actions | Runs all scrapers every 30 min via `workflow_dispatch` |
+| GitHub Actions | Runs all 26 scrapers every 30 min via `workflow_dispatch` |
 | cron-job.org | External cron service that triggers GitHub Actions at :00 and :30 UTC |
 | GitHub Secrets | Securely stores `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, notification credentials |
 
@@ -128,57 +129,52 @@ Competitor websites
 dashboard/
 +-- app/
 |   +-- api/
-|   |   +-- rates/
-|   |       +-- route.ts               # GET rates + DELETE (soft-delete) API
+|   |   +-- rates/route.ts             # GET rates
+|   |   +-- alerts/                    # Alert rules + history + auth + config
+|   |   +-- settings/                  # Service fees + scraper health
+|   |   +-- summary/                   # Summary + Report config + aggregated rates
 |   +-- components/
-|   |   +-- Dashboard.tsx              # Main dashboard component (charts, table, KPIs)
+|   |   +-- Dashboard.tsx              # Main dashboard (charts, table, KPIs)
+|   |   +-- SummaryDashboard.tsx       # Multi-corridor wallboard cards
+|   |   +-- ReportDashboard.tsx        # Weekly competitive-position report
+|   |   +-- Settings.tsx               # Alerts, fees, summary/report setup
+|   |   +-- NotificationsPopup.tsx
 |   +-- lib/
-|   |   +-- parseRates.ts             # RateRecord type + data loader
-|   |   +-- ratesData.ts              # Static rates data (fallback)
-|   +-- page.tsx                       # Next.js root page (server-side data fetch)
+|   |   +-- parseRates.ts              # RateRecord type
+|   |   +-- corridors.ts               # OPERATOR_MAP, DELIVERY_METHOD_MAP, CURRENCY_MAP
+|   |   +-- rankAnalysis.ts            # Position/rank computations for Report
+|   |   +-- useLiveRefresh.ts          # Visibility-aware polling hook
+|   |   +-- ratesData.ts               # Static rates data (fallback)
+|   +-- page.tsx                       # Home (SSR data fetch)
+|   +-- summary/page.tsx               # Summary page route
+|   +-- report/page.tsx                # Weekly Report route
+|   +-- settings/page.tsx              # Settings route
+|   +-- alerts/page.tsx                # Redirects to /settings
 |   +-- layout.tsx                     # Root layout with fonts
 |   +-- globals.css                    # Tailwind CSS styling
 +-- scraper/
 |   +-- lib/
 |   |   +-- browser.js                 # Shared helpers (extractNumber, getRunHour, withRetry, trySelectors)
-|   |   +-- supabase.js                # Supabase client (write, upsert)
+|   |   +-- supabase.js                # Supabase client, saveRates (with outlier validation), logFailure
+|   |   +-- fees.js                    # loadFees, applyFeeOverrides, seedFees
+|   |   +-- alerts.js                  # checkAlerts + email logic
+|   |   +-- email.js                   # Gmail SMTP transport
 |   +-- scrapers/                      # Operator scraper modules
-|   |   +-- gme.js                     # GME (Playwright)
-|   |   +-- gmoneytrans.js             # GMoneyTrans (fetch API)
-|   |   +-- hanpass.js                 # Hanpass (fetch API)
-|   |   +-- utransfer.js               # Utransfer (Playwright)
-|   |   +-- sbi.js                     # SBI (Playwright)
-|   |   +-- cross.js                   # Cross (Playwright)
-|   |   +-- coinshot.js                # Coinshot (Playwright)
-|   |   +-- jrf.js                     # JRF (Playwright)
-|   |   +-- e9pay.js                   # E9Pay (Playwright)
-|   |   +-- wirebarley.js             # WireBarley (Playwright)
-|   +-- run-idr.js                     # Indonesia IDR scraper
-|   +-- run-thb.js                     # Thailand THB scraper
-|   +-- run-vnd.js                     # Vietnam VND scraper
-|   +-- run-mnt.js                     # Mongolia MNT scraper
-|   +-- run-npr.js                     # Nepal NPR scraper
-|   +-- run-cny.js                     # China CNY scraper
-|   +-- run-khm.js                     # Cambodia USD scraper
-|   +-- run-mmk.js                     # Myanmar MMK scraper
-|   +-- run-pkr.js                     # Pakistan PKR scraper
-|   +-- run-lak.js                     # Laos LAK scraper
-|   +-- run-lkr.js                     # Sri Lanka LKR scraper
-|   +-- run-inr.js                     # India INR scraper
-|   +-- run-tls.js                     # Timor Leste USD scraper
-|   +-- run-php.js                     # Philippines PHP scraper
-|   +-- run-bdt.js                     # Bangladesh BDT scraper
-|   +-- run-rub.js                     # Russia RUB scraper
-|   +-- run-uzb.js                     # Uzbekistan USD (Cash Pickup) scraper
-|   +-- run-uzb-card.js                # Uzbekistan UZS (Card Payment) scraper
-|   +-- run-kzt.js                     # Kazakhstan USD (Cash Pickup) scraper
-|   +-- run-kgs.js                     # Kyrgyzstan USD (Cash Pickup) scraper
+|   |   +-- gme.js, gmoneytrans.js, hanpass.js, utransfer.js, sbi.js,
+|   |   +-- cross.js, coinshot.js, jrf.js, e9pay.js, wirebarley.js
+|   +-- run-{idr,thb,vnd,mnt,npr,cny}.js          # Indonesia, Thailand, Vietnam, Mongolia, Nepal, China
+|   +-- run-{khm,mmk,pkr,lak,lak-usd,lkr,inr}.js  # Cambodia, Myanmar, Pakistan, Laos (LAK & USD), Sri Lanka, India
+|   +-- run-{tls,php,bdt,rub}.js                  # Timor Leste, Philippines, Bangladesh, Russia
+|   +-- run-{uzb,uzb-card,kzt,kgs,kgs-card}.js    # Uzbekistan (Cash & Card), Kazakhstan, Kyrgyzstan (Cash & Card)
+|   +-- run-{ghs,zar,cad,ngn}.js                  # Ghana, South Africa, Canada, Nigeria
 |   +-- package.json
++-- supabase/
+|   +-- migrations/                    # 001..021 (init, alerts, fees, summary/report, outlier_log, …)
 +-- data/
 |   +-- rates.csv                      # Historical rates data (backup/seed)
 +-- .github/
 |   +-- workflows/
-|       +-- scrape.yml                 # GitHub Actions -- matrix scrape (20 corridors)
+|       +-- scrape.yml                 # GitHub Actions -- matrix scrape (26 corridors)
 |       +-- backup.yml                 # Weekly database backup
 +-- vercel.json                        # Vercel deployment config
 +-- README.md
@@ -203,21 +199,27 @@ node --env-file=.env run-thb.js      # Thailand
 node --env-file=.env run-vnd.js      # Vietnam
 node --env-file=.env run-mnt.js      # Mongolia
 node --env-file=.env run-npr.js      # Nepal
-node --env-file=.env run-cny.js      # China
-node --env-file=.env run-khm.js      # Cambodia
+node --env-file=.env run-cny.js      # China (Alipay)
+node --env-file=.env run-khm.js      # Cambodia (Bank Deposit + Cash Pickup)
 node --env-file=.env run-mmk.js      # Myanmar
 node --env-file=.env run-pkr.js      # Pakistan
-node --env-file=.env run-lak.js      # Laos
+node --env-file=.env run-lak.js      # Laos LAK
+node --env-file=.env run-lak-usd.js  # Laos USD
 node --env-file=.env run-lkr.js      # Sri Lanka
 node --env-file=.env run-inr.js      # India
-node --env-file=.env run-tls.js      # Timor Leste
-node --env-file=.env run-php.js      # Philippines
+node --env-file=.env run-tls.js      # Timor Leste (Bank Deposit + MoneyGram Cash Pickup)
+node --env-file=.env run-php.js      # Philippines (Bank Deposit + Cash Pickup)
 node --env-file=.env run-bdt.js      # Bangladesh
-node --env-file=.env run-rub.js      # Russia
+node --env-file=.env run-rub.js      # Russia (Cash Payment + Card Payment)
 node --env-file=.env run-uzb.js      # Uzbekistan (Cash Pickup USD)
 node --env-file=.env run-uzb-card.js # Uzbekistan (Card Payment UZS)
 node --env-file=.env run-kzt.js      # Kazakhstan
-node --env-file=.env run-kgs.js      # Kyrgyzstan
+node --env-file=.env run-kgs.js      # Kyrgyzstan (Cash Pickup USD)
+node --env-file=.env run-kgs-card.js # Kyrgyzstan (Card Payment KGS)
+node --env-file=.env run-ghs.js      # Ghana (Bank Deposit + Mobile Wallet)
+node --env-file=.env run-zar.js      # South Africa
+node --env-file=.env run-cad.js      # Canada
+node --env-file=.env run-ngn.js      # Nigeria
 ```
 
 ---
@@ -248,7 +250,7 @@ npm run dev
 
 ## Scraping schedule
 
-An external cron service (cron-job.org) triggers the GitHub Actions workflow via `workflow_dispatch` every 30 minutes (at :00 and :30 UTC). Each corridor runs as a separate parallel job in a matrix strategy, so all 20 corridors are scraped simultaneously within the same workflow run. Timestamps are rounded to the nearest 30-minute mark in KST (UTC+9).
+An external cron service (cron-job.org) triggers the GitHub Actions workflow via `workflow_dispatch` every 30 minutes (at :00 and :30 UTC). Each corridor runs as a separate parallel job in a matrix strategy, so all 26 corridor scripts are scraped simultaneously within the same workflow run. Timestamps are rounded to the nearest 30-minute mark in KST (UTC+9).
 
 ---
 
@@ -260,6 +262,6 @@ An external cron service (cron-job.org) triggers the GitHub Actions workflow via
 - **Parallel scraping** --All operators per corridor run via `Promise.allSettled()` so a single failure does not block the rest.
 - **Retry with backoff** --`withRetry()` wrapper retries failed scrapes with exponential backoff (3s, 6s delays).
 - **Selector fallbacks** --`trySelectors()` attempts multiple CSS selectors per field, handling sites that change their DOM structure.
-- **Soft deletes** --Records are soft-deleted via `deleted_at` timestamp to preserve audit trail.
+- **Soft deletes (legacy)** --The `deleted_at` column on `rate_records` and the corresponding GET-handler filter remain so previously soft-deleted rows stay hidden. The UI delete button was removed once outlier detection in `saveRates()` made manual cleanup unnecessary.
 - **Hardcoded fees** --Where sites show fees inconsistently or not at all, fees are hardcoded per corridor based on verified values from the live site.
 - **Failure notifications** --GitHub Actions sends email alerts when scrapers partially fail, identifying which operators encountered errors.
