@@ -17,8 +17,10 @@ export async function scrape(browser) {
     await page.waitForTimeout(3000);
 
     // ── 수신 통화: IDR 선택 ─────────────────────────────────────────────
-    await page.click('#div_curr', { force: true });
-    await page.waitForSelector('li#IDR', { state: 'visible', timeout: 10000 });
+    // 드롭다운은 body의 click 핸들러가 e.target.class === 'select_co'일 때만 열림.
+    // #div_curr 클릭은 자식 요소에 따라 동작이 갈리므로, jQuery로 직접 표시.
+    await page.evaluate(() => window.jQuery('#co-list').show());
+    await page.waitForSelector('li#IDR', { state: 'visible', timeout: 5000 });
     await page.click('li#IDR');
     await page.waitForTimeout(1500);
 
