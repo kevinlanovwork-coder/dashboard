@@ -317,8 +317,8 @@ async function scrapeMoin(browser) {
     // clicking the outer div[color="var(--primary-100)"] wrapper no-ops.
     await page.locator('div[color="var(--primary-100)"] > div').first().click({ timeout: 5000 });
     await page.waitForTimeout(2000);
-    // Select China CNY (picker list is still in Korean)
-    await page.locator('text=중국').first().click();
+    // Select China CNY
+    await page.locator('text=China').first().click();
     await page.waitForTimeout(2000);
     // Fill receive amount
     await page.click('#sendAmountForeignCurrency', { clickCount: 3 });
