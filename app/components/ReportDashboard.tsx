@@ -292,6 +292,23 @@ function positionLabelFor(p: Position, isEn: boolean): string {
   return p === 'Low' ? '낮음' : p === 'Medium' ? '보통' : '높음';
 }
 
+// Summary-tab chip shading: within each High/Medium/Low bucket, modulate the
+// background opacity so operators that rank more expensively (closer to #1)
+// render with a denser shade, and cheaper operators with a lighter shade —
+// preserving the bucket hue while distinguishing same-label cells visually.
+function summaryChipStyle(entry: CompetitorEntry): { background: string; color: string } {
+  const c = positionColor(entry.position);
+  const ratio = entry.total > 0 ? entry.avgRank / entry.total : 0;
+  let t: number;
+  if (entry.position === 'High') t = (ratio - 2 / 3) * 3;
+  else if (entry.position === 'Medium') t = (ratio - 1 / 3) * 3;
+  else t = ratio * 3;
+  t = Math.max(0, Math.min(1, t));
+  const alphaInt = Math.round(0x1a + (0x66 - 0x1a) * t);
+  const alphaHex = alphaInt.toString(16).padStart(2, '0');
+  return { background: `${c}${alphaHex}`, color: c };
+}
+
 function CompetitorCell({ entry, isEn }: { entry: CompetitorEntry | null; isEn: boolean }) {
   if (!entry) return <span className="text-slate-400">—</span>;
   const c = positionColor(entry.position);
@@ -530,12 +547,10 @@ function SummaryTab({ perCorridorRecords, config, isEn, reportWindow }: {
   const renderCell = (cell: CompetitorEntry | null, isAvailable: boolean) => {
     if (!isAvailable) return <span className="text-slate-300 dark:text-slate-600">·</span>;
     if (!cell) return <span className="text-slate-400">—</span>;
-    const c = positionColor(cell.position);
     return (
-      <div className="flex flex-col items-center gap-0.5">
-        <div className="font-mono text-xs font-bold text-slate-700 dark:text-slate-200">#{flipRank(cell.avgRank, cell.total).toFixed(2)}</div>
-        <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{ background: `${c}1a`, color: c }}>{positionLabelFor(cell.position, isEn)}</span>
-      </div>
+      <span className="inline-block px-3 py-1.5 rounded-md text-sm font-bold" style={summaryChipStyle(cell)}>
+        {positionLabelFor(cell.position, isEn)}
+      </span>
     );
   };
 
