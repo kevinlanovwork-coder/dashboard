@@ -80,20 +80,28 @@ async function scrapeE9payCash(browser) {
     });
     await page.waitForTimeout(2000);
 
-    // Select Cash Payment (index 1)
-    await page.evaluate(() => {
-      const li = document.querySelectorAll('#remit-methods li')[1];
-      if (li) li.querySelector('a')?.click();
+    // Find Cash Payment by label (코로나페이 캐시픽업). E9Pay added a new
+    // Mastercard method that shifted indexes, so hardcoded [1] no longer works.
+    const cashIdx = await page.evaluate(() => {
+      const lis = document.querySelectorAll('#remit-methods li');
+      for (let i = 0; i < lis.length; i++) {
+        if (/코로나|캐시픽업/.test(lis[i].textContent || '')) return i;
+      }
+      return -1;
     });
+    if (cashIdx === -1) throw new Error('코로나페이 캐시픽업 메소드를 찾을 수 없음');
+    await page.evaluate((i) => {
+      document.querySelectorAll('#remit-methods li')[i].querySelector('a')?.click();
+    }, cashIdx);
     await page.waitForTimeout(1500);
 
     // Read fee from method_map
-    const feeFromMap = await page.evaluate(() => {
-      if (typeof method_map !== 'undefined' && method_map['RU_RUB']?.[1]) {
-        return Number(method_map['RU_RUB'][1].REMIT_FEE);
+    const feeFromMap = await page.evaluate((i) => {
+      if (typeof method_map !== 'undefined' && method_map['RU_RUB']?.[i]) {
+        return Number(method_map['RU_RUB'][i].REMIT_FEE);
       }
       return null;
-    });
+    }, cashIdx);
 
     // Reverse mode — input receive amount directly
     await page.click('#reverse'); await page.waitForTimeout(500);
@@ -138,20 +146,28 @@ async function scrapeE9payCard(browser, gmeSendAmountKRW) {
     });
     await page.waitForTimeout(2000);
 
-    // Select Card Payment (index 0)
-    await page.evaluate(() => {
-      const li = document.querySelectorAll('#remit-methods li')[0];
-      if (li) li.querySelector('a')?.click();
+    // Find Card Payment by label (MIR, VISA). Pinned by name so adding a new
+    // method doesn't silently re-target a different card option.
+    const cardIdx = await page.evaluate(() => {
+      const lis = document.querySelectorAll('#remit-methods li');
+      for (let i = 0; i < lis.length; i++) {
+        if (/MIR.*VISA|VISA.*MIR/i.test(lis[i].textContent || '')) return i;
+      }
+      return -1;
     });
+    if (cardIdx === -1) throw new Error('MIR/VISA카드 메소드를 찾을 수 없음');
+    await page.evaluate((i) => {
+      document.querySelectorAll('#remit-methods li')[i].querySelector('a')?.click();
+    }, cardIdx);
     await page.waitForTimeout(1500);
 
     // Read fee from method_map
-    const feeFromMap = await page.evaluate(() => {
-      if (typeof method_map !== 'undefined' && method_map['RU_RUB']?.[0]) {
-        return Number(method_map['RU_RUB'][0].REMIT_FEE);
+    const feeFromMap = await page.evaluate((i) => {
+      if (typeof method_map !== 'undefined' && method_map['RU_RUB']?.[i]) {
+        return Number(method_map['RU_RUB'][i].REMIT_FEE);
       }
       return 0;
-    });
+    }, cardIdx);
 
     // Input GME's send amount (fee excluded) — E9Pay exchanges the full amount
     await page.fill('#send-money', String(gmeSendAmountKRW));
