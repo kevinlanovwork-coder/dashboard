@@ -11,6 +11,7 @@ import { saveRates, logFailure } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
 import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
 import { scrapeCoinshot } from './lib/coinshot.js';
+import { scrape as scrapeJrf } from './scrapers/jrf.js';
 
 const COUNTRY = 'Thailand';
 const AMOUNT  = 26_000;
@@ -214,36 +215,7 @@ async function scrapeCross(browser) {
   } finally { await page.close(); }
 }
 
-// ─── JRF ─────────────────────────────────────────────────────────────────────
-async function scrapeJrf(browser) {
-  const context = await browser.newContext({ ignoreHTTPSErrors: true });
-  const page = await context.newPage();
-  try {
-    await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(3000);
-    // 드롭다운은 body의 click 핸들러가 e.target.class === 'select_co'일 때만 열림 → jQuery로 직접 표시
-    await page.evaluate(() => window.jQuery('#co-list').show());
-    await page.waitForSelector('li#THB', { state: 'visible', timeout: 10000 });
-    await page.click('li#THB');
-    await page.waitForTimeout(1500);
-    await page.click('#rec_money', { clickCount: 3 });
-    await page.fill('#rec_money', String(AMOUNT));
-    await page.dispatchEvent('#rec_money', 'keyup');
-    // Wait for calculated value to stabilize (not the default 1,000,000)
-    let sendAmt = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await page.waitForTimeout(1000);
-      const sendAmtRaw = await page.inputValue('#send_money');
-      sendAmt = extractNumber(sendAmtRaw);
-      if (sendAmt && sendAmt !== 1_000_000) break;
-    }
-    if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    const feeRaw = await page.textContent('#servicefee').catch(() => null);
-    const fee = extractNumber(feeRaw) ?? 5000;
-    return { operator: 'JRF', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
-  } finally { await page.close(); await context.close(); }
-}
+// ─── JRF — 공유 모듈 scrapers/jrf.js 사용 (수수료는 #servicefee 에서 추출) ──────────
 
 // ─── E9Pay ────────────────────────────────────────────────────────────────────
 async function scrapeE9pay(browser) {
@@ -290,7 +262,7 @@ const SCRAPERS = [
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },
   { name: 'Coinshot',    fn: () => withRetry(() => scrapeCoinshot({ country: COUNTRY, currency: 'THB', amount: AMOUNT })), needsBrowser: false },
-  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b)), needsBrowser: true  },
+  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { currency: 'THB', country: COUNTRY, amount: AMOUNT })), needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
 ];
 

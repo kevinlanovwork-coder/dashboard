@@ -18,7 +18,7 @@ scraper/
 ├── run-zar.js          # South Africa (ZAR 10,000)
 ├── run-cad.js          # Canada     (CAD 1,000)
 ├── run-ngn.js          # Nigeria    (NGN 1,000,000)
-├── scrapers/           # Shared operator modules (used by run-idr.js)
+├── scrapers/           # Shared operator modules (imported by the run-*.js corridors)
 │   ├── gme.js
 │   ├── gmoneytrans.js
 │   ├── hanpass.js
@@ -144,9 +144,19 @@ Operators that show transient failures in GitHub Actions CI (network resets, tim
 
 Hanpass uses React-controlled inputs that ignore `page.fill()`. The correct approach is `keyboard.type()` followed by `dispatchEvent('blur')`, then `waitForFunction` polling `#deposit` until it changes from its previous value.
 
-### JRF: SSL & dropdown visibility
+### JRF: shared module, SSL & dropdown visibility
 
-JRF's certificate is expired — all JRF contexts use `ignoreHTTPSErrors: true`. The country dropdown uses a CSS animation; `waitForSelector('li#IDR', { state: 'visible' })` is used instead of a fixed timeout.
+All corridors that scrape JRF import the single `scrapers/jrf.js` module and pass
+per-corridor options (`currency`, `country`, `amount`, optional fixed `fee`,
+and `payCategory`/`deliveryMethod` for PHP Cash Pickup). When `fee` is omitted
+(Indonesia, Thailand) the fee is read from `#servicefee`; otherwise the fixed
+`fee` is used.
+
+JRF's certificate is expired — all JRF contexts use `ignoreHTTPSErrors: true`.
+The currency dropdown only opens when the site's `body` click handler sees
+`e.target.class === 'select_co'`, so clicking `#div_curr` was unreliable; the
+module calls `jQuery('#co-list').show()` directly, then
+`waitForSelector('li#<currency>', { state: 'visible' })`.
 
 ### GME Cambodia USD: direct API
 

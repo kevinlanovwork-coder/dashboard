@@ -9,6 +9,7 @@ import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
 import { saveRates, logFailure } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
 import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
+import { scrape as scrapeJrf } from './scrapers/jrf.js';
 
 const COUNTRY = 'Philippines';
 const AMOUNT  = 40_000;
@@ -198,33 +199,8 @@ async function scrapeE9pay(browser) {
   } finally { await page.close(); }
 }
 
-// ─── JRF ─────────────────────────────────────────────────────────────────────
-async function scrapeJrf(browser) {
-  const context = await browser.newContext({ ignoreHTTPSErrors: true });
-  const page = await context.newPage();
-  try {
-    await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(3000);
-    // 드롭다운은 body의 click 핸들러가 e.target.class === 'select_co'일 때만 열림 → jQuery로 직접 표시
-    await page.evaluate(() => window.jQuery('#co-list').show());
-    await page.waitForSelector('li#PHP', { state: 'visible', timeout: 10000 });
-    await page.click('li#PHP'); await page.waitForTimeout(1500);
-    await page.click('#rec_money', { clickCount: 3 });
-    await page.fill('#rec_money', String(AMOUNT));
-    await page.dispatchEvent('#rec_money', 'keyup');
-    let sendAmt = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await page.waitForTimeout(1000);
-      const raw = await page.inputValue('#send_money');
-      sendAmt = extractNumber(raw);
-      if (sendAmt && sendAmt !== 1_000_000) break;
-    }
-    if (!sendAmt || sendAmt === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    const fee = 5000;
-    return { operator: 'JRF', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
-  } finally { await page.close(); await context.close(); }
-}
+// ─── JRF (Bank Deposit / Cash Pickup) — 공유 모듈 scrapers/jrf.js 사용 ──────────────
+// SCRAPERS 목록에서 opts로 호출 (Cash Pickup 은 payCategory: 'Cash Pay').
 
 // ─── Utransfer ────────────────────────────────────────────────────────────────
 async function scrapeUtransfer(browser) {
@@ -379,41 +355,6 @@ async function scrapeE9payCashPickup(browser) {
   } finally { await page.close(); }
 }
 
-// JRF Cash Pay (Browser)
-async function scrapeJrfCashPickup(browser) {
-  const context = await browser.newContext({ ignoreHTTPSErrors: true });
-  const page = await context.newPage();
-  try {
-    await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(3000);
-    // 드롭다운은 body의 click 핸들러가 e.target.class === 'select_co'일 때만 열림 → jQuery로 직접 표시
-    await page.evaluate(() => window.jQuery('#co-list').show());
-    await page.waitForSelector('li#PHP', { state: 'visible', timeout: 10000 });
-    await page.click('li#PHP'); await page.waitForTimeout(1500);
-    // Select Cash Pay from delivery method dropdown
-    await page.evaluate(() => {
-      const sel = document.querySelector('#banner_form_ddl_category');
-      sel.value = 'Cash Pay';
-      sel.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    await page.waitForTimeout(2000);
-    await page.click('#rec_money', { clickCount: 3 });
-    await page.fill('#rec_money', String(AMOUNT));
-    await page.dispatchEvent('#rec_money', 'keyup');
-    let sendAmt = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await page.waitForTimeout(1000);
-      const raw = await page.inputValue('#send_money');
-      sendAmt = extractNumber(raw);
-      if (sendAmt) break;
-    }
-    if (!sendAmt) throw new Error('총 송금액 계산 대기 초과');
-    const fee = 5000;
-    return { operator: 'JRF', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee,
-      delivery_method: 'Cash Pickup' };
-  } finally { await page.close(); await context.close(); }
-}
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
@@ -424,7 +365,7 @@ const SCRAPERS = [
   { name: 'Coinshot',    fn: (b) => withRetry(() => scrapeCoinshot(b)), needsBrowser: true  },
   { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)),    needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
-  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b)), needsBrowser: true  },
+  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { currency: 'PHP', country: COUNTRY, amount: AMOUNT, fee: 5000 })), needsBrowser: true  },
   { name: 'Utransfer',   fn: (b) => withRetry(() => scrapeUtransfer(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
   // Cash Pickup
@@ -432,7 +373,7 @@ const SCRAPERS = [
   { name: 'GMoneyTrans (Cash Pickup)', fn: scrapeGmoneytransCashPickup, needsBrowser: false },
   { name: 'Hanpass (Cash Pickup)',     fn: () => withRetry(scrapeHanpassCashPickup), needsBrowser: false },
   { name: 'E9Pay (Cash Pickup)',       fn: (b) => withRetry(() => scrapeE9payCashPickup(b)), needsBrowser: true },
-  { name: 'JRF (Cash Pickup)',         fn: (b) => withRetry(() => scrapeJrfCashPickup(b)), needsBrowser: true },
+  { name: 'JRF (Cash Pickup)',         fn: (b) => withRetry(() => scrapeJrf(b, { currency: 'PHP', country: COUNTRY, amount: AMOUNT, fee: 5000, payCategory: 'Cash Pay', deliveryMethod: 'Cash Pickup' })), needsBrowser: true },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────

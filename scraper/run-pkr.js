@@ -9,6 +9,7 @@ import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
 import { saveRates, logFailure } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
 import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
+import { scrape as scrapeJrf } from './scrapers/jrf.js';
 
 const COUNTRY = 'Pakistan';
 const AMOUNT  = 100_000;
@@ -77,40 +78,14 @@ async function scrapeHanpass() {
     send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
 }
 
-// ─── JRF ─────────────────────────────────────────────────────────────────────
-async function scrapeJrf(browser) {
-  const context = await browser.newContext({ ignoreHTTPSErrors: true });
-  const page = await context.newPage();
-  try {
-    await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(3000);
-    // 드롭다운은 body의 click 핸들러가 e.target.class === 'select_co'일 때만 열림 → jQuery로 직접 표시
-    await page.evaluate(() => window.jQuery('#co-list').show());
-    await page.waitForSelector('li#PKR', { state: 'visible', timeout: 10000 });
-    await page.click('li#PKR'); await page.waitForTimeout(1500);
-    await page.click('#rec_money', { clickCount: 3 });
-    await page.fill('#rec_money', String(AMOUNT));
-    await page.dispatchEvent('#rec_money', 'keyup');
-    let sendAmt = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await page.waitForTimeout(1000);
-      const raw = await page.inputValue('#send_money');
-      sendAmt = extractNumber(raw);
-      if (sendAmt) break;
-    }
-    if (!sendAmt) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    const fee = 3000;
-    return { operator: 'JRF', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: sendAmt, service_fee: fee, total_sending_amount: sendAmt + fee };
-  } finally { await page.close(); await context.close(); }
-}
+// ─── JRF — 공유 모듈 scrapers/jrf.js 사용 ───────────────────────────────────────
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
   { name: 'GME',         fn: () => withRetry(scrapeGme), needsBrowser: false },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
-  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b)), needsBrowser: true  },
+  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { currency: 'PKR', country: COUNTRY, amount: AMOUNT, fee: 3000 })), needsBrowser: true  },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
