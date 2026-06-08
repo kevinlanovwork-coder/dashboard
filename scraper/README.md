@@ -96,11 +96,21 @@ node --env-file=.env run-idr.js
 
 ## Failure Notifications
 
-When any scraper within a corridor run fails, the workflow sends a Gmail alert with:
-- Which operators failed and their error messages
-- A link to the GitHub Actions run
+Every corridor scraper records its failures to the `scraper_failure_log` table
+(via `logFailure()` in `lib/supabase.js`), keyed by `run_hour`.
 
-The check looks for the Korean string `실패한 스크래퍼` in scraper output. Only corridors with partial failures send an email — a corridor with zero successful results exits with code 1 and the job itself fails.
+After all corridor jobs finish, a single `notify` job runs `notify-failures.js`,
+which aggregates **every** failure logged during the current KST clock-hour
+(across the `:00`/`:15`/`:30`/`:45` runs) into **one** digest email, grouped by
+corridor. A `UNIQUE hour_key` in `failure_notification_log` caps this at **one
+email per hour** even though scraping runs every 15 minutes — the first failing
+run of the hour sends; later runs that hour are skipped.
+
+This replaced the old behavior of one email per corridor per run, which could
+emit ~100 emails/hour and blew past Gmail's daily sending limit.
+
+> Competitor price/rate alerts (`lib/alerts.js`) are a separate email path with
+> their own per-rule cooldowns, unaffected by this digest.
 
 ## Data Schema
 
