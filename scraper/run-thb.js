@@ -221,7 +221,8 @@ async function scrapeJrf(browser) {
   try {
     await page.goto('https://www.jpremit.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
-    await page.click('#div_curr', { force: true });
+    // 드롭다운은 body의 click 핸들러가 e.target.class === 'select_co'일 때만 열림 → jQuery로 직접 표시
+    await page.evaluate(() => window.jQuery('#co-list').show());
     await page.waitForSelector('li#THB', { state: 'visible', timeout: 10000 });
     await page.click('li#THB');
     await page.waitForTimeout(1500);
