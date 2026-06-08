@@ -183,7 +183,7 @@ const SCRAPERS = [
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
   { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },
-  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { currency: 'VND', country: COUNTRY, amount: AMOUNT, fee: 4500 })), needsBrowser: true  },
+  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { countryCode: 'VN', country: COUNTRY, amount: AMOUNT, feeFallback: 4500 })), needsBrowser: true  },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────

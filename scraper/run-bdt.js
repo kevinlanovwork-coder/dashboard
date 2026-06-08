@@ -187,7 +187,7 @@ const SCRAPERS = [
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'Utransfer',   fn: (b) => withRetry(() => scrapeUtransfer(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
-  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { currency: 'BDT', country: COUNTRY, amount: AMOUNT, fee: 5000 })), needsBrowser: true  },
+  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { countryCode: 'BD', country: COUNTRY, amount: AMOUNT, feeFallback: 5000 })), needsBrowser: true  },
   { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },
 ];
 

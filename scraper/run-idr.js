@@ -54,7 +54,7 @@ const SCRAPERS = [
   { name: 'SBI',          fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Cross',        fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },
   { name: 'Coinshot',     fn: (b) => withRetry(() => scrapeCoinshot(b)), needsBrowser: true  },
-  { name: 'JRF',          fn: (b) => withRetry(() => scrapeJrf(b, { currency: 'IDR', country: COUNTRY, amount: 13_000_000 })), needsBrowser: true  },
+  { name: 'JRF',          fn: (b) => withRetry(() => scrapeJrf(b, { countryCode: 'ID', country: COUNTRY, amount: 13_000_000, feeFallback: 5000 })), needsBrowser: true  },
   { name: 'E9Pay',        fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
 ];
 

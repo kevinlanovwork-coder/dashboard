@@ -144,19 +144,31 @@ Operators that show transient failures in GitHub Actions CI (network resets, tim
 
 Hanpass uses React-controlled inputs that ignore `page.fill()`. The correct approach is `keyboard.type()` followed by `dispatchEvent('blur')`, then `waitForFunction` polling `#deposit` until it changes from its previous value.
 
-### JRF: shared module, SSL & dropdown visibility
+### JRF: shared module + 2026 site redesign (iframe calculator)
 
 All corridors that scrape JRF import the single `scrapers/jrf.js` module and pass
-per-corridor options (`currency`, `country`, `amount`, optional fixed `fee`,
-and `payCategory`/`deliveryMethod` for PHP Cash Pickup). When `fee` is omitted
-(Indonesia, Thailand) the fee is read from `#servicefee`; otherwise the fixed
-`fee` is used.
+per-corridor options (`countryCode`, `country`, `amount`, optional `payout`,
+`fee`/`feeFallback`, and `deliveryMethod`).
+
+In 2026 jpremit.co.kr moved its calculator into an iframe served from
+`https://rateweb.jpremit.co.kr/`, which the module loads directly. The old
+markup (`#co-list`, `#div_curr`, `li#<currency>`, `#rec_money`, `#send_money`)
+no longer exists. The new calculator:
+
+- **Country & payout** are hidden `<select>`s (`#country` by ISO code e.g. `ID`,
+  `#payout` `B`=Bank Account / `C`=Cash Pickup). They're set via JS
+  (`value` + `change` event) — the calc engine reads the hidden select directly,
+  not the custom dropdown label.
+- **Receiving amount** (`#receiverAmount`) must be filled with *real keystrokes*
+  (`keyboard.type`); `page.fill()` does not trigger the recalculation.
+- **Sending amount** is read from `#senderAmount`; the **fee** is parsed from the
+  `Sending Fee : N KRW` text (the real per-corridor fee — so Pakistan is 0, etc.).
+  `fee` forces a fixed value; `feeFallback` is used only if the text can't be parsed.
 
 JRF's certificate is expired — all JRF contexts use `ignoreHTTPSErrors: true`.
-The currency dropdown only opens when the site's `body` click handler sees
-`e.target.class === 'select_co'`, so clicking `#div_curr` was unreliable; the
-module calls `jQuery('#co-list').show()` directly, then
-`waitForSelector('li#<currency>', { state: 'visible' })`.
+
+> Note: `compare-fees.js` is an unrelated dev utility that still references the
+> old JRF markup; it is not part of the hourly pipeline.
 
 ### GME Cambodia USD: direct API
 

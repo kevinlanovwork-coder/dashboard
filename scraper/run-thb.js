@@ -262,7 +262,7 @@ const SCRAPERS = [
   { name: 'SBI',         fn: (b) => withRetry(() => scrapeSbi(b)), needsBrowser: true  },
   { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)), needsBrowser: true  },
   { name: 'Coinshot',    fn: () => withRetry(() => scrapeCoinshot({ country: COUNTRY, currency: 'THB', amount: AMOUNT })), needsBrowser: false },
-  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { currency: 'THB', country: COUNTRY, amount: AMOUNT })), needsBrowser: true  },
+  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { countryCode: 'TH', country: COUNTRY, amount: AMOUNT, feeFallback: 5000 })), needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
 ];
 

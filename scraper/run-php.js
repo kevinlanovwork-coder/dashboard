@@ -200,7 +200,7 @@ async function scrapeE9pay(browser) {
 }
 
 // ─── JRF (Bank Deposit / Cash Pickup) — 공유 모듈 scrapers/jrf.js 사용 ──────────────
-// SCRAPERS 목록에서 opts로 호출 (Cash Pickup 은 payCategory: 'Cash Pay').
+// SCRAPERS 목록에서 opts로 호출 (Cash Pickup 은 payout: 'C').
 
 // ─── Utransfer ────────────────────────────────────────────────────────────────
 async function scrapeUtransfer(browser) {
@@ -365,7 +365,7 @@ const SCRAPERS = [
   { name: 'Coinshot',    fn: (b) => withRetry(() => scrapeCoinshot(b)), needsBrowser: true  },
   { name: 'Cross',       fn: (b) => withRetry(() => scrapeCross(b)),    needsBrowser: true  },
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
-  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { currency: 'PHP', country: COUNTRY, amount: AMOUNT, fee: 5000 })), needsBrowser: true  },
+  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { countryCode: 'PH', country: COUNTRY, amount: AMOUNT, feeFallback: 5000 })), needsBrowser: true  },
   { name: 'Utransfer',   fn: (b) => withRetry(() => scrapeUtransfer(b)), needsBrowser: true  },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
   // Cash Pickup
@@ -373,7 +373,7 @@ const SCRAPERS = [
   { name: 'GMoneyTrans (Cash Pickup)', fn: scrapeGmoneytransCashPickup, needsBrowser: false },
   { name: 'Hanpass (Cash Pickup)',     fn: () => withRetry(scrapeHanpassCashPickup), needsBrowser: false },
   { name: 'E9Pay (Cash Pickup)',       fn: (b) => withRetry(() => scrapeE9payCashPickup(b)), needsBrowser: true },
-  { name: 'JRF (Cash Pickup)',         fn: (b) => withRetry(() => scrapeJrf(b, { currency: 'PHP', country: COUNTRY, amount: AMOUNT, fee: 5000, payCategory: 'Cash Pay', deliveryMethod: 'Cash Pickup' })), needsBrowser: true },
+  { name: 'JRF (Cash Pickup)',         fn: (b) => withRetry(() => scrapeJrf(b, { countryCode: 'PH', country: COUNTRY, amount: AMOUNT, payout: 'C', feeFallback: 5000, deliveryMethod: 'Cash Pickup' })), needsBrowser: true },
 ];
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────

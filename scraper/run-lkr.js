@@ -121,7 +121,7 @@ const SCRAPERS = [
   { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Coinshot',    fn: () => withRetry(() => scrapeCoinshot({ country: COUNTRY, currency: 'LKR', amount: AMOUNT })), needsBrowser: false },
-  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { currency: 'LKR', country: COUNTRY, amount: AMOUNT, fee: 3000 })), needsBrowser: true  },
+  { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { countryCode: 'LK', country: COUNTRY, amount: AMOUNT, feeFallback: 3000 })), needsBrowser: true  },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
 ];
 
