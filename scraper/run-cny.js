@@ -51,12 +51,12 @@ async function scrapeGmoneytransApi(paymentType, deliveryMethodName) {
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const text = await res.text();
-  const sendAmount = parseField(text, 'sendAmount');
+  const serviceCharge = parseField(text, 'serviceCharge') ?? 4000;
+  const sendAmount    = parseField(text, 'sendAmount');
   if (!sendAmount) throw new Error(`파싱 실패: ${text.slice(0, 200)}`);
-  const fee = 4000; // hardcoded
   return { operator: 'GMoneyTrans', receiving_country: COUNTRY, receive_amount: AMOUNT,
-    send_amount_krw: sendAmount, service_fee: fee,
-    total_sending_amount: sendAmount + fee,
+    send_amount_krw: sendAmount, service_fee: serviceCharge,
+    total_sending_amount: sendAmount + serviceCharge,
     delivery_method: deliveryMethodName };
 }
 function parseField(text, field) {
