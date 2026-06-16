@@ -1,23 +1,40 @@
 # GME Rate Scraper
 
-Hourly web scraper that collects remittance exchange rates from competing Korean operators across 8 corridors and saves results to Supabase.
+Web scraper that collects remittance exchange rates from competing Korean
+operators across **23 countries / 26 corridor runs** and saves the results to
+Supabase. Runs every 15 minutes via GitHub Actions.
 
 ## Architecture
 
 ```
 scraper/
-├── run-idr.js          # Indonesia  (IDR 13,000,000)
-├── run-thb.js          # Thailand   (THB 26,000)
-├── run-mnt.js          # Mongolia   (MNT 100,000)
-├── run-vnd.js          # Vietnam    (VND 5,000,000)
-├── run-npr.js          # Nepal      (NPR 100,000)
-├── run-cny.js          # China      (CNY 10,000)
-├── run-khm.js          # Cambodia   (USD 1,000)
-├── run-mmk.js          # Myanmar    (MMK 1,000,000)
-├── run-ghs.js          # Ghana      (GHS 5,000)
-├── run-zar.js          # South Africa (ZAR 10,000)
-├── run-cad.js          # Canada     (CAD 1,000)
-├── run-ngn.js          # Nigeria    (NGN 1,000,000)
+├── run-idr.js          # Indonesia    IDR 13,000,000  (Bank Deposit)
+├── run-thb.js          # Thailand     THB 26,000      (Bank Deposit)
+├── run-mnt.js          # Mongolia     MNT 2,500,000   (Bank Deposit)
+├── run-vnd.js          # Vietnam      VND 20,000,000  (Bank Deposit)
+├── run-npr.js          # Nepal        NPR 100,000     (Bank Deposit)
+├── run-cny.js          # China        CNY 10,000      (Alipay)
+├── run-khm.js          # Cambodia     USD 1,000       (Bank Deposit + Cash Pickup)
+├── run-mmk.js          # Myanmar      MMK 1,000,000   (Bank Deposit)
+├── run-php.js          # Philippines  PHP 40,000      (Bank Deposit + Cash Pickup)
+├── run-pkr.js          # Pakistan     PKR 100,000     (Bank Deposit)
+├── run-lak.js          # Laos         LAK 15,000,000  (Bank Deposit, LAK)
+├── run-lak-usd.js      # Laos         USD 1,000       (Bank Deposit, USD)
+├── run-lkr.js          # Sri Lanka    LKR 230,000     (Bank Deposit)
+├── run-inr.js          # India        INR 100,000     (Bank Deposit)
+├── run-tls.js          # Timor Leste  USD 1,000       (Bank Deposit + Cash Pickup MoneyGram)
+├── run-bdt.js          # Bangladesh   BDT 100,000     (Bank Deposit)
+├── run-uzb.js          # Uzbekistan   USD 1,000       (Cash Pickup)
+├── run-uzb-card.js     # Uzbekistan   UZS 1,000,000   (Card Payment)
+├── run-rub.js          # Russia       RUB 10,000      (Cash Payment + Card Payment)
+├── run-kzt.js          # Kazakhstan   USD 1,000       (Cash Pickup)
+├── run-kgs.js          # Kyrgyzstan   USD 1,000       (Cash Pickup)
+├── run-kgs-card.js     # Kyrgyzstan   KGS 50,000      (Card Payment)
+├── run-ghs.js          # Ghana        GHS 5,000       (Bank Deposit + Mobile Wallet)
+├── run-zar.js          # South Africa ZAR 10,000      (Bank Deposit)
+├── run-cad.js          # Canada       CAD 1,000       (Bank Deposit)
+├── run-ngn.js          # Nigeria      NGN 1,000,000   (Bank Deposit)
+├── notify-failures.js  # Hourly failure-digest email (runs once per trigger)
 ├── scrapers/           # Shared operator modules (imported by the run-*.js corridors)
 │   ├── gme.js
 │   ├── gmoneytrans.js
@@ -30,33 +47,58 @@ scraper/
 │   ├── utransfer.js
 │   └── wirebarley.js
 └── lib/
-    ├── browser.js      # getRunHour, extractNumber, withRetry
-    └── supabase.js     # saveRates
+    ├── browser.js      # getRunHour (KST), extractNumber, withRetry, trySelectors
+    ├── supabase.js     # Supabase client, saveRates (outlier validation), logFailure
+    ├── fees.js         # loadFees, applyFeeOverrides, seedFees, API_OPERATORS
+    ├── alerts.js       # checkAlerts + competitor price-alert email logic
+    └── email.js        # Gmail SMTP transport
 ```
+
+> The authoritative corridor/operator configuration lives in
+> `../app/lib/corridors.ts` (`OPERATOR_MAP`); the table below mirrors it.
 
 ## Corridors & Operators
 
-| Corridor | File | Amount | Operators |
-|---|---|---|---|
-| Indonesia | run-idr.js | IDR 13,000,000 | GME, GMoneyTrans, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
-| Thailand | run-thb.js | THB 26,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay, Coinshot, JRF |
-| Mongolia | run-mnt.js | MNT 100,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
-| Vietnam | run-vnd.js | VND 5,000,000 | GME, GMoneyTrans, Hanpass, SBI, JRF, E9Pay, Coinshot |
-| Nepal | run-npr.js | NPR 100,000 | GME, GMoneyTrans, Hanpass, JRF, E9Pay, Coinshot |
-| China | run-cny.js | CNY 10,000 | GME, GMoneyTrans, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk |
-| Cambodia | run-khm.js | USD 1,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
-| Myanmar | run-mmk.js | MMK 1,000,000 | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
-| Ghana | run-ghs.js | GHS 5,000 | GME, GMoneyTrans |
-| South Africa | run-zar.js | ZAR 10,000 | GME, GMoneyTrans, Hanpass |
-| Canada | run-cad.js | CAD 1,000 | GME, GMoneyTrans |
-| Nigeria | run-ngn.js | NGN 1,000,000 | GME, GMoneyTrans |
+| Corridor | File | Amount | Method(s) | Operators |
+|---|---|---|---|---|
+| Indonesia | run-idr.js | IDR 13,000,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
+| Thailand | run-thb.js | THB 26,000 | Bank Deposit | GME, GMoneyTrans, WireBarley, Hanpass, SBI, Cross, Coinshot, JRF, E9Pay |
+| Mongolia | run-mnt.js | MNT 2,500,000 | Bank Deposit | GME, GMoneyTrans, Utransfer, Cross, E9Pay, Coinshot, Hanpass |
+| Vietnam | run-vnd.js | VND 20,000,000 | Bank Deposit | GME, SBI, GMoneyTrans, E9Pay, Hanpass, Cross, JRF |
+| Nepal | run-npr.js | NPR 100,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, JRF, E9Pay, Coinshot |
+| China | run-cny.js | CNY 10,000 | Alipay | GME, GMoneyTrans, Hanpass, SBI, Cross, WireBarley, Coinshot, E9Pay, Utransfer, Moin, Debunk |
+| Cambodia | run-khm.js | USD 1,000 | Bank Deposit + Cash Pickup | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Myanmar | run-mmk.js | MMK 1,000,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
+| Philippines | run-php.js | PHP 40,000 | Bank Deposit + Cash Pickup | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
+| Pakistan | run-pkr.js | PKR 100,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, JRF |
+| Laos (LAK) | run-lak.js | LAK 15,000,000 | Bank Deposit | GME, GMoneyTrans, E9Pay, Hanpass |
+| Laos (USD) | run-lak-usd.js | USD 1,000 | Bank Deposit | GME, Hanpass, Cross |
+| Sri Lanka | run-lkr.js | LKR 230,000 | Bank Deposit | GME, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
+| India | run-inr.js | INR 100,000 | Bank Deposit | WireBarley, GMoneyTrans, GME, Hanpass |
+| Timor Leste | run-tls.js | USD 1,000 | Bank Deposit + Cash Pickup (MoneyGram) | GME, GMoneyTrans, Hanpass |
+| Bangladesh | run-bdt.js | BDT 100,000 | Bank Deposit | GME, GMoneyTrans, E9Pay, Utransfer, Hanpass, JRF, Cross |
+| Uzbekistan (USD) | run-uzb.js | USD 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass |
+| Uzbekistan (UZS) | run-uzb-card.js | UZS 1,000,000 | Card Payment | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass |
+| Russia | run-rub.js | RUB 10,000 | Cash Payment + Card Payment | GME, GMoneyTrans, E9Pay (Card Payment: GME, E9Pay only) |
+| Kazakhstan | run-kzt.js | USD 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
+| Kyrgyzstan (USD) | run-kgs.js | USD 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
+| Kyrgyzstan (KGS) | run-kgs-card.js | KGS 50,000 | Card Payment | GME, GMoneyTrans, E9Pay |
+| Ghana | run-ghs.js | GHS 5,000 | Bank Deposit + Mobile Wallet | GME, GMoneyTrans |
+| South Africa | run-zar.js | ZAR 10,000 | Bank Deposit | GME, GMoneyTrans, Hanpass |
+| Canada | run-cad.js | CAD 1,000 | Bank Deposit | GME, GMoneyTrans |
+| Nigeria | run-ngn.js | NGN 1,000,000 | Bank Deposit | GME, GMoneyTrans |
 
 ## How It Runs
 
-- **Trigger**: [cron-job.org](https://cron-job.org) fires a `workflow_dispatch` event every hour at `:00 UTC`
-- **Execution**: GitHub Actions runs all 8 corridor jobs in parallel (`fail-fast: false`)
-- **Timeout**: 20 minutes per job
-- **Browser caching**: Playwright Chromium is cached by `package-lock.json` hash to avoid reinstalling on every run
+- **Trigger**: [cron-job.org](https://cron-job.org) fires a `workflow_dispatch`
+  event every 15 minutes (`:00`/`:15`/`:30`/`:45` UTC).
+- **Execution**: GitHub Actions runs all 26 corridor jobs in parallel
+  (`fail-fast: false`), then a single `notify` job sends the failure digest.
+- **Timeout**: 14 minutes per corridor job, 5 minutes for the notify job.
+- **Browser caching**: Playwright Chromium is cached by `package-lock.json`
+  hash to avoid reinstalling on every run.
+- **Timestamps**: `run_hour` is rounded to the nearest 15-minute mark in KST
+  (UTC+9), e.g. `2026-06-16 11:45`.
 
 ## Setup
 
@@ -83,7 +125,7 @@ scraper/
 3. Method: `POST`
 4. Headers: `Authorization: Bearer {GITHUB_PAT}`, `Accept: application/vnd.github+json`
 5. Body: `{"ref":"main"}`
-6. Schedule: every hour
+6. Schedule: every 15 minutes
 
 ### 4. Local Development
 
@@ -91,8 +133,22 @@ scraper/
 cd scraper
 cp .env.example .env   # fill in SUPABASE_URL and SUPABASE_SERVICE_KEY
 npm install
-node --env-file=.env run-idr.js
+npx playwright install chromium --with-deps
+node --env-file=.env run-idr.js      # run any single corridor
 ```
+
+## Service Fees: API vs. Override
+
+`API_OPERATORS` (**GME, GMoneyTrans, Hanpass**) report their service fee
+directly in their own JSON APIs — `scCharge`, `serviceCharge`, and
+`transferFee` respectively. That value is always authoritative:
+`applyFeeOverrides()` skips these operators, `seedFees()` never creates
+`service_fees` rows for them, and the Settings UI hides them. Migration
+`020_remove_api_operator_fees.sql` purged their stale override rows.
+
+For browser-scraped operators where the site exposes the fee inconsistently or
+not at all, each corridor passes a fallback fee, and admins can override it from
+**Settings → Service Fees** (persisted in the `service_fees` table across runs).
 
 ## Failure Notifications
 
@@ -114,20 +170,26 @@ emit ~100 emails/hour and blew past Gmail's daily sending limit.
 
 ## Data Schema
 
-Each row saved to Supabase:
+Each row saved to the `rate_records` table:
 
 | Column | Type | Description |
 |---|---|---|
-| `run_hour` | text | ISO datetime truncated to hour |
+| `id` | bigserial | Primary key |
+| `run_hour` | text | KST datetime rounded to 15 min (e.g. `2026-06-16 11:45`) |
 | `operator` | text | Operator name (GME, Hanpass, etc.) |
 | `receiving_country` | text | Destination country |
 | `receive_amount` | numeric | Amount received in destination currency |
 | `send_amount_krw` | numeric | KRW amount excluding fee |
 | `service_fee` | numeric | Service fee in KRW |
 | `total_sending_amount` | numeric | Total KRW to send (send + fee) |
-| `gme_baseline` | numeric | GME's total for same run (for comparison) |
+| `gme_baseline` | numeric | GME's total for the same run/method (for comparison) |
 | `price_gap` | numeric | `total_sending_amount − gme_baseline` (null for GME row) |
 | `status` | text | `'GME 유리'` or `'경쟁사 유리'` (null for GME row) |
+| `delivery_method` | text | Bank Deposit, Alipay, Cash Pickup, Card Payment, etc. |
+| `deleted_at` | timestamptz | Soft-delete marker (legacy; kept so old soft-deletes stay hidden) |
+| `scraped_at` | timestamptz | Insert timestamp |
+
+**Unique key:** `(run_hour, operator, receiving_country, delivery_method)` — `saveRates()` upserts on this.
 
 ## Engineering Notes
 
@@ -139,6 +201,15 @@ Operators that show transient failures in GitHub Actions CI (network resets, tim
 - **SBI** — `withRetry` for transient timeouts
 - **JRF** — `withRetry` for transient timeouts
 - **E9Pay** — `withRetry` for `ERR_NETWORK_CHANGED`
+
+### Outlier detection
+
+`saveRates()` validates each value against the median of the last 12 records for
+that operator/corridor/method before inserting. Round multiples of 1,000 KRW
+with >10% deviation are treated as scraping defaults; any value with >50%
+deviation is treated as an outlier. Flagged values are skipped and logged to
+`outlier_log` (Coinshot is exempt from the round-number check — it legitimately
+returns round values).
 
 ### Hanpass: React input
 
@@ -168,17 +239,16 @@ no longer exists. The new calculator:
 JRF's certificate is expired — all JRF contexts use `ignoreHTTPSErrors: true`.
 
 > Note: `compare-fees.js` is an unrelated dev utility that still references the
-> old JRF markup; it is not part of the hourly pipeline.
+> old JRF markup; it is not part of the scrape pipeline.
 
-### GME Cambodia USD: direct API
+### GME USD corridors: direct API
 
-The GME calculator UI is disabled for all USD corridors (`data-showamount="N"`). Cambodia USD scraping uses a direct POST to `Default.aspx` with `method=GetExRate&calBy=P&pAmt=1000`, which returns `collAmt` (total KRW) and `scCharge` (fee) as JSON — no browser needed.
+The GME calculator UI is disabled for all USD corridors (`data-showamount="N"`). USD scraping (Cambodia, Timor Leste, Uzbekistan, Kazakhstan, Kyrgyzstan, Laos-USD) uses a direct POST to `Default.aspx` with `method=GetExRate&calBy=P&pAmt=…`, which returns `collAmt` (total KRW) and `scCharge` (fee) as JSON — no browser needed.
 
-### GMoneyTrans China: Alipay
+### GMoneyTrans: Alipay for China
 
 GMoneyTrans China uses Alipay as the payment method (`payment_type=Alipay`) because bank transfers are not supported for that corridor.
 
 ### Moin popup
 
-Moin's site renders a fullscreen popup via a React portal (`#portalRoot`) that intercepts pointer events. It is dismissed with `page.evaluate(() => document.querySelector('#portalRoot div[style*="top: 21px"]')?.click())` before any interaction.
-
+Moin's site renders a fullscreen popup via a React portal (`#portalRoot`) that intercepts pointer events. It is hidden via an injected style (`#portalRoot .mds-modal { display: none }`) before any interaction.

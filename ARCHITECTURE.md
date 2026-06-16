@@ -48,11 +48,12 @@ dashboard/
 │   ├── scrapers/*.js                 # Individual operator modules
 │   ├── run-{idr,thb,vnd,cny,...}.js  # 26 corridor runners
 │   └── package.json
-├── supabase/migrations/              # 001..021 (init, delete policy, soft-delete,
+├── supabase/migrations/              # 001..022 (init, delete policy, soft-delete,
 │                                     # delivery_method, alerts, service fees,
 │                                     # bank_deposit rename, outlier_log,
 │                                     # scraper_failure_log, summary_config,
-│                                     # report_setup, RLS fixes, …)
+│                                     # report_setup, RLS fixes, remove API-operator
+│                                     # fees, failure_notification_log, …)
 ├── .github/workflows/scrape.yml      # GitHub Actions (26 parallel jobs)
 ├── .github/workflows/backup.yml      # Weekly database backup
 ├── public/GME_swirl_icon.png         # Logo
@@ -75,7 +76,7 @@ dashboard/
 | total_sending_amount | NUMERIC NOT NULL | send_amount + fee |
 | gme_baseline | NUMERIC | GME's total for same run_hour |
 | price_gap | NUMERIC | competitor total - GME total |
-| status | TEXT | GME / Cheaper than GME / Expensive than GME |
+| status | TEXT | `'GME 유리'` (GME cheaper) or `'경쟁사 유리'` (competitor cheaper); NULL for the GME row |
 | delivery_method | TEXT NOT NULL DEFAULT 'Bank Account' | Bank Account, Alipay, etc. |
 | deleted_at | TIMESTAMPTZ | Soft-delete marker (legacy — UI delete removed, column kept so historical soft-deletes stay hidden) |
 | scraped_at | TIMESTAMPTZ DEFAULT NOW() | |
@@ -108,6 +109,16 @@ dashboard/
 | reason | TEXT NOT NULL DEFAULT 'scrape_error' | scrape_error / website_down / api_error |
 | error_message | TEXT | Truncated to 500 chars |
 | created_at | TIMESTAMPTZ DEFAULT NOW() | |
+
+### `failure_notification_log` — Hourly digest-email dedup
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | BIGINT IDENTITY PK | |
+| hour_key | TEXT NOT NULL UNIQUE | KST clock hour, e.g. `'2026-06-08 14'` — dedup key (one email/hour) |
+| fail_count | INTEGER NOT NULL DEFAULT 0 | Failures rolled into the digest |
+| sent_to | TEXT[] | Recipients of the digest |
+| created_at | TIMESTAMPTZ NOT NULL DEFAULT NOW() | |
 
 ### `summary_config` — Summary + Weekly Report setup
 
@@ -174,9 +185,30 @@ dashboard/
 | notes | TEXT | Admin notes |
 | manually_edited | BOOLEAN DEFAULT FALSE | True when admin has overridden |
 | edited_at | TIMESTAMPTZ | Set only on admin edit |
+| original_fee | NUMERIC | Pre-edit fee, restored when a temporary override expires |
+| effective_until | TIMESTAMPTZ | Override expiry; `loadFees()` auto-reverts past this |
 | updated_at | TIMESTAMPTZ | |
 
 **Unique:** `(receiving_country, operator, delivery_method)`
+
+> Note: API operators (GME, GMoneyTrans, Hanpass) have no rows here — they read fees from their own APIs (migration `020`).
+
+### `fee_edit_log` — Service-fee edit history
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | BIGSERIAL PK | |
+| service_fee_id | BIGINT | FK → service_fees.id |
+| receiving_country | TEXT | |
+| operator | TEXT | |
+| delivery_method | TEXT | |
+| old_fee | NUMERIC | |
+| new_fee | NUMERIC | |
+| action | TEXT | `'edit'`, `'reset'`, `'expired'` |
+| notes | TEXT | |
+| edited_at | TIMESTAMPTZ | |
+
+> `fee_edit_log` and the `service_fees.original_fee` / `effective_until` columns were created directly in Supabase (SQL editor), not via a numbered migration file — so the `migrations/` folder is not a complete schema record.
 
 ## API Routes
 
@@ -205,13 +237,13 @@ dashboard/
 ## Data Flow
 
 ```
-cron-job.org (every 30 min)
+cron-job.org (every 15 min — :00/:15/:30/:45)
   |
   v
 GitHub Actions workflow_dispatch
   |
   v
-26 parallel matrix jobs (one per corridor/method)
+26 parallel matrix jobs (one per corridor/method) + notify digest job
   |
   v
 run-*.js
@@ -247,18 +279,20 @@ Next.js Dashboard (Vercel)
 | Mongolia | MNT | 2,500,000 | Bank Deposit | GME, GMoneyTrans, Utransfer, Cross, E9Pay, Coinshot, Hanpass |
 | Myanmar | MMK | 1,000,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
 | Pakistan | PKR | 100,000 | Bank Deposit | GME, GMoneyTrans, Hanpass, JRF |
-| Laos | LAK | 15,000,000 | Bank Deposit | GME, GMoneyTrans, E9Pay, Hanpass |
+| Laos | LAK | 15,000,000 | Bank Deposit (LAK) | GME, GMoneyTrans, E9Pay, Hanpass |
+| Laos | USD | 1,000 | Bank Deposit (USD) | GME, Hanpass, Cross |
 | Sri Lanka | LKR | 230,000 | Bank Deposit | GME, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
-| India | INR | 100,000 | Bank Deposit | GMoneyTrans, GME, Hanpass |
+| India | INR | 100,000 | Bank Deposit | WireBarley, GMoneyTrans, GME, Hanpass |
 | Cambodia | USD | 1,000 | Bank Deposit + Cash Pickup | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
-| Timor Leste | USD | 1,000 | Bank Deposit + Cash Pickup (MoneyGram) | GMoneyTrans, Hanpass |
+| Timor Leste | USD | 1,000 | Bank Deposit + Cash Pickup (MoneyGram) | GME, GMoneyTrans, Hanpass |
 | Bangladesh | BDT | 100,000 | Bank Deposit | GME, GMoneyTrans, E9Pay, Utransfer, Hanpass, JRF, Cross |
-| Russia | RUB | 10,000 | Cash Payment + Card Payment | GME, GMoneyTrans, E9Pay |
+| Russia | RUB | 10,000 | Cash Payment + Card Payment | GME, GMoneyTrans, E9Pay (Card Payment: GME, E9Pay only) |
 | Uzbekistan | USD | 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass |
 | Uzbekistan | UZS | 1,000,000 | Card Payment | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass |
 | Kazakhstan | USD | 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
 | Kyrgyzstan | USD | 1,000 | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
-| Ghana | GHS | 5,000 | Bank Deposit | GME, GMoneyTrans |
+| Kyrgyzstan | KGS | 50,000 | Card Payment | GME, GMoneyTrans, E9Pay |
+| Ghana | GHS | 5,000 | Bank Deposit + Mobile Wallet | GME, GMoneyTrans |
 | South Africa | ZAR | 10,000 | Bank Deposit | GME, GMoneyTrans, Hanpass |
 | Canada | CAD | 1,000 | Bank Deposit | GME, GMoneyTrans |
 | Nigeria | NGN | 1,000,000 | Bank Deposit | GME, GMoneyTrans |
@@ -278,7 +312,7 @@ Next.js Dashboard (Vercel)
 
 **Soft Deletes (legacy):** The `deleted_at` column on `rate_records` and the `.is('deleted_at', null)` filter in the GET handler remain so previously soft-deleted rows stay hidden. The UI delete button has been removed — outlier detection in `saveRates()` now prevents bad rows from being inserted in the first place, so manual cleanup is no longer needed.
 
-**Fee Overrides:** Admin edits in Settings persist across scraper runs. `seedFees()` only inserts new entries, never overwrites. `manually_edited` flag tracks admin changes. Reset button reverts to latest non-zero scraped value.
+**Fee Overrides:** API operators (GME, GMoneyTrans, Hanpass — `API_OPERATORS` in `lib/fees.js`) always read their fee straight from their own JSON APIs (`scCharge` / `serviceCharge` / `transferFee`); the override layer is skipped for them, no `service_fees` rows are seeded, and the Settings UI hides them (migration `020` purged their stale rows). For browser-scraped operators, admin edits in Settings persist across scraper runs: `seedFees()` only inserts new entries (never overwrites), `manually_edited` tracks admin changes, and the Reset button reverts to the latest non-zero scraped value.
 
 **Delivery Methods:** Most corridors use Bank Deposit. China uses Alipay. CIS corridors (Uzbekistan, Kazakhstan, Kyrgyzstan) use Cash Pickup (USD). Uzbekistan also has Card Payment (UZS). Russia has Cash Payment + Card Payment. Philippines and Cambodia have both Bank Deposit and Cash Pickup with per-method GME baselines.
 
@@ -296,8 +330,8 @@ Next.js Dashboard (Vercel)
 |-----------|----------|
 | Database | Supabase (PostgreSQL + RLS) |
 | Frontend | Vercel (Next.js 16 auto-deploy on push) |
-| Scrapers | GitHub Actions (Node.js 22 + Playwright, 26 parallel jobs) |
-| Cron | cron-job.org (every 30 min) |
+| Scrapers | GitHub Actions (Node.js 22 + Playwright, 26 parallel jobs + notify digest) |
+| Cron | cron-job.org (every 15 min — :00/:15/:30/:45) |
 | Email | Gmail SMTP (nodemailer) |
 
 ## Environment Variables

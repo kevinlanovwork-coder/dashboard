@@ -1,12 +1,12 @@
 # GME Exchange Rate Comparison Dashboard
 
-A real-time remittance rate monitoring dashboard for **Global Money Express (GME)**, tracking how GME's KRW → foreign currency rates compare against competitors across multiple corridors - updated every 30 minutes, 24/7.
+A real-time remittance rate monitoring dashboard for **Global Money Express (GME)**, tracking how GME's KRW → foreign currency rates compare against competitors across multiple corridors - updated every 15 minutes, 24/7.
 
 ---
 
 ## What it does
 
-Every 30 minutes, automated scrapers visit competitor remittance websites, extract their send amounts and fees for a fixed receive amount, and store the results in a database. The dashboard visualises this data so GME can instantly see:
+Every 15 minutes, automated scrapers visit competitor remittance websites, extract their send amounts and fees for a fixed receive amount, and store the results in a database. The dashboard visualises this data so GME can instantly see:
 
 - Who is cheaper or more expensive right now
 - How the gap has changed over time
@@ -19,7 +19,7 @@ Every 30 minutes, automated scrapers visit competitor remittance websites, extra
 ```
 Competitor websites
         |
-        v  (Playwright browser automation + fetch API, every 30 min)
+        v  (Playwright browser automation + fetch API, every 15 min)
   GitHub Actions  -------------------------------------------+
   (matrix: one job per corridor, runs in parallel)           |
         |                                                    |
@@ -37,6 +37,8 @@ Competitor websites
 
 ## Corridors tracked
 
+_Source of truth: `app/lib/corridors.ts` (`OPERATOR_MAP`). 26 scraper runs across 23 countries (Laos, Uzbekistan, and Kyrgyzstan each run two currency/method variants)._
+
 | Country      | Currency | Receive Baseline   | Deposit Method | Operators |
 |--------------|----------|--------------------|----------------|-----------|
 | Indonesia    | IDR      | 13,000,000 IDR     | Bank Deposit | GME, GMoneyTrans, Hanpass, Utransfer, SBI, Cross, Coinshot, JRF, E9Pay |
@@ -48,18 +50,20 @@ Competitor websites
 | Cambodia     | USD      | 1,000 USD          | Bank Deposit + Cash Pickup | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
 | Myanmar      | MMK      | 1,000,000 MMK      | Bank Deposit | GME, GMoneyTrans, Hanpass, SBI, E9Pay |
 | Pakistan     | PKR      | 100,000 PKR        | Bank Deposit | GME, GMoneyTrans, Hanpass, JRF |
-| Laos         | LAK      | 15,000,000 LAK     | Bank Deposit | GME, GMoneyTrans, E9Pay, Hanpass |
+| Laos         | LAK      | 15,000,000 LAK     | Bank Deposit (LAK) | GME, GMoneyTrans, E9Pay, Hanpass |
+| Laos         | USD      | 1,000 USD          | Bank Deposit (USD) | GME, Hanpass, Cross |
 | Sri Lanka    | LKR      | 230,000 LKR        | Bank Deposit | GME, E9Pay, GMoneyTrans, Coinshot, JRF, Hanpass |
-| India        | INR      | 100,000 INR        | Bank Deposit | GMoneyTrans, GME, Hanpass |
-| Timor Leste  | USD      | 1,000 USD          | Bank Deposit + Cash Pickup (MoneyGram) | GMoneyTrans, Hanpass |
+| India        | INR      | 100,000 INR        | Bank Deposit | WireBarley, GMoneyTrans, GME, Hanpass |
+| Timor Leste  | USD      | 1,000 USD          | Bank Deposit + Cash Pickup (MoneyGram) | GME, GMoneyTrans, Hanpass |
 | Philippines  | PHP      | 40,000 PHP         | Bank Deposit + Cash Pickup | GME, GMoneyTrans, SBI, Coinshot, Cross, E9Pay, JRF, Utransfer, Hanpass |
 | Bangladesh   | BDT      | 100,000 BDT        | Bank Deposit | GME, GMoneyTrans, E9Pay, Utransfer, Hanpass, JRF, Cross |
-| Russia       | RUB      | 10,000 RUB         | Cash Payment + Card Payment | GME, GMoneyTrans, E9Pay |
+| Russia       | RUB      | 10,000 RUB         | Cash Payment + Card Payment | GME, GMoneyTrans, E9Pay (Card Payment: GME, E9Pay only) |
 | Uzbekistan   | USD      | 1,000 USD          | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass |
 | Uzbekistan   | UZS      | 1,000,000 UZS      | Card Payment | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass |
 | Kazakhstan   | USD      | 1,000 USD          | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
 | Kyrgyzstan   | USD      | 1,000 USD          | Cash Pickup | GME, GMoneyTrans, E9Pay, Coinshot, Hanpass, Cross |
-| Ghana        | GHS      | 5,000 GHS          | Bank Deposit | GME, GMoneyTrans |
+| Kyrgyzstan   | KGS      | 50,000 KGS         | Card Payment | GME, GMoneyTrans, E9Pay |
+| Ghana        | GHS      | 5,000 GHS          | Bank Deposit + Mobile Wallet | GME, GMoneyTrans |
 | South Africa | ZAR      | 10,000 ZAR         | Bank Deposit | GME, GMoneyTrans, Hanpass |
 | Canada       | CAD      | 1,000 CAD          | Bank Deposit | GME, GMoneyTrans |
 | Nigeria      | NGN      | 1,000,000 NGN      | Bank Deposit | GME, GMoneyTrans |
@@ -112,8 +116,8 @@ Competitor websites
 | Technology | Purpose |
 |---|---|
 | Supabase (PostgreSQL) | Stores all rate records with timestamps |
-| GitHub Actions | Runs all 26 scrapers every 30 min via `workflow_dispatch` |
-| cron-job.org | External cron service that triggers GitHub Actions at :00 and :30 UTC |
+| GitHub Actions | Runs all 26 corridor scrapers (matrix) + a failure-digest `notify` job every 15 min via `workflow_dispatch` |
+| cron-job.org | External cron service that triggers GitHub Actions at :00, :15, :30, :45 UTC |
 | GitHub Secrets | Securely stores `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, notification credentials |
 
 ### AI
@@ -169,12 +173,12 @@ dashboard/
 |   +-- run-{ghs,zar,cad,ngn}.js                  # Ghana, South Africa, Canada, Nigeria
 |   +-- package.json
 +-- supabase/
-|   +-- migrations/                    # 001..021 (init, alerts, fees, summary/report, outlier_log, …)
+|   +-- migrations/                    # 001..022 (init, alerts, fees, summary/report, outlier_log, failure_notification_log, …)
 +-- data/
 |   +-- rates.csv                      # Historical rates data (backup/seed)
 +-- .github/
 |   +-- workflows/
-|       +-- scrape.yml                 # GitHub Actions -- matrix scrape (26 corridors)
+|       +-- scrape.yml                 # GitHub Actions -- matrix scrape (26 corridors) + notify digest job
 |       +-- backup.yml                 # Weekly database backup
 +-- vercel.json                        # Vercel deployment config
 +-- README.md
@@ -250,7 +254,9 @@ npm run dev
 
 ## Scraping schedule
 
-An external cron service (cron-job.org) triggers the GitHub Actions workflow via `workflow_dispatch` every 30 minutes (at :00 and :30 UTC). Each corridor runs as a separate parallel job in a matrix strategy, so all 26 corridor scripts are scraped simultaneously within the same workflow run. Timestamps are rounded to the nearest 30-minute mark in KST (UTC+9).
+An external cron service (cron-job.org) triggers the GitHub Actions workflow via `workflow_dispatch` every 15 minutes (at :00, :15, :30, :45 UTC). Each corridor runs as a separate parallel job in a matrix strategy (`fail-fast: false`, 14-min timeout per job), so all 26 corridor scripts are scraped simultaneously within the same workflow run. Timestamps are rounded to the nearest 15-minute mark in KST (UTC+9).
+
+After the matrix finishes, a single `notify` job runs `notify-failures.js`, which aggregates every failure logged during the current KST clock-hour into one digest email. A `UNIQUE hour_key` in `failure_notification_log` caps this at one email per hour even though scraping runs four times an hour.
 
 ---
 
@@ -263,5 +269,5 @@ An external cron service (cron-job.org) triggers the GitHub Actions workflow via
 - **Retry with backoff** --`withRetry()` wrapper retries failed scrapes with exponential backoff (3s, 6s delays).
 - **Selector fallbacks** --`trySelectors()` attempts multiple CSS selectors per field, handling sites that change their DOM structure.
 - **Soft deletes (legacy)** --The `deleted_at` column on `rate_records` and the corresponding GET-handler filter remain so previously soft-deleted rows stay hidden. The UI delete button was removed once outlier detection in `saveRates()` made manual cleanup unnecessary.
-- **Hardcoded fees** --Where sites show fees inconsistently or not at all, fees are hardcoded per corridor based on verified values from the live site.
-- **Failure notifications** --GitHub Actions sends email alerts when scrapers partially fail, identifying which operators encountered errors.
+- **Service fees: API vs. override** --API operators (GME, GMoneyTrans, Hanpass) always read their fee straight from their own JSON APIs (`scCharge` / `serviceCharge` / `transferFee`); that value is authoritative and the override layer is skipped for them (`scraper/lib/fees.js` → `API_OPERATORS`). For browser-scraped operators that show fees inconsistently or not at all, a per-corridor fallback fee is used and can be overridden from the Settings → Service Fees UI, which persists across runs.
+- **Failure notifications** --Per-corridor failures are written to `scraper_failure_log`; a separate `notify` job then sends a single hourly digest email grouping every operator that failed across the four 15-minute runs in that clock-hour (deduped via `failure_notification_log`). Competitor price alerts (`lib/alerts.js`) are a separate email path with their own per-rule cooldowns.
