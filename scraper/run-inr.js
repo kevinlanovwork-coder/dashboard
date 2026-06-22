@@ -9,53 +9,12 @@ import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
 import { saveRates, logFailure } from './lib/supabase.js';
 import { checkAlerts } from './lib/alerts.js';
 import { loadFees, applyFeeOverrides, seedFees } from './lib/fees.js';
+import { scrape as scrapeWirebarley } from './scrapers/wirebarley.js';
 
 const COUNTRY = 'India';
 const AMOUNT  = 100_000;
 
-// ─── WireBarley ───────────────────────────────────────────────────────────────
-async function scrapeWirebarley(browser) {
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-    locale: 'ko-KR',
-  });
-  const page = await context.newPage();
-  try {
-    await page.goto('https://www.wirebarley.com/ko', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(3000);
-    await page.locator('#lafc-popup button').click().catch(() => null); await page.waitForTimeout(1000);
-    await page.locator('[data-title="currencyToMoneyBox"]').nth(1)
-      .locator('img[alt="드롭 다운"]').click();
-    await page.waitForTimeout(2000);
-    await page.locator('button:has(img[alt="IN"])').click();
-    await page.waitForTimeout(2000);
-    await page.locator('[data-title="currencyToMoneyBox"]').nth(1).locator('button').click();
-    await page.waitForTimeout(500);
-    await page.locator('input').nth(1).click({ clickCount: 3 });
-    await page.locator('input').nth(1).fill(String(AMOUNT));
-    await page.locator('input').nth(1).press('Enter');
-    let total = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await page.waitForTimeout(1000);
-      const raw = await page.evaluate(() => {
-        const ps = Array.from(document.querySelectorAll('p'));
-        const label = ps.find(p => p.textContent.trim() === '총 입금액');
-        return label?.nextElementSibling?.textContent?.trim() ?? null;
-      });
-      total = extractNumber(raw);
-      if (total && total !== 1_000_000) break;
-    }
-    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
-    const feeRaw = await page.evaluate(() => {
-      const ps = Array.from(document.querySelectorAll('p'));
-      const label = ps.find(p => p.textContent.trim() === '수수료');
-      return label?.nextElementSibling?.textContent?.trim() ?? null;
-    });
-    const fee = extractNumber(feeRaw) ?? 0;
-    return { operator: 'WireBarley', receiving_country: COUNTRY, receive_amount: AMOUNT,
-      send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
-  } finally { await page.close(); await context.close(); }
-}
+// ─── WireBarley — 공유 모듈 scrapers/wirebarley.js 사용 ──────────────────────────
 
 // ─── GMoneyTrans (API) ────────────────────────────────────────────────────────
 async function scrapeGmoneytrans() {
@@ -125,7 +84,7 @@ async function scrapeHanpass() {
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
 const SCRAPERS = [
-  { name: 'WireBarley',  fn: (b) => withRetry(() => scrapeWirebarley(b)), needsBrowser: true  },
+  { name: 'WireBarley',  fn: (b) => withRetry(() => scrapeWirebarley(b, { koreanName: '인도', country: COUNTRY, amount: AMOUNT })), needsBrowser: true  },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'GME',         fn: () => withRetry(scrapeGme), needsBrowser: false },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
