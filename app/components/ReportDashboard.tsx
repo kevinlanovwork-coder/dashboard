@@ -586,7 +586,8 @@ function SummaryTab({ perCorridorRecords, config, isEn, reportWindow }: {
             {rows.map(row => (
               <tr key={row.corridorKey} className="border-t border-slate-200 dark:border-slate-800">
                 <td className="px-3 py-2 whitespace-nowrap">
-                  <span className="text-base font-semibold">{row.country} — {row.method}</span>
+                  <div className="text-2xl font-bold leading-tight">{row.country}</div>
+                  <div className="text-base font-normal text-slate-500 dark:text-slate-400">{row.method}</div>
                 </td>
                 <td className="pl-3 pr-12 py-2 text-center text-sm whitespace-nowrap text-slate-400 font-normal">
                   {row.total !== null ? `(${row.total} ${isEn ? 'Operators' : '운영사'})` : '—'}
