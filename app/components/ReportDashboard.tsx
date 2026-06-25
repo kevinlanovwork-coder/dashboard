@@ -292,23 +292,6 @@ function positionLabelFor(p: Position, isEn: boolean): string {
   return p === 'Low' ? '낮음' : p === 'Medium' ? '보통' : '높음';
 }
 
-// Summary-tab chip shading: within each High/Medium/Low bucket, modulate the
-// background opacity so operators that rank more expensively (closer to #1)
-// render with a denser shade, and cheaper operators with a lighter shade —
-// preserving the bucket hue while distinguishing same-label cells visually.
-function summaryChipStyle(entry: CompetitorEntry): { background: string; color: string } {
-  const c = positionColor(entry.position);
-  const ratio = entry.total > 0 ? entry.avgRank / entry.total : 0;
-  let t: number;
-  if (entry.position === 'High') t = (ratio - 2 / 3) * 3;
-  else if (entry.position === 'Medium') t = (ratio - 1 / 3) * 3;
-  else t = ratio * 3;
-  t = Math.max(0, Math.min(1, t));
-  const alphaInt = Math.round(0x1a + (0x66 - 0x1a) * t);
-  const alphaHex = alphaInt.toString(16).padStart(2, '0');
-  return { background: `${c}${alphaHex}`, color: c };
-}
-
 function CompetitorCell({ entry, isEn }: { entry: CompetitorEntry | null; isEn: boolean }) {
   if (!entry) return <span className="text-slate-400">—</span>;
   const c = positionColor(entry.position);
@@ -547,10 +530,16 @@ function SummaryTab({ perCorridorRecords, config, isEn, reportWindow }: {
   const renderCell = (cell: CompetitorEntry | null, isAvailable: boolean) => {
     if (!isAvailable) return <span className="text-slate-300 dark:text-slate-600">·</span>;
     if (!cell) return <span className="text-slate-400">—</span>;
+    const c = positionColor(cell.position);
     return (
-      <span className="inline-block px-3 py-1.5 rounded-md text-sm font-bold" style={summaryChipStyle(cell)}>
-        {positionLabelFor(cell.position, isEn)}
-      </span>
+      <div className="flex flex-col items-center gap-0.5">
+        <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+          #{cell.avgRank.toFixed(2)} / {cell.total}
+        </div>
+        <span className="inline-block px-2.5 py-1 rounded-md text-sm font-bold" style={{ background: `${c}1a`, color: c }}>
+          {positionLabelFor(cell.position, isEn)}
+        </span>
+      </div>
     );
   };
 
@@ -562,7 +551,7 @@ function SummaryTab({ perCorridorRecords, config, isEn, reportWindow }: {
           {reportWindow.from} → {reportWindow.to} · {isEn ? 'overall position per operator across the past 7 days' : '지난 7일간 운영사별 종합 포지션'}
         </div>
         <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-          {isEn ? 'Rank 1 = Most expensive' : '1위 = 가장 비쌈'}
+          {isEn ? '#1 = Cheapest operator in the corridor' : '#1 = 코리도에서 가장 저렴한 운영사'}
         </div>
       </div>
       <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
