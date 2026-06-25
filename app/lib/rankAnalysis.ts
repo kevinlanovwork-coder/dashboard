@@ -57,6 +57,22 @@ export function positionColor(p: Position): string {
   return p === 'Low' ? '#16a34a' : p === 'Medium' ? '#d97706' : '#dc2626';
 }
 
+// Default per-corridor KRW price-gap tolerance for the Report Summary.
+export const DEFAULT_PRICE_GAP_RANGE = 1500;
+
+const POSITION_ORDER: Position[] = ['Low', 'Medium', 'High'];
+
+// Competitor position relative to GME's baseline, adjusted by its avg KRW gap vs GME.
+// avgGap > 0 = competitor pricier, < 0 = competitor cheaper.
+//   within ±range → GME's level; cheaper beyond → one level better (toward Low);
+//   pricier beyond → one level worse (toward High). Clamped at Low/High.
+export function stepPositionByGap(gmePos: Position, avgGap: number, range: number): Position {
+  let idx = POSITION_ORDER.indexOf(gmePos);
+  if (avgGap < -range) idx -= 1;
+  else if (avgGap > range) idx += 1;
+  return POSITION_ORDER[Math.max(0, Math.min(POSITION_ORDER.length - 1, idx))];
+}
+
 // Flip the displayed rank: rank 1 = most expensive, rank N = cheapest.
 // Compute is done with ASC ranks internally (1 = cheapest); flipRank converts
 // for display only.

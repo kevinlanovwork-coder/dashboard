@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
+import { DEFAULT_PRICE_GAP_RANGE } from '@/app/lib/rankAnalysis';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1410,6 +1411,8 @@ function SummaryConfigTab({ isEn }: { isEn: boolean }) {
 function ReportConfigTab({ isEn }: { isEn: boolean }) {
   const [reportOps, setReportOps] = useState<Record<string, string[]>>({});
   const [savedReportOps, setSavedReportOps] = useState<Record<string, string[]>>({});
+  const [reportGaps, setReportGaps] = useState<Record<string, number>>({});
+  const [savedReportGaps, setSavedReportGaps] = useState<Record<string, number>>({});
   const [enabledCorridors, setEnabledCorridors] = useState<Set<string>>(new Set());
   const [savedEnabled, setSavedEnabled] = useState<Set<string>>(new Set());
   const [configId, setConfigId] = useState(1);
@@ -1440,6 +1443,11 @@ function ReportConfigTab({ isEn }: { isEn: boolean }) {
         setReportOps(co);
         setSavedReportOps(co);
       }
+      const pg = data?.report_corridor_price_gap_range;
+      if (pg && typeof pg === 'object') {
+        setReportGaps(pg);
+        setSavedReportGaps(pg);
+      }
     } catch (err) { console.error('Failed to fetch report config:', err); }
     finally { setLoading(false); }
   }, []);
@@ -1449,6 +1457,7 @@ function ReportConfigTab({ isEn }: { isEn: boolean }) {
   const sortedEnabled = [...enabledCorridors].sort();
   const sortedSavedEnabled = [...savedEnabled].sort();
   const hasChanges = JSON.stringify(reportOps) !== JSON.stringify(savedReportOps)
+    || JSON.stringify(reportGaps) !== JSON.stringify(savedReportGaps)
     || JSON.stringify(sortedEnabled) !== JSON.stringify(sortedSavedEnabled);
 
   const handleSave = async () => {
@@ -1459,13 +1468,14 @@ function ReportConfigTab({ isEn }: { isEn: boolean }) {
       const res = await fetch('/api/summary/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: configId, report_corridors: enabled, report_corridor_operators: reportOps }),
+        body: JSON.stringify({ id: configId, report_corridors: enabled, report_corridor_operators: reportOps, report_corridor_price_gap_range: reportGaps }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error || `HTTP ${res.status}`);
       }
       setSavedReportOps(reportOps);
+      setSavedReportGaps(reportGaps);
       setSavedEnabled(new Set(enabled));
     } catch (err) {
       console.error('Failed to save:', err);
@@ -1484,6 +1494,10 @@ function ReportConfigTab({ isEn }: { isEn: boolean }) {
       next = [...current, op];
     }
     setReportOps({ ...reportOps, [corridorKey]: next });
+  };
+
+  const updateGap = (corridorKey: string, value: number) => {
+    setReportGaps({ ...reportGaps, [corridorKey]: value });
   };
 
   const toggleCorridor = (key: string) => {
@@ -1564,6 +1578,23 @@ function ReportConfigTab({ isEn }: { isEn: boolean }) {
                       </label>
                     );
                   })}
+                </div>
+                <div className={`mt-2.5 pt-2.5 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2 ${enabled ? '' : 'opacity-40'}`}>
+                  <label htmlFor={`gap-${key}`} className="text-xs text-slate-600 dark:text-slate-400">
+                    {isEn ? 'Price Gap Range' : '가격차 허용 범위'}
+                  </label>
+                  <span className="text-xs text-slate-400">±</span>
+                  <input
+                    id={`gap-${key}`}
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={reportGaps[key] ?? DEFAULT_PRICE_GAP_RANGE}
+                    disabled={!enabled}
+                    onChange={e => updateGap(key, Number(e.target.value))}
+                    className="w-24 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:cursor-not-allowed"
+                  />
+                  <span className="text-xs text-slate-400">KRW</span>
                 </div>
               </div>
             );

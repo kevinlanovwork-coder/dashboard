@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { LineChart, Line, BarChart, Bar, Cell, ReferenceLine, LabelList, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { RateRecord } from '@/app/lib/parseRates';
 import {
   computeGmeRankData,
@@ -9,18 +9,19 @@ import {
   computeRepresentativeSnapshot,
   computeCompetitorPositions,
   computeAvgPriceGaps,
+  stepPositionByGap,
   operatorCountMode,
   positionColor,
   flipRank,
+  DEFAULT_PRICE_GAP_RANGE,
   type Position,
   type RankPoint,
   type DailyPosition,
   type CompetitorEntry,
-  type GapEntry,
   type RepresentativeSnapshot,
 } from '@/app/lib/rankAnalysis';
 
-interface ReportConfig { corridors: string[]; ops: Record<string, string[]>; }
+interface ReportConfig { corridors: string[]; ops: Record<string, string[]>; gapRanges: Record<string, number>; }
 
 const SUMMARY_KEY = '__summary__';
 // Always-visible competitors in the Summary tab, in this fixed order, regardless of
@@ -59,7 +60,8 @@ export default function ReportDashboard() {
       const cfg = await cfgRes.json();
       const corridors: string[] = Array.isArray(cfg?.report_corridors) ? cfg.report_corridors : [];
       const ops: Record<string, string[]> = (cfg?.report_corridor_operators ?? {}) as Record<string, string[]>;
-      setConfig({ corridors, ops });
+      const gapRanges: Record<string, number> = (cfg?.report_corridor_price_gap_range ?? {}) as Record<string, number>;
+      setConfig({ corridors, ops, gapRanges });
 
       if (corridors.length === 0) {
         setPerCorridorRecords({});
@@ -256,7 +258,7 @@ export default function ReportDashboard() {
 
               <div ref={captureRef}>
                 {activeCorridor === SUMMARY_KEY ? (
-                  <SummaryTab perCorridorRecords={perCorridorRecords} config={config} isEn={isEn} isDark={isDark} reportWindow={reportWindow} />
+                  <SummaryTab perCorridorRecords={perCorridorRecords} config={config} isEn={isEn} reportWindow={reportWindow} />
                 ) : activeCorridor && activeData ? (
                   activeData.hasData ? (
                     <CorridorReport
@@ -486,246 +488,128 @@ function CorridorReport(props: {
 
 // ─── Summary tab body ───────────────────────────────────────────────────────
 
-function SummaryTab({ perCorridorRecords, config, isEn, isDark, reportWindow }: {
+type SummaryCell = { position: Position; avgGap: number | null; range: number } | null;
+
+function summaryGapTitle(cell: NonNullable<SummaryCell>, isEn: boolean): string {
+  if (cell.avgGap === null) {
+    return isEn ? 'No price-gap data — own position' : '가격차 데이터 없음 — 자체 포지션';
+  }
+  const sign = cell.avgGap > 0 ? '+' : '';
+  const amount = `${sign}${cell.avgGap.toLocaleString('ko-KR')}${isEn ? ' KRW' : '원'}`;
+  const within = Math.abs(cell.avgGap) <= cell.range;
+  const reason = within
+    ? (isEn ? `within ±${cell.range.toLocaleString('ko-KR')} → matches GME` : `±${cell.range.toLocaleString('ko-KR')} 이내 → GME와 동일`)
+    : cell.avgGap < 0
+      ? (isEn ? `beyond ±${cell.range.toLocaleString('ko-KR')} → one level better` : `±${cell.range.toLocaleString('ko-KR')} 초과 → 한 단계 우위`)
+      : (isEn ? `beyond ±${cell.range.toLocaleString('ko-KR')} → one level worse` : `±${cell.range.toLocaleString('ko-KR')} 초과 → 한 단계 열위`);
+  return isEn ? `${amount} vs GME · ${reason}` : `GME 대비 ${amount} · ${reason}`;
+}
+
+function SummaryTab({ perCorridorRecords, config, isEn, reportWindow }: {
   perCorridorRecords: Record<string, RateRecord[]>;
   config: ReportConfig;
   isEn: boolean;
-  isDark: boolean;
   reportWindow: { from: string; to: string };
 }) {
-  const matrix = useMemo(() => {
-    const rows = config.corridors.map(corridorKey => {
-      const records = perCorridorRecords[corridorKey] ?? [];
-      const [country, method] = corridorKey.split('||');
-      const selectedOps = config.ops[corridorKey] ?? [];
-      // Compute for selected ops PLUS the always-visible defaults so the Summary
-      // shows E9Pay/GMoneyTrans/Hanpass even when they're unticked.
-      const effectiveOps = [...new Set([...SUMMARY_DEFAULT_OPS, ...selectedOps])];
-      if (records.length === 0) {
-        return { corridorKey, country, method, gme: null as CompetitorEntry | null, competitors: {} as Record<string, CompetitorEntry | null>, effectiveOps };
-      }
-      const filteredRank = computeGmeRankData(records);
-      if (filteredRank.length === 0) {
-        return { corridorKey, country, method, gme: null as CompetitorEntry | null, competitors: {} as Record<string, CompetitorEntry | null>, effectiveOps };
-      }
-      const daily = computeDailyPositions(filteredRank);
-      const operatorCount = operatorCountMode(daily, filteredRank[0].total);
-      const overallAvgRank = filteredRank.reduce((s, d) => s + d.rank, 0) / filteredRank.length;
-      const ratio = operatorCount > 0 ? overallAvgRank / operatorCount : 1;
-      const gmePos: Position = ratio <= 1 / 3 ? 'Low' : ratio <= 2 / 3 ? 'Medium' : 'High';
-      const gme: CompetitorEntry = { avgRank: overallAvgRank, total: operatorCount, position: gmePos };
-      const compPositions = computeCompetitorPositions(records, effectiveOps);
-      const competitors: Record<string, CompetitorEntry | null> = {};
-      for (const op of effectiveOps) {
-        competitors[op] = compPositions.overallPos(op);
-      }
-      return { corridorKey, country, method, gme, competitors, effectiveOps };
-    });
-    // Union of all operators that have a column in the matrix.
-    const allOps = new Set<string>(SUMMARY_DEFAULT_OPS);
-    for (const r of rows) for (const op of r.effectiveOps) allOps.add(op);
-    // Column order: GME → defaults (in fixed order) → remaining ops alphabetically.
-    const remaining = [...allOps].filter(op => !SUMMARY_DEFAULT_OPS.includes(op)).sort();
-    const operatorColumns = ['GME', ...SUMMARY_DEFAULT_OPS, ...remaining];
-    return { rows, operatorColumns };
-  }, [perCorridorRecords, config]);
+  const operatorColumns = ['GME', ...SUMMARY_DEFAULT_OPS];
 
-  const renderCell = (cell: CompetitorEntry | null, isAvailable: boolean) => {
-    if (!isAvailable) return <span className="text-slate-300 dark:text-slate-600">·</span>;
-    if (!cell) return <span className="text-slate-400">—</span>;
-    const c = positionColor(cell.position);
+  const rows = useMemo(() => config.corridors.map(corridorKey => {
+    const records = perCorridorRecords[corridorKey] ?? [];
+    const [country, method] = corridorKey.split('||');
+    const empty = { corridorKey, country, method, gmePos: null as Position | null, total: null as number | null, competitors: {} as Record<string, SummaryCell> };
+    if (records.length === 0) return empty;
+    const filteredRank = computeGmeRankData(records);
+    if (filteredRank.length === 0) return empty;
+
+    const daily = computeDailyPositions(filteredRank);
+    const operatorCount = operatorCountMode(daily, filteredRank[0].total);
+    const overallAvgRank = filteredRank.reduce((s, d) => s + d.rank, 0) / filteredRank.length;
+    const ratio = operatorCount > 0 ? overallAvgRank / operatorCount : 1;
+    const gmePos: Position = ratio <= 1 / 3 ? 'Low' : ratio <= 2 / 3 ? 'Medium' : 'High';
+
+    const range = config.gapRanges[corridorKey] ?? DEFAULT_PRICE_GAP_RANGE;
+    const gaps = computeAvgPriceGaps(records, SUMMARY_DEFAULT_OPS);
+    const gapByOp = new Map(gaps.filter(g => g.operator !== 'GME').map(g => [g.operator, g.avgGap]));
+    const compPositions = computeCompetitorPositions(records, SUMMARY_DEFAULT_OPS);
+
+    const competitors: Record<string, SummaryCell> = {};
+    for (const op of SUMMARY_DEFAULT_OPS) {
+      const avgGap = gapByOp.get(op);
+      if (avgGap !== undefined) {
+        // Combined position: GME's level adjusted by the price gap vs the corridor's tolerance.
+        competitors[op] = { position: stepPositionByGap(gmePos, avgGap, range), avgGap, range };
+      } else {
+        // No price-gap data — fall back to the competitor's own rank-based position.
+        const own = compPositions.overallPos(op);
+        competitors[op] = own ? { position: own.position, avgGap: null, range } : null;
+      }
+    }
+    return { corridorKey, country, method, gmePos, total: operatorCount, competitors };
+  }), [perCorridorRecords, config]);
+
+  const chip = (position: Position, title: string) => {
+    const c = positionColor(position);
     return (
-      <div className="flex flex-col items-center gap-0.5">
-        <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
-          #{cell.avgRank.toFixed(2)} / {cell.total}
-        </div>
-        <span className="inline-block px-2.5 py-1 rounded-md text-sm font-bold" style={{ background: `${c}1a`, color: c }}>
-          {positionLabelFor(cell.position, isEn)}
-        </span>
-      </div>
+      <span title={title} className="inline-block px-4 py-2 rounded-lg text-2xl font-bold" style={{ background: `${c}1a`, color: c }}>
+        {positionLabelFor(position, isEn)}
+      </span>
     );
   };
 
   return (
     <div className="space-y-3">
       <div>
-        <h2 className="text-lg font-bold">{isEn ? 'Weekly Position Summary' : '주간 포지션 요약'}</h2>
+        <h2 className="text-lg font-bold">{isEn ? 'Weekly Avg Price Gap Summary' : '주간 평균 가격차 요약'}</h2>
         <div className="text-xs text-slate-500 dark:text-slate-400">
-          {reportWindow.from} → {reportWindow.to} · {isEn ? 'overall position per operator across the past 7 days' : '지난 7일간 운영사별 종합 포지션'}
+          {reportWindow.from} → {reportWindow.to} · {isEn ? 'position relative to GME over the past 7 days' : '지난 7일간 GME 기준 상대 포지션'}
         </div>
         <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-          {isEn ? '#1 = Cheapest operator in the corridor' : '#1 = 코리도에서 가장 저렴한 운영사'}
+          {isEn
+            ? 'A competitor matches GME’s level when its avg price gap is within the corridor’s ± range (Settings → Report Setup); cheaper beyond → one level better, pricier beyond → one level worse.'
+            : '경쟁사의 평균 가격차가 코리도 ± 범위(설정 → 리포트 설정) 이내이면 GME와 동일 등급; 초과 시 저렴하면 한 단계 우위, 비싸면 한 단계 열위.'}
         </div>
       </div>
       <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
-        <table className="w-full text-sm">
+        <table className="w-full">
           <thead className="bg-slate-50 dark:bg-slate-800/50">
             <tr>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 whitespace-nowrap w-px">{isEn ? 'Country' : '국가'}</th>
-              <th className="pl-3 pr-12 py-2 text-center text-xs font-medium text-slate-500 whitespace-nowrap w-px" aria-label={isEn ? 'Operators' : '운영사'}></th>
-              {matrix.operatorColumns.map(op => (
-                <th key={op} className={`px-3 py-2 text-center text-xs font-medium ${op === 'GME' ? 'text-red-500' : 'text-slate-500'}`}>
+              <th className="px-3 py-2 text-left text-base font-medium text-slate-500 whitespace-nowrap w-px">{isEn ? 'Country' : '국가'}</th>
+              <th className="pl-3 pr-12 py-2 text-center text-base font-medium text-slate-500 whitespace-nowrap w-px" aria-label={isEn ? 'Operators' : '운영사'}></th>
+              {operatorColumns.map(op => (
+                <th key={op} className={`px-3 py-2 text-center text-base font-semibold ${op === 'GME' ? 'text-red-500' : 'text-slate-500'}`}>
                   {op === 'GME' ? '★ GME' : op}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {matrix.rows.map(row => {
-              return (
-                <tr key={row.corridorKey} className="border-t border-slate-200 dark:border-slate-800">
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <span className="font-medium">{row.country} — {row.method}</span>
-                  </td>
-                  <td className="pl-3 pr-12 py-2 text-center text-xs whitespace-nowrap text-slate-400 font-normal">
-                    {row.gme ? `(${row.gme.total} ${isEn ? 'Operators' : '운영사'})` : '—'}
-                  </td>
-                  {matrix.operatorColumns.map(op => {
-                    if (op === 'GME') {
-                      return <td key={op} className="px-3 py-2 text-center">{renderCell(row.gme, true)}</td>;
-                    }
-                    const isAvailable = row.effectiveOps.includes(op);
-                    const cell = isAvailable ? (row.competitors[op] ?? null) : null;
-                    return <td key={op} className="px-3 py-2 text-center">{renderCell(cell, isAvailable)}</td>;
-                  })}
-                </tr>
-              );
-            })}
+            {rows.map(row => (
+              <tr key={row.corridorKey} className="border-t border-slate-200 dark:border-slate-800">
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <span className="text-base font-semibold">{row.country} — {row.method}</span>
+                </td>
+                <td className="pl-3 pr-12 py-2 text-center text-sm whitespace-nowrap text-slate-400 font-normal">
+                  {row.total !== null ? `(${row.total} ${isEn ? 'Operators' : '운영사'})` : '—'}
+                </td>
+                {operatorColumns.map(op => {
+                  if (op === 'GME') {
+                    return (
+                      <td key={op} className="px-3 py-3 text-center">
+                        {row.gmePos ? chip(row.gmePos, isEn ? 'GME baseline' : 'GME 기준') : <span className="text-slate-400 text-2xl">—</span>}
+                      </td>
+                    );
+                  }
+                  const cell = row.competitors[op] ?? null;
+                  return (
+                    <td key={op} className="px-3 py-3 text-center">
+                      {cell ? chip(cell.position, summaryGapTitle(cell, isEn)) : <span className="text-slate-400 text-2xl">—</span>}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
           </tbody>
         </table>
-      </div>
-      <WeeklyPriceGapCharts perCorridorRecords={perCorridorRecords} config={config} isEn={isEn} isDark={isDark} />
-    </div>
-  );
-}
-
-// ─── Weekly price-gap charts (small multiples, one per corridor) ────────────
-
-function PriceGapTooltip({ active, payload, isEn }: {
-  active?: boolean;
-  payload?: readonly { payload: GapEntry }[];
-  isEn: boolean;
-}) {
-  if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
-  if (d.operator === 'GME') {
-    return (
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm shadow-xl">
-        <p className="font-semibold text-red-500">★ GME</p>
-        <p className="text-slate-500 dark:text-slate-400 text-xs">{isEn ? 'baseline' : '기준'}</p>
-      </div>
-    );
-  }
-  return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm shadow-xl">
-      <p className="font-semibold">{d.operator}</p>
-      <p className={d.avgGap < 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-500'}>
-        {isEn ? 'Avg gap vs GME' : 'GME 대비 평균 가격차'}{' '}
-        <span className="font-mono">{d.avgGap > 0 ? '+' : ''}{d.avgGap.toLocaleString('ko-KR')}{isEn ? ' KRW' : '원'}</span>
-      </p>
-      <p className="text-slate-400 text-xs mt-0.5">{d.count} {isEn ? 'snapshots' : '스냅샷'}</p>
-    </div>
-  );
-}
-
-function WeeklyPriceGapCharts({ perCorridorRecords, config, isEn, isDark }: {
-  perCorridorRecords: Record<string, RateRecord[]>;
-  config: ReportConfig;
-  isEn: boolean;
-  isDark: boolean;
-}) {
-  const ct = {
-    grid: isDark ? '#1e293b' : '#e2e8f0',
-    tick: isDark ? '#64748b' : '#94a3b8',
-    axisLine: isDark ? '#1e293b' : '#e2e8f0',
-    yLabel: isDark ? '#cbd5e1' : '#475569',
-    refLine: isDark ? '#334155' : '#cbd5e1',
-  };
-
-  const charts = useMemo(() => config.corridors.map(corridorKey => {
-    const [country, method] = corridorKey.split('||');
-    const records = perCorridorRecords[corridorKey] ?? [];
-    const operators = config.ops[corridorKey] ?? [];
-    const data = computeAvgPriceGaps(records, operators);
-    return { corridorKey, country, method, data };
-  }), [perCorridorRecords, config]);
-
-  return (
-    <div className="space-y-4 pt-4">
-      <div>
-        <h2 className="text-lg font-bold">{isEn ? 'Weekly Avg Price Gap vs GME (KRW)' : '주간 GME 대비 평균 가격차 (KRW)'}</h2>
-        <div className="text-xs text-slate-500 dark:text-slate-400">
-          {isEn ? 'Average KRW difference between each competitor and GME over the past 7 days' : '지난 7일간 각 경쟁사와 GME의 평균 KRW 가격차'}
-        </div>
-        <div className="flex flex-wrap items-center gap-4 mt-1.5 text-xs text-slate-500 dark:text-slate-500">
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{isEn ? 'GME cheaper (wins)' : 'GME 저렴 (우위)'}</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{isEn ? 'Competitor cheaper (GME loses)' : '경쟁사 저렴 (GME 열위)'}</span>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {charts.map(({ corridorKey, country, method, data }) => (
-          <div key={corridorKey} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-            <h3 className="text-sm font-semibold mb-2">{country} — {method}</h3>
-            {data.length === 0 ? (
-              <div className="h-24 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">
-                {isEn ? 'No price-gap data' : '가격차 데이터 없음'}
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={Math.max(120, data.length * 38)}>
-                <BarChart data={data} layout="vertical" margin={{ top: 0, right: 70, left: 5, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
-                  <XAxis
-                    type="number"
-                    tickFormatter={(v: number) => `${v > 0 ? '+' : ''}${(v / 1000).toFixed(1)}K`}
-                    tick={{ fill: ct.tick, fontSize: 11 }}
-                    axisLine={{ stroke: ct.axisLine }}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="operator"
-                    tick={(props: { x: string | number; y: string | number; payload: { value: string } }) => {
-                      const isGME = props.payload.value === 'GME';
-                      return (
-                        <text x={props.x} y={props.y} dy={4} textAnchor="end" fontSize={12}
-                          fill={isGME ? '#ef4444' : ct.yLabel}
-                          fontWeight={isGME ? 700 : 400}
-                        >
-                          {isGME ? '★ GME' : props.payload.value}
-                        </text>
-                      );
-                    }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={90}
-                  />
-                  <Tooltip content={(props) => <PriceGapTooltip {...props} isEn={isEn} />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
-                  <ReferenceLine x={0} stroke={ct.refLine} strokeWidth={1.5} label={{ value: 'GME', position: 'top', fill: '#ef4444', fontSize: 11, fontWeight: 700 }} />
-                  <Bar dataKey="avgGap" radius={[0, 4, 4, 0]}>
-                    {data.map((entry, i) => (
-                      <Cell key={i} fill={entry.operator === 'GME' ? '#ef4444' : entry.avgGap < 0 ? '#22c55e' : '#f97316'} />
-                    ))}
-                    <LabelList
-                      dataKey="avgGap"
-                      content={(props) => {
-                        const { x, y, width, height, value } = props as { x?: string | number; y?: string | number; width?: string | number; height?: string | number; value?: string | number };
-                        const nx = Number(x), ny = Number(y), nw = Number(width), nh = Number(height), nv = Number(value);
-                        if (isNaN(nv) || isNaN(nx)) return null;
-                        const label = `${nv > 0 ? '+' : ''}${nv.toLocaleString('ko-KR')}`;
-                        const labelX = nw >= 0 ? nx + nw + 4 : nx + 4;
-                        return (
-                          <text x={labelX} y={ny + nh / 2} dy={4} fontSize={10} fill={isDark ? '#f1f5f9' : '#1e293b'} fontWeight={700} textAnchor="start">
-                            {label}
-                          </text>
-                        );
-                      }}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        ))}
       </div>
     </div>
   );
