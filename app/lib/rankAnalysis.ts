@@ -40,6 +40,12 @@ export interface CompetitorEntry {
   position: Position;
 }
 
+export interface GapEntry {
+  operator: string;
+  avgGap: number;   // mean KRW price gap vs GME (>0 = competitor pricier = GME wins)
+  count: number;    // snapshots that contributed
+}
+
 // ─── Bucket math ────────────────────────────────────────────────────────────
 
 export function bucketPosition(avgRank: number, total: number): Position {
@@ -224,4 +230,30 @@ export function computeCompetitorPositions(
   };
 
   return { dayPos, overallPos };
+}
+
+// ─── Price gap vs GME (KRW) ─────────────────────────────────────────────────
+
+// Average KRW price gap vs GME per competitor, over the given records.
+// Mirrors Dashboard.tsx's operatorStats: skip GME + null gaps, restrict to the
+// `operators` allow-list, round the mean, then append GME as a zero baseline.
+// Sorted descending so GME-wins (positive gaps) sit on top.
+export function computeAvgPriceGaps(records: RateRecord[], operators: string[]): GapEntry[] {
+  const allow = new Set(operators);
+  const map: Record<string, { sum: number; count: number }> = {};
+  for (const r of records) {
+    if (r.operator === 'GME' || r.status === 'GME' || r.priceGap === null) continue;
+    if (!allow.has(r.operator)) continue;
+    const m = map[r.operator] ?? { sum: 0, count: 0 };
+    m.sum += r.priceGap;
+    m.count++;
+    map[r.operator] = m;
+  }
+  const stats = Object.entries(map).map(([operator, { sum, count }]) => ({
+    operator,
+    avgGap: Math.round(sum / count),
+    count,
+  }));
+  if (stats.length > 0) stats.push({ operator: 'GME', avgGap: 0, count: 0 });
+  return stats.sort((a, b) => b.avgGap - a.avgGap);
 }
