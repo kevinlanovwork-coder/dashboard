@@ -602,7 +602,16 @@ function SummaryTab({ perCorridorRecords, config, isEn, reportWindow }: {
                   const cell = row.competitors[op] ?? null;
                   return (
                     <td key={op} className="px-3 py-3 text-center">
-                      {cell ? chip(cell.position, summaryGapTitle(cell, isEn)) : <span className="text-slate-400 text-2xl">—</span>}
+                      {cell ? (
+                        <div className="flex flex-col items-center gap-1">
+                          {chip(cell.position, summaryGapTitle(cell, isEn))}
+                          {cell.avgGap !== null && (
+                            <span className="font-mono text-sm" style={{ color: cell.avgGap < 0 ? '#16a34a' : cell.avgGap > 0 ? '#f97316' : '#94a3b8' }}>
+                              {cell.avgGap > 0 ? '+' : ''}{cell.avgGap.toLocaleString('ko-KR')}<span className="text-xs text-slate-400"> KRW</span>
+                            </span>
+                          )}
+                        </div>
+                      ) : <span className="text-slate-400 text-2xl">—</span>}
                     </td>
                   );
                 })}
