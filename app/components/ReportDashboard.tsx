@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, Cell, ReferenceLine, LabelList, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { RateRecord } from '@/app/lib/parseRates';
 import {
   computeGmeRankData,
   computeDailyPositions,
   computeRepresentativeSnapshot,
   computeCompetitorPositions,
+  computeAvgPriceGaps,
   operatorCountMode,
   positionColor,
   flipRank,
@@ -15,6 +16,7 @@ import {
   type RankPoint,
   type DailyPosition,
   type CompetitorEntry,
+  type GapEntry,
   type RepresentativeSnapshot,
 } from '@/app/lib/rankAnalysis';
 
@@ -254,7 +256,7 @@ export default function ReportDashboard() {
 
               <div ref={captureRef}>
                 {activeCorridor === SUMMARY_KEY ? (
-                  <SummaryTab perCorridorRecords={perCorridorRecords} config={config} isEn={isEn} reportWindow={reportWindow} />
+                  <SummaryTab perCorridorRecords={perCorridorRecords} config={config} isEn={isEn} isDark={isDark} reportWindow={reportWindow} />
                 ) : activeCorridor && activeData ? (
                   activeData.hasData ? (
                     <CorridorReport
@@ -484,10 +486,11 @@ function CorridorReport(props: {
 
 // ─── Summary tab body ───────────────────────────────────────────────────────
 
-function SummaryTab({ perCorridorRecords, config, isEn, reportWindow }: {
+function SummaryTab({ perCorridorRecords, config, isEn, isDark, reportWindow }: {
   perCorridorRecords: Record<string, RateRecord[]>;
   config: ReportConfig;
   isEn: boolean;
+  isDark: boolean;
   reportWindow: { from: string; to: string };
 }) {
   const matrix = useMemo(() => {
@@ -590,6 +593,139 @@ function SummaryTab({ perCorridorRecords, config, isEn, reportWindow }: {
             })}
           </tbody>
         </table>
+      </div>
+      <WeeklyPriceGapCharts perCorridorRecords={perCorridorRecords} config={config} isEn={isEn} isDark={isDark} />
+    </div>
+  );
+}
+
+// ─── Weekly price-gap charts (small multiples, one per corridor) ────────────
+
+function PriceGapTooltip({ active, payload, isEn }: {
+  active?: boolean;
+  payload?: readonly { payload: GapEntry }[];
+  isEn: boolean;
+}) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  if (d.operator === 'GME') {
+    return (
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm shadow-xl">
+        <p className="font-semibold text-red-500">★ GME</p>
+        <p className="text-slate-500 dark:text-slate-400 text-xs">{isEn ? 'baseline' : '기준'}</p>
+      </div>
+    );
+  }
+  return (
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm shadow-xl">
+      <p className="font-semibold">{d.operator}</p>
+      <p className={d.avgGap < 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-500'}>
+        {isEn ? 'Avg gap vs GME' : 'GME 대비 평균 가격차'}{' '}
+        <span className="font-mono">{d.avgGap > 0 ? '+' : ''}{d.avgGap.toLocaleString('ko-KR')}{isEn ? ' KRW' : '원'}</span>
+      </p>
+      <p className="text-slate-400 text-xs mt-0.5">{d.count} {isEn ? 'snapshots' : '스냅샷'}</p>
+    </div>
+  );
+}
+
+function WeeklyPriceGapCharts({ perCorridorRecords, config, isEn, isDark }: {
+  perCorridorRecords: Record<string, RateRecord[]>;
+  config: ReportConfig;
+  isEn: boolean;
+  isDark: boolean;
+}) {
+  const ct = {
+    grid: isDark ? '#1e293b' : '#e2e8f0',
+    tick: isDark ? '#64748b' : '#94a3b8',
+    axisLine: isDark ? '#1e293b' : '#e2e8f0',
+    yLabel: isDark ? '#cbd5e1' : '#475569',
+    refLine: isDark ? '#334155' : '#cbd5e1',
+  };
+
+  const charts = useMemo(() => config.corridors.map(corridorKey => {
+    const [country, method] = corridorKey.split('||');
+    const records = perCorridorRecords[corridorKey] ?? [];
+    const operators = config.ops[corridorKey] ?? [];
+    const data = computeAvgPriceGaps(records, operators);
+    return { corridorKey, country, method, data };
+  }), [perCorridorRecords, config]);
+
+  return (
+    <div className="space-y-4 pt-4">
+      <div>
+        <h2 className="text-lg font-bold">{isEn ? 'Weekly Avg Price Gap vs GME (KRW)' : '주간 GME 대비 평균 가격차 (KRW)'}</h2>
+        <div className="text-xs text-slate-500 dark:text-slate-400">
+          {isEn ? 'Average KRW difference between each competitor and GME over the past 7 days' : '지난 7일간 각 경쟁사와 GME의 평균 KRW 가격차'}
+        </div>
+        <div className="flex flex-wrap items-center gap-4 mt-1.5 text-xs text-slate-500 dark:text-slate-500">
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500 inline-block" />{isEn ? 'GME cheaper (wins)' : 'GME 저렴 (우위)'}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{isEn ? 'Competitor cheaper (GME loses)' : '경쟁사 저렴 (GME 열위)'}</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {charts.map(({ corridorKey, country, method, data }) => (
+          <div key={corridorKey} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+            <h3 className="text-sm font-semibold mb-2">{country} — {method}</h3>
+            {data.length === 0 ? (
+              <div className="h-24 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">
+                {isEn ? 'No price-gap data' : '가격차 데이터 없음'}
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={Math.max(120, data.length * 38)}>
+                <BarChart data={data} layout="vertical" margin={{ top: 0, right: 70, left: 5, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
+                  <XAxis
+                    type="number"
+                    tickFormatter={(v: number) => `${v > 0 ? '+' : ''}${(v / 1000).toFixed(1)}K`}
+                    tick={{ fill: ct.tick, fontSize: 11 }}
+                    axisLine={{ stroke: ct.axisLine }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="operator"
+                    tick={(props: { x: string | number; y: string | number; payload: { value: string } }) => {
+                      const isGME = props.payload.value === 'GME';
+                      return (
+                        <text x={props.x} y={props.y} dy={4} textAnchor="end" fontSize={12}
+                          fill={isGME ? '#ef4444' : ct.yLabel}
+                          fontWeight={isGME ? 700 : 400}
+                        >
+                          {isGME ? '★ GME' : props.payload.value}
+                        </text>
+                      );
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={90}
+                  />
+                  <Tooltip content={(props) => <PriceGapTooltip {...props} isEn={isEn} />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
+                  <ReferenceLine x={0} stroke={ct.refLine} strokeWidth={1.5} label={{ value: 'GME', position: 'top', fill: '#ef4444', fontSize: 11, fontWeight: 700 }} />
+                  <Bar dataKey="avgGap" radius={[0, 4, 4, 0]}>
+                    {data.map((entry, i) => (
+                      <Cell key={i} fill={entry.operator === 'GME' ? '#ef4444' : entry.avgGap < 0 ? '#22c55e' : '#f97316'} />
+                    ))}
+                    <LabelList
+                      dataKey="avgGap"
+                      content={(props) => {
+                        const { x, y, width, height, value } = props as { x?: string | number; y?: string | number; width?: string | number; height?: string | number; value?: string | number };
+                        const nx = Number(x), ny = Number(y), nw = Number(width), nh = Number(height), nv = Number(value);
+                        if (isNaN(nv) || isNaN(nx)) return null;
+                        const label = `${nv > 0 ? '+' : ''}${nv.toLocaleString('ko-KR')}`;
+                        const labelX = nw >= 0 ? nx + nw + 4 : nx + 4;
+                        return (
+                          <text x={labelX} y={ny + nh / 2} dy={4} fontSize={10} fill={isDark ? '#f1f5f9' : '#1e293b'} fontWeight={700} textAnchor="start">
+                            {label}
+                          </text>
+                        );
+                      }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
