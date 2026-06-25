@@ -25,6 +25,7 @@ export async function PUT(req: NextRequest) {
   if (body.enabled_corridors !== undefined) update.enabled_corridors = body.enabled_corridors;
   if (body.report_corridors !== undefined) update.report_corridors = body.report_corridors;
   if (body.report_corridor_operators !== undefined) update.report_corridor_operators = body.report_corridor_operators;
+  if (body.report_corridor_price_gap_range !== undefined) update.report_corridor_price_gap_range = body.report_corridor_price_gap_range;
 
   const { data, error } = await supabase
     .from('summary_config')
