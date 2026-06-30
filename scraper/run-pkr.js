@@ -2,7 +2,7 @@
  * Pakistan (PKR) 스크래퍼 — 100,000 PKR 기준
  * 실행: node --env-file=.env run-pkr.js
  *
- * 지원 사업자: GME, GMoneyTrans, Hanpass, JRF
+ * 지원 사업자: GME, GMoneyTrans, Hanpass, JRF, E9Pay
  */
 import { chromium } from 'playwright';
 import { getRunHour, extractNumber, withRetry } from './lib/browser.js';
@@ -78,6 +78,41 @@ async function scrapeHanpass() {
     send_amount_krw: total - fee, service_fee: fee, total_sending_amount: total };
 }
 
+// ─── E9Pay (browser — reverse mode, PK_PKR) ────────────────────────────────────
+async function scrapeE9pay(browser) {
+  const page = await browser.newPage();
+  try {
+    await page.goto('https://www.e9pay.co.kr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(3000);
+    await page.waitForSelector('#PK_PKR', { state: 'attached', timeout: 10000 });
+    await page.evaluate(() => {
+      const radio = document.querySelector('#PK_PKR');
+      radio.checked = true;
+      radio.dispatchEvent(new Event('change', { bubbles: true }));
+      radio.dispatchEvent(new Event('click',  { bubbles: true }));
+    });
+    await page.waitForTimeout(1000);
+    await page.waitForSelector('#reverse', { timeout: 5000 });
+    await page.click('#reverse'); await page.waitForTimeout(500);
+    await page.waitForSelector('#receive-money', { timeout: 5000 });
+    await page.click('#receive-money', { clickCount: 3 });
+    await page.fill('#receive-money', String(AMOUNT));
+    await page.dispatchEvent('#receive-money', 'blur');
+    let total = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(1000);
+      const raw = await page.$eval('#send-money', el => el.value).catch(() => null);
+      total = extractNumber(raw);
+      if (total && total !== 1_000_000) break;
+    }
+    if (!total || total === 1_000_000) throw new Error('총 송금액 계산 대기 초과 (기본값 반환됨)');
+    const feeRaw = await page.$eval('#remit-fee', el => el.textContent || el.value).catch(() => null);
+    const fee = extractNumber(feeRaw) ?? 0;
+    return { operator: 'E9Pay', receiving_country: COUNTRY, receive_amount: AMOUNT,
+      send_amount_krw: total, service_fee: fee, total_sending_amount: total + fee };
+  } finally { await page.close(); }
+}
+
 // ─── JRF — 공유 모듈 scrapers/jrf.js 사용 ───────────────────────────────────────
 
 // ─── 스크래퍼 목록 ────────────────────────────────────────────────────────────
@@ -85,6 +120,7 @@ const SCRAPERS = [
   { name: 'GME',         fn: () => withRetry(scrapeGme), needsBrowser: false },
   { name: 'GMoneyTrans', fn: scrapeGmoneytrans,  needsBrowser: false },
   { name: 'Hanpass',     fn: () => withRetry(scrapeHanpass), needsBrowser: false },
+  { name: 'E9Pay',       fn: (b) => withRetry(() => scrapeE9pay(b)), needsBrowser: true  },
   { name: 'JRF',         fn: (b) => withRetry(() => scrapeJrf(b, { countryCode: 'PK', country: COUNTRY, amount: AMOUNT, feeFallback: 3000 })), needsBrowser: true  },
 ];
 
